@@ -138,6 +138,9 @@ inline vector<string> wrapText(string text, size_t max_width)
 		for (string s : tmp) result.push_back(s);
 		start = end;
 	}
+	//	i hate this
+	if (result.size() > 0)
+		result[0] = string(1, text[0]) + result[0];
 	return result;
 }
 
@@ -498,9 +501,7 @@ COMPONENT_STUB_2(ImageView, uint8_t*, grayscale_image, Coordinate, image_size)
 	GETMINSIZE_STUB(1, 1);
 };
 
-// TODO: move this into its own repository
 // TODO: more error checking (checking for bounds size, etc)
-// TODO: fix first char of text area missing
 // TODO: add lots of comments
 // TODO: tab menu, tabs
 // TODO: reading UI layout from file

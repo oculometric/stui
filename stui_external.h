@@ -6,7 +6,7 @@
 namespace stui
 {
 
-static void reportError(string input, size_t char_index, string summary)
+inline void reportError(string input, size_t char_index, string summary)
 {
 	throw runtime_error("STUI format document parsing error:\n\t" + summary 
 														 + "\n\tat character " + to_string(char_index) 
@@ -16,7 +16,7 @@ static void reportError(string input, size_t char_index, string summary)
 }
 
 // TODO: implement quotation escape sequence (strip, extract, matching closing brace, split comma list)
-static string stripNonCoding(string input)
+inline string stripNonCoding(string input)
 {
 	string result;
 
@@ -55,7 +55,7 @@ static string stripNonCoding(string input)
 	return result;
 }
 
-static string extractString(string input, size_t& first_char)
+inline string extractString(string input, size_t& first_char)
 {
 	if (input[first_char] != '"')
 		reportError(input, first_char, "character is not the start of a string block");
@@ -70,7 +70,7 @@ static string extractString(string input, size_t& first_char)
 	return substr;
 }
 
-static size_t findMatchingClosingBrace(string input, size_t opening_brace)
+inline size_t findMatchingClosingBrace(string input, size_t opening_brace)
 {
 	vector<char> bracket_history;
 

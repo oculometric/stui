@@ -1,5 +1,8 @@
 ﻿#pragma once
 
+
+// TODO: add a proper license
+
 #include <string>
 #include <format>
 #include <iostream>
@@ -51,21 +54,77 @@ public:\
 namespace stui
 {
 
+/**
+ * @brief two-dimensional integer coordinate pair.
+ * 
+ **/
 struct Coordinate
 {
 	int x, y;
 };
 
+/**
+ * @brief base class from which all UI components inherit.
+ * 
+ * all `Component` subclasses must override the `render`, `getMaxSize`, and 
+ * `getMinSize` methods (ideally using the relevant macros) 
+ **/
 class Component
 {
 public:
+	/**
+	 * @brief draws the `Component` into a character buffer, with a specified size.
+	 * 
+	 * implementations should assume that the `output_buffer` has been allocated to be the correct
+	 * `size`, but should also check that any drawing is performed within the limits of the `size`
+	 * (otherwise you'll corrupt the heap, yippee!).
+	 * 
+	 * @param output_buffer buffer allocated by the caller to be drawn into. ordered left
+	 * to right, top to bottom
+	 * @param size size of the buffer
+	 **/
 	virtual inline void render(char* output_buffer, Coordinate size) { }
+	
+	/**
+	 * @brief returns the maximum desired size that this component should be given.
+	 * 
+	 * note that the component may still be givena buffer larger than this size, so this should 
+	 * be handled if appropriate in `render`. either or both of these values can be given the 
+	 * value `-1` to indicate no maximum size in that dimension.
+	 * 
+	 * @returns a `Coordinate` representing the maximum size for the `Component`
+	 **/
 	virtual inline Coordinate getMaxSize() { return { 0, 0 }; }
+
+	/**
+	 * @brief returns the minimum size that this component should be given to draw into.
+	 *
+	 * functions which call `render` will try to ensure all components have at least
+	 * their minimum size requirements met, otherwise if not enough space cannot be allocated,
+	 * the `Component` will not be rendered. this function should never return negative values
+	 * for either dimension.
+	 *
+	 * @returns a `Coordinate` representing the minimum size for the `Component`
+	 **/
 	virtual inline Coordinate getMinSize() { return { 0, 0 }; }
 };
 
+/**
+ * @brief draws a box outline using IBM box drawing characters from standard extended ASCII.
+ * 
+ * it's up to the caller to ensure `buffer` has enough space.
+ * 
+ * @param box_origin offset of the start of the box from the top-left corner of the buffer.
+ * may be negative, though areas of the box outside the buffer won't be drawn
+ * @param box_size size of the box. must be positive in both axes. can result in a box which
+ * ends outside the bounds of the buffer, but areas outside won't be drawn
+ * @param buffer pointer to a character array ordered left-to-right, top-to-bottom
+ * @param buffer_size describes the size of the allocated buffer, must match with the size of
+ * the `buffer`
+ **/
 inline void drawBox(Coordinate box_origin, Coordinate box_size, char* buffer, Coordinate buffer_size)
 {
+	if (buffer == nullptr) return;
 	if (box_origin.y >= 0 && box_origin.y < buffer_size.y)
 	{
 		for (int x = box_origin.x; x < box_origin.x + box_size.x; x++)
@@ -101,6 +160,7 @@ inline void drawBox(Coordinate box_origin, Coordinate box_size, char* buffer, Co
 	}
 }
 
+
 inline vector<string> wrapTextInner(string text, size_t max_width)
 {
 	vector<string> lines;
@@ -126,6 +186,17 @@ inline vector<string> wrapTextInner(string text, size_t max_width)
 	return lines;
 }
 
+/**
+ * @brief converts a single string into an array of lines of a given maximum length.
+ * 
+ * respects line breaks, uses word-wrapping where possible, or forcibly breaks words 
+ * if necessary.
+ * 
+ * @param text string on which to perform wrapping
+ * @param max_width maximum number of characters to place in any row
+ * 
+ * @returns list of individual lines of text
+ **/
 inline vector<string> wrapText(string text, size_t max_width)
 {
 	vector<string> result;

@@ -21,7 +21,7 @@ setup is pretty simple, you simply start creating the `Component`s you want, and
 int main()
 {
     // construct a text widget with the text "Hello, World!", and using with center alignment
-    stui::Text text_widget("Hello, World!", 0);
+    stui::Text text_widget("Hello, World!", -1);
 
     // display loop
     while (true)
@@ -33,7 +33,7 @@ int main()
 ```
 when compiled, this should produce output looking something like this, depending on your terminal size:
 ```
-    Hello, World!    
+Hello, World!    
 
 
 
@@ -66,7 +66,7 @@ now, you may want to limit your framerate to something reasonable. after all, we
 ```
 now we'll wait for up to 1/12 of a second before rendering the next frame.
 
-the next step is to build a more complex UI. some `Component`s will give us the ability to have child components, such as the `VerticalBox` component:
+the next step is to build a more complex UI. some `Component`s will give us the ability to have child `Component`s, such as the `VerticalBox` `Component`s:
 ```
 // ...
     stui::Text text_widget("Hello, World!", 0);
@@ -82,7 +82,7 @@ the next step is to build a more complex UI. some `Component`s will give us the 
 ```
 the next step is receiving input from the user, which isn't implemented yet. // TODO: input documentation
 
-now you're ready to step out on your own. there's a selection of `Component`s to play with. remember that you can change the state of any of your `Components` at any time, and the result will be visible the next time you call `render`.
+now you're ready to step out on your own. there's a selection of `Component`s to play with. remember that you can change the state of any of your `Component`s at any time, and the result will be visible the next time you call `render`.
 
 ## Component Reference
 
@@ -90,25 +90,25 @@ if you want to know how to use each `Component` class, look in [stui.h](stui.h).
 
 ## LayoutScript Reference
 
-LayoutScript is a simple, structured language, based vaguely on C syntax. it consists of a tree of Component definitions. it is loaded by the `PageManager` class which also manages all the resources of the Page for you.
+LayoutScript is a simple, structured language for defining the layout of a user interface page, based vaguely on C syntax. it consists of a tree of `Component` definitions. it is loaded by the `PageManager` class which also manages all the resources of the Page for you.
 
 ### LayoutScript Syntax Summary
 
-components are defined as follows:
+`Component`s are defined as follows:
 ```
 Text : "text_widget" ("Hello, World!, -1)
 ```
 easy right? here's a breakdown:
 
-`Text` - class name of the Component type being defined
+`Text` - class name of the `Component` type being defined
 
-`"text_widget"` - string identifier for the Component
+`"text_widget"` - string identifier for the `Component`s
 
 `("Hello, World!, -1)` - initialiser parameter list, consisting of a string and an integer
 
-in this case, we're creating a Text component, with the identifier _text_widget_, and initialising it with the text "Hello, World!", and alignment of -1 (i.e. left-aligned).
+in this case, we're creating a Text `Component`, with the identifier _text_widget_, and initialising it with the text "Hello, World!", and alignment of -1 (i.e. left-aligned).
 
-some components take other components as initialisation arguments, in which case we can do something like:
+some `Component`s take other `Component`s as initialisation arguments, in which case we can do something like:
 ```
 SizeLimiter 
 (
@@ -116,13 +116,13 @@ SizeLimiter
     [ 5, 1 ]
 )
 ```
-as you can see, we can nest component definitions, and the inner components will be handled recursively.
+as you can see, we can nest component definitions, and the inner `Component`s will be handled recursively.
 
 another thing you may notice here is that the `SizeLimiter` does not have an identifier. this is perfectly legal, as the loader will generate a unique name for it at load time, but it will make it hard to get access to from the C++ side if we don't know its name.
 
 we've also used another argument type here: a `Coordinate`, as specified by the `[ x, y ]` syntax.
 
-some Components require arrays for initialisation. we can do that too!
+some `Component`s require arrays for initialisation. we can do that too!
 ```
 VerticalBox
 ({
@@ -142,13 +142,13 @@ in this example we've also discovered another fundamental type: floating point n
 
 ### Component Identifiers
 
-indentifiers make it easy to reference elements defined in your layout file from within your C++ code. for instance, you might want to access our `"text_widget"` Component to change its text later.
+indentifiers make it easy to reference elements defined in your layout file from within your C++ code. for instance, you might want to access our `"text_widget"` `Component` to change its text later.
 
-for some components these are very important, as something like an `ImageView` can't be properly initialised in the layout file.
+for some `Component`s these are very important, as something like an `ImageView` can't be properly initialised in the layout file.
 
-however, identifiers are optional, and for components that you don't care about changing later (e.g. if you have a `HorizontalBox` which will always hold a text box and an image and will never have new Components added or removed, then it doesn't necessarily need an identifier). the loader will automatically assign unique identifiers to every Component that doesn't have one specified, in the format `"__component_n"` where `n` is the next number after the previous identifier.
+however, identifiers are optional, and for `Component`s that you don't care about changing later (e.g. if you have a `HorizontalBox` which will always hold a text box and an image and will never have new `Component`s added or removed, then it doesn't necessarily need an identifier). the loader will automatically assign unique identifiers to every `Component` that doesn't have one specified, in the format `"__component_n"` where `n` is the next number after the previous identifier.
 
-the loader will also automatically resolve naming collisions: if you have two Components with the same identifier, one will have its identifier replaced with a unique identifier in the format above.
+the loader will also automatically resolve naming collisions: if you have two `Component`s with the same identifier, one will have its identifier replaced with a unique identifier in the format above.
 
 ### Fundamental Types
 

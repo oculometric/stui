@@ -2,14 +2,14 @@
 
 ## Misc
 - [ ] add a proper license, including to the top of each header
-- [ ] make some demo files (.stui, .cpp)
+- [ ] make some demo files (.layout, .cpp)
 - [ ] test under linux (and mac, preferably)
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions
 - [ ] implement all the various functions for the PageManager
 - [ ] complete ability to read UI from file
-- [ ] change from .stui to .layout
+- [x] change from .stui to .layout
 
 ## New Components
 - [ ] list view

@@ -6,7 +6,6 @@
 namespace stui
 {
 
-// TODO: all of this
 class PageManager
 {
 private:
@@ -41,7 +40,7 @@ private:
 
 	inline string getUniqueName();
 
-	inline void reportError(string input, size_t char_index, string summary)
+	static inline void reportError(string input, size_t char_index, string summary)
 	{
 		throw runtime_error("STUI format document parsing error:\n\t" + summary
 			+ "\n\tat character " + to_string(char_index)
@@ -50,8 +49,7 @@ private:
 			+ "\n\tterminating parsing.");
 	}
 
-	// TODO: implement quotation escape sequence (strip, extract, matching closing brace, split comma list)
-	inline string stripNonCoding(string input)
+	static inline string stripNonCoding(string input)
 	{
 		string result;
 
@@ -90,7 +88,7 @@ private:
 		return result;
 	}
 
-	inline string extractString(string input, size_t& first_char)
+	static inline string extractString(string input, size_t& first_char)
 	{
 		if (input[first_char] != '"')
 			reportError(input, first_char, "character is not the start of a string block");
@@ -105,7 +103,7 @@ private:
 		return substr;
 	}
 
-	inline size_t findMatchingClosingBrace(string input, size_t opening_brace)
+	static inline size_t findMatchingClosingBrace(string input, size_t opening_brace)
 	{
 		vector<char> bracket_history;
 
@@ -151,7 +149,7 @@ private:
 	}
 
 	// TODO: fix broken error indices in functions like this
-	inline vector<pair<size_t, string>> splitCommaSeparatedList(string input)
+	static inline vector<pair<size_t, string>> splitCommaSeparatedList(string input)
 	{
 		bool is_inside_string = false;
 		int curly_brace_depth = 0;
@@ -210,7 +208,7 @@ private:
 		return result;
 	}
 
-	inline bool isAlphabetic(char c)
+	static inline bool isAlphabetic(char c)
 	{
 		if (c >= 'a' && c <= 'z') return true;
 		if (c >= 'A' && c <= 'Z') return true;
@@ -247,7 +245,7 @@ private:
 		vector<Component*> component_arr;
 	};
 
-	inline Component* decodeComponentString(string input)
+	static inline Component* decodeComponentString(string input)
 	{
 		bool has_name = true;
 		size_t i = 0;
@@ -323,7 +321,7 @@ private:
 		{
 			switch (arguments[i].type)
 			{
-			// TODO: implement these
+			// TODO: implement functions for decoding argument types
 			case INT: arguments[i].int_val = decodeIntArg(split_params[i].second); break;
 			case STRING: arguments[i].string_val = decodeStringArg(split_params[i].second); break;
 			case COORDINATE: arguments[i].coordinate_val = decodeCoordArg(split_params[i].second); break;
@@ -338,7 +336,7 @@ private:
 				reportError(input, split_params[i].first, "what???");
 			}
 		}
-		// TODO: here - construct the component
+		// TODO: construct the component and add it to the registry
 
 		return nullptr;
 	}

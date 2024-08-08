@@ -112,19 +112,20 @@ public:
 /**
  * @brief draws a box outline using IBM box drawing characters from standard extended ASCII.
  * 
- * it's up to the caller to ensure `buffer` has enough space.
+ * it's up to the caller to ensure `buffer` is allocated to the size specified by `buffer_size`
  * 
  * @param box_origin offset of the start of the box from the top-left corner of the buffer.
  * may be negative, though areas of the box outside the buffer won't be drawn
  * @param box_size size of the box. must be positive in both axes. can result in a box which
  * ends outside the bounds of the buffer, but areas outside won't be drawn
  * @param buffer pointer to a character array ordered left-to-right, top-to-bottom
- * @param buffer_size describes the size of the allocated buffer, must match with the size of
- * the `buffer`
+ * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
  **/
 inline void drawBox(Coordinate box_origin, Coordinate box_size, char* buffer, Coordinate buffer_size)
 {
 	if (buffer == nullptr) return;
+	if (box_size.x <= 0 || box_size.y <= 0) return;
+
 	if (box_origin.y >= 0 && box_origin.y < buffer_size.y)
 	{
 		for (int x = box_origin.x; x < box_origin.x + box_size.x; x++)
@@ -159,7 +160,6 @@ inline void drawBox(Coordinate box_origin, Coordinate box_size, char* buffer, Co
 		}
 	}
 }
-
 
 inline vector<string> wrapTextInner(string text, size_t max_width)
 {
@@ -215,8 +215,31 @@ inline vector<string> wrapText(string text, size_t max_width)
 	return result;
 }
 
+/**
+ * @brief draws a block of text into a buffer.
+ * 
+ * supports either single-line drawing (out-of-bounds characters are skipped), or
+ * multi-line wrapped drawing, where lines are wrapped to fit into the box specified
+ * by `max_size`. it's up to the caller to ensure `buffer` is allocated to the size
+ * specified by `buffer_size`. newlines, nulls or other special characters should not be
+ * passed into this function, as it will fuck up the output stage at the end of rendering.
+ * 
+ * @param text text to draw to the buffer
+ * @param wrap enable line wrapping to fit text horizontally in the box; if disabled,
+ * single-line mode will be used instead
+ * @param text_origin position in the output buffer of the top-left-most corner of the
+ * text
+ * @param max_size maximum size of the drawn text, measured from the `text_origin`. must 
+ * be positive in both dimensions. text that runs outside this area is not drawn, and 
+ * wrapped text will be wrapped to fit inside this horizontally
+ * @param buffer pointer to a character array ordered left-to-right, top-to-bottom
+ * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
+ **/
 inline void drawText(string text, bool wrap, Coordinate text_origin, Coordinate max_size, char* buffer, Coordinate buffer_size)
 {
+	if (buffer == nullptr) return;
+	if (buffer_size.x <= 0 || buffer_size.y <= 0) return;
+
 	if (wrap)
 	{
 		vector<string> lines = wrapText(text, min(max_size.x, buffer_size.x - text_origin.x));
@@ -245,8 +268,24 @@ inline void drawText(string text, bool wrap, Coordinate text_origin, Coordinate 
 	}
 }
 
-inline char* makeBuffer(size_t size)
+/**
+ * @brief simplifies allocation of 2D text buffers.
+ * 
+ * automatically clears the buffer with spaces and adds an extra null-terminator on the end. this
+ * function allocates memory with `new`, and callers are responsible for `delete[]`ing the buffers
+ * after it is no longer being used.
+ * 
+ * @param buffer_size two-dimensional size of the buffer required. must be positive and non-zero in
+ * both axes
+ * 
+ * @returns pointer to newly-allocated block of memory, or `nullptr` if the buffer size would be
+ * less than 1
+ **/
+inline char* makeBuffer(Coordinate buffer_size)
 {
+	if (buffer_size.x <= 0 || buffer_size.y <= 0) return nullptr;
+
+	size_t size = buffer_size.x * buffer_size.y;
 	char* buf = new char[size + 1];
 	memset(buf, ' ', size);
 	buf[size] = '\0';
@@ -254,18 +293,36 @@ inline char* makeBuffer(size_t size)
 	return buf;
 }
 
-inline int getConstrainedSize(int available, int max, int min)
-{
-	int size = 0;
-	if (max == -1) size = available;
-	else size = min(available, max);
-
-	if (size < min) return -1;
-	else return max(size, min);
-}
-
+/**
+ * @brief copy an area from one buffer to another.
+ * 
+ * useful for transferring an area into a larger, differently-shaped buffer for combining elements.
+ * it's up to the caller to ensure `src` is allocated to the size specified by `src_size`, and to
+ * ensure 'dst' is allocated to the size specified by `dst_size`. also, this function does not
+ * clamp the bounds of the box, so trying to copy a box which overflows outside `src` or `dst`, or
+ * both at once, is likely to corrupt the heap or cause an exception.
+ * 
+ * @param src source buffer to copy characters from. must be appropriately sized and allocated, see
+ * above
+ * @param src_size size of the source buffer, must match with the allocated size of `src`
+ * @param src_offset position of the top-left corner of the box to copy in the source buffer. must
+ * be positive in both dimensions
+ * @param area_size size of the area to be copied between buffers. must fit inside both buffers
+ * @param dst destination buffer to copy characters into. must be appropriately sized and allocated,
+ * see above
+ * @param dst_size size of the destination buffer, must match with the allocated size of `dst`
+ * @param dst_offset position of the top-left corner of the box to copy to in the destination buffer.
+ * must be positive in both dimensions
+ **/
 inline void copyBox(const char* src, Coordinate src_size, Coordinate src_offset, Coordinate area_size, char* dst, Coordinate dst_size, Coordinate dst_offset)
 {
+	if (src == nullptr || dst == nullptr) return;
+	if (area_size.x <= 0 || area_size.y <= 0) return;
+	if (src_offset.x < 0 || src_offset.y < 0) return;
+	if (dst_offset.x < 0 || dst_offset.y < 0) return;
+	if (src_offset.x + area_size.x > src_size.x || src_offset.y + area_size.y > src_size.y) return;
+	if (dst_offset.x + area_size.x > dst_offset.x || dst_offset.y + area_size.y > dst_offset.y) return;
+
 	for (int y = 0; y < area_size.y; y++)
 	{
 		memcpy(dst + dst_offset.x + ((y + dst_offset.y) * dst_size.x), src + src_offset.x + ((y + src_offset.y) * src_size.x), area_size.x);
@@ -365,7 +422,7 @@ COMPONENT_STUB_1(VerticalBox, vector<Component*>, children)
 		for (size_t i = 0; i < children.size(); i++)
 		{
 			Coordinate component_size{ children[i]->getMaxSize().x == -1 ? size.x : min(size.x, children[i]->getMaxSize().x), calculated_heights[i] };
-			char* component_buffer = makeBuffer(component_size.x * component_size.y);
+			char* component_buffer = makeBuffer(component_size);
 			children[i]->render(component_buffer, component_size);
 			copyBox(component_buffer, component_size, Coordinate{ 0,0 }, component_size, output_buffer, size, Coordinate{ 0,y_offset });
 			delete[] component_buffer;
@@ -441,7 +498,7 @@ COMPONENT_STUB_1(HorizontalBox, vector<Component*>, children)
 		for (size_t i = 0; i < children.size(); i++)
 		{
 			Coordinate component_size{ calculated_widths[i], children[i]->getMaxSize().y == -1 ? size.y : min(size.y, children[i]->getMaxSize().y) };
-			char* component_buffer = makeBuffer(component_size.x * component_size.y);
+			char* component_buffer = makeBuffer(component_size);
 			children[i]->render(component_buffer, component_size);
 			copyBox(component_buffer, component_size, Coordinate{ 0,0 }, component_size, output_buffer, size, Coordinate{ x_offset,0 });
 			delete[] component_buffer;
@@ -590,14 +647,14 @@ public:
 		setCursorVisible(false);
 		Coordinate screen_size = getScreenSize();
 
-		char* root_staging_buffer = makeBuffer(screen_size.x * screen_size.y);
+		char* root_staging_buffer = makeBuffer(screen_size);
 
 		Coordinate root_component_size
 		{
 			getConstrainedSize(screen_size.x, root_component->getMaxSize().x, root_component->getMinSize().x),
 			getConstrainedSize(screen_size.y, root_component->getMaxSize().y, root_component->getMinSize().y)
 		};
-		char* root_component_buffer = makeBuffer(root_component_size.x * root_component_size.y);
+		char* root_component_buffer = makeBuffer(root_component_size);
 		root_component->render(root_component_buffer, root_component_size);
 		copyBox(root_component_buffer, root_component_size, Coordinate{ 0,0 }, root_component_size, root_staging_buffer, screen_size, Coordinate{ 0,0 });
 		delete[] root_component_buffer;
@@ -629,6 +686,16 @@ public:
 	}
 
 private:
+	static inline int getConstrainedSize(int available, int max, int min)
+	{
+		int size = 0;
+		if (max == -1) size = available;
+		else size = min(available, max);
+
+		if (size < min) return -1;
+		else return max(size, min);
+	}
+
 	static inline void clear()
 	{
 		OUTPUT_TARGET << ANSI_CLEAR_SCREEN << ANSI_CLEAR_SCROLL;

@@ -18,10 +18,9 @@ public:
 
 	inline bool ensureIntegrity();
 	inline bool readFromFile(string formatting_file);
-	inline bool writeToFile(string formatting_file);
 
-	inline Component*& operator[](size_t page);
-	inline Component*& operator[](string identifier);
+	inline Component* operator[](size_t page);
+	inline Component* operator[](string identifier);
 
 	inline void registerComponent(Component* component, string identifier);
 	inline void unregisterComponent(string identifier);

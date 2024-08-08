@@ -34,6 +34,29 @@ namespace stui
 {
 
 /**
+ * @brief removes any invalid characters from a string, as well as other
+ * specified illegal characters
+ * 
+ * @param str string to remove invalid characters from
+ * @param others array of additional characters that should be excluded
+ * @return repaired string 
+ **/
+inline string stripNullsAndMore(string str, const char* others)
+{
+    string result = "";
+    for (char c : str)
+    {
+        if (c < ' ') continue;
+		bool is_valid = true;
+		for (size_t i = 0; others[i] != '\0'; i++)
+			if (c == others[i]) is_valid = false;
+		if (is_valid)
+        	result += c;
+    }
+    return result;
+}
+
+/**
  * @brief two-dimensional integer coordinate pair.
  * 
  **/
@@ -330,7 +353,6 @@ public:
 	int alignment;
 	
 	Text(string _text, int _alignment) : text(_text), alignment(_alignment) { }
-// TODO: add newline trimming for input string
 	RENDER_STUB
 	{
 		if (size.y < 1) return;
@@ -343,7 +365,7 @@ public:
 		else if (alignment > 1)
 			offset.x = static_cast<int>(size.x - text.length());
 
-		drawText(text, false, offset, Coordinate{ static_cast<int>(text.length()), 1 }, output_buffer, size);
+		drawText(stripNullsAndMore(text, "\n\t"), false, offset, Coordinate{ static_cast<int>(text.length()), 1 }, output_buffer, size);
 	}
 
 	GETMAXSIZE_STUB { return Coordinate{ -1, 1 }; }

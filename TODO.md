@@ -12,6 +12,7 @@
 - [ ] change from .stui to .layout
 
 ## New Components
+- [ ] list view
 - [ ] 3D object renderer component
 - [ ] tab menu to switch between pages (accessed via number keys)
 - [ ] button

@@ -329,8 +329,12 @@ inline void copyBox(const char* src, Coordinate src_size, Coordinate src_offset,
 	}
 }
 
-// TODO: add text alignment (left, center, right)
+/**
+ * @brief single-line text box.
+ **/
 COMPONENT_STUB_1(Text, string, text)
+// TODO: add text alignment (left, center, right)
+// TODO: add newline trimming for input string
 	RENDER_STUB
 	{
 		drawText(text, false, Coordinate{ 0,0 }, Coordinate{ size.x, 1 }, output_buffer, size);
@@ -340,6 +344,9 @@ COMPONENT_STUB_1(Text, string, text)
 	GETMINSIZE_STUB(static_cast<int>(text.length()), 1);
 };
 
+/**
+ * @brief multi-line wrapping text area, with a box outline.
+ **/
 COMPONENT_STUB_1(TextArea, string, text)
 	RENDER_STUB
 	{
@@ -351,10 +358,15 @@ COMPONENT_STUB_1(TextArea, string, text)
 	GETMINSIZE_STUB(3, 3);
 };
 
-COMPONENT_STUB_1(ProgressBar, float, percentage)
+/**
+ * @brief linear progress bar.
+ * 
+ * progress is expressed as a `fraction` between 0 and 1.
+ **/
+COMPONENT_STUB_1(ProgressBar, float, fraction)
 	RENDER_STUB
 	{
-		int completed = (int)round((float)size.x * percentage);
+		int completed = (int)round((float)size.x * fraction);
 			
 		for (int i = 0; i < size.x; i++)
 			output_buffer[i] = i < completed ? '\xdb' : '\xb0';
@@ -364,6 +376,12 @@ COMPONENT_STUB_1(ProgressBar, float, percentage)
 	GETMINSIZE_STUB(1, 1);
 };
 
+/**
+ * @brief simple activity spinner.
+ * 
+ * described by its `state` (effectively the current animation frame index), and its `type`
+ * (style setting between 0 and 3 inclusive).
+ **/
 COMPONENT_STUB_2(Spinner, size_t, state, int, type)
 	RENDER_STUB
 	{
@@ -387,6 +405,13 @@ COMPONENT_STUB_2(Spinner, size_t, state, int, type)
 	GETMINSIZE_STUB(1, 1);
 };
 
+/**
+ * @brief vertical layout box containing a list of child widgets.
+ * 
+ * the layout algorithm will attempt to meet the minimum sizes of all children first, then
+ * expand each element one-by-one until they either meet their max height or there's no more
+ * space to expand into. ensures minimum widths for all elements.
+ **/
 COMPONENT_STUB_1(VerticalBox, vector<Component*>, children)
 	RENDER_STUB
 	{	
@@ -463,6 +488,13 @@ COMPONENT_STUB_1(VerticalBox, vector<Component*>, children)
 	}
 };
 
+/**
+ * @brief horizontal layout box containing a list of child widgets.
+ * 
+ * the layout algorithm will attempt ot meet the minimum sizes of all children first, then
+ * expand each element one-by-one until they either meet their max width or there's no more
+ * space to expand into. ensures minimum heights for all elements.
+ **/
 COMPONENT_STUB_1(HorizontalBox, vector<Component*>, children)
 	RENDER_STUB
 	{
@@ -539,6 +571,9 @@ COMPONENT_STUB_1(HorizontalBox, vector<Component*>, children)
 	}
 };
 
+/**
+ * @brief blank spacing element which fills a set amount of space horizontally.
+ **/
 COMPONENT_STUB_1(HorizontalSpacer, size_t, size)
 	RENDER_STUB
 	{ }
@@ -547,6 +582,9 @@ COMPONENT_STUB_1(HorizontalSpacer, size_t, size)
 	GETMINSIZE_STUB(static_cast<int>(size), 1);
 };
 
+/**
+ * @brief blank spacing element which fills a set amount of space vertically.
+ **/
 COMPONENT_STUB_1(VerticalSpacer, size_t, size)
 	RENDER_STUB
 	{ }
@@ -555,6 +593,14 @@ COMPONENT_STUB_1(VerticalSpacer, size_t, size)
 	GETMINSIZE_STUB(1, static_cast<int>(size));
 };
 
+/**
+ * @brief complex display element capable of visualising tree structures as a heirarchy
+ * with nested, expandable nodes.
+ * 
+ * nodes can be given a descriptive name, and an identifier (which could be used to
+ * index into your own array of proprietary nodes). expansion of nodes can be toggled;
+ * if a node is expanded then its children will be shown, otherwise they will not.
+ **/
 class TreeDisplay : public Component
 {
 public:
@@ -603,6 +649,14 @@ private:
 	}
 };
 
+/**
+ * @brief complex display element capable of displaying simple low-resolution grayscale
+ * images.
+ * 
+ * images will be displayed at twice the width they are stored at to compensate for the
+ * aspect ratio of terminal characters. each pixel should be described by a single byte.
+ * the size of the image buffer must be allocated to match the image size parameter.
+ **/
 COMPONENT_STUB_2(ImageView, uint8_t*, grayscale_image, Coordinate, image_size)
 	RENDER_STUB
 	{
@@ -630,6 +684,7 @@ COMPONENT_STUB_2(ImageView, uint8_t*, grayscale_image, Coordinate, image_size)
 };
 
 // TODO: more error checking (checking for bounds size, etc)
+// TODO: transition away from component stubs
 // TODO: add lots of comments
 // TODO: tab menu, tabs
 // TODO: reading UI layout from file

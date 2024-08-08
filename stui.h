@@ -344,9 +344,9 @@ COMPONENT_STUB_2(Text, string, text, int, alignment)
 		if (alignment < 0)
 			offset.x = 0;
 		else if (alignment == 0)
-			offset.x = (size.x - text.length()) / 2;
+			offset.x = static_cast<int>((size.x - text.length()) / 2);
 		else if (alignment > 1)
-			offset.x = size.x - text.length();
+			offset.x = static_cast<int>(size.x - text.length());
 
 		drawText(text, false, offset, Coordinate{ static_cast<int>(text.length()), 1 }, output_buffer, size);
 	}
@@ -713,7 +713,7 @@ COMPONENT_STUB_2(SizeLimiter, Component*, child, Coordinate, max_size)
 
 	GETMAXSIZE_STUB(max_size.x, max_size.y);
 
-	virtual inline Coordinate getMinSize()
+	virtual inline Coordinate getMinSize() override
 	{
 		if (child == nullptr) return Coordinate{ 0,0 };
 		return child->getMinSize();

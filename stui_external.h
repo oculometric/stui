@@ -234,12 +234,12 @@ private:
 
 	struct Argument
 	{
-		ArgumentType type;
-		long long int int_val;
-		string string_val;
-		Coordinate coordinate_val;
-		float float_val;
-		Component* component_val;
+		ArgumentType type = ArgumentType::INT;
+		long long int int_val = 0;
+		string string_val = "";
+		Coordinate coordinate_val = { 0,0 };
+		float float_val = 0.0f;
+		Component* component_val = nullptr;
 		vector<long long int> int_arr;
 		vector<string> string_arr;
 		vector<Coordinate> coordinate_arr;

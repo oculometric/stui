@@ -1,6 +1,5 @@
 ﻿#pragma once
 
-
 // TODO: add a proper license
 
 #include <string>
@@ -321,7 +320,7 @@ inline void copyBox(const char* src, Coordinate src_size, Coordinate src_offset,
 	if (src_offset.x < 0 || src_offset.y < 0) return;
 	if (dst_offset.x < 0 || dst_offset.y < 0) return;
 	if (src_offset.x + area_size.x > src_size.x || src_offset.y + area_size.y > src_size.y) return;
-	if (dst_offset.x + area_size.x > dst_offset.x || dst_offset.y + area_size.y > dst_offset.y) return;
+	if (dst_offset.x + area_size.x > dst_size.x || dst_offset.y + area_size.y > dst_size.y) return;
 
 	for (int y = 0; y < area_size.y; y++)
 	{
@@ -331,13 +330,25 @@ inline void copyBox(const char* src, Coordinate src_size, Coordinate src_offset,
 
 /**
  * @brief single-line text box.
+ * 
+ * text `alignment` can be specified as < 0 for left-aligned, = 0 for center-aligned, or
+ * > 0 for right-aligned
  **/
-COMPONENT_STUB_1(Text, string, text)
-// TODO: add text alignment (left, center, right)
+COMPONENT_STUB_2(Text, string, text, int, alignment)
 // TODO: add newline trimming for input string
 	RENDER_STUB
 	{
-		drawText(text, false, Coordinate{ 0,0 }, Coordinate{ size.x, 1 }, output_buffer, size);
+		if (size.y < 1) return;
+
+		Coordinate offset{ 0,0 };
+		if (alignment < 0)
+			offset.x = 0;
+		else if (alignment == 0)
+			offset.x = (size.x - text.length()) / 2;
+		else if (alignment > 1)
+			offset.x = size.x - text.length();
+
+		drawText(text, false, offset, Coordinate{ static_cast<int>(text.length()), 1 }, output_buffer, size);
 	}
 
 	GETMAXSIZE_STUB(-1, 1);
@@ -350,6 +361,8 @@ COMPONENT_STUB_1(Text, string, text)
 COMPONENT_STUB_1(TextArea, string, text)
 	RENDER_STUB
 	{
+		if (size.y < 2 || size.x < 2) return;
+
 		drawBox(Coordinate{ 0,0 }, size, output_buffer, size);
 		drawText(text, true, Coordinate{ 1,1 }, Coordinate{ size.x - 2, size.y - 2 }, output_buffer, size);
 	}
@@ -366,6 +379,8 @@ COMPONENT_STUB_1(TextArea, string, text)
 COMPONENT_STUB_1(ProgressBar, float, fraction)
 	RENDER_STUB
 	{
+		if (size.y < 1) return;
+
 		int completed = (int)round((float)size.x * fraction);
 			
 		for (int i = 0; i < size.x; i++)
@@ -635,7 +650,7 @@ private:
 		if (top > 0)
 		{
 			drawText((node->expanded ? "\xaa " : "> ") + node->name, false, Coordinate{ 1 + depth, top }, Coordinate{ buffer_size.x - 4 - depth, 1 }, output_buffer, buffer_size);
-			string id_desc = " (" + to_string(node->id) + ")";
+			string id_desc = " [" + to_string(node->children.size()) + "]";
 			drawText(id_desc, false, Coordinate{ buffer_size.x - (int)id_desc.length() - 1, top }, Coordinate{ (int)id_desc.length(), 1 }, output_buffer, buffer_size);
 		}
 		if (node->expanded)
@@ -683,16 +698,38 @@ COMPONENT_STUB_2(ImageView, uint8_t*, grayscale_image, Coordinate, image_size)
 	GETMINSIZE_STUB(1, 1);
 };
 
-// TODO: more error checking (checking for bounds size, etc)
+/**
+ * @brief container which limits the maximum size of the child component
+ * 
+ * the specified `max_size` should probably be at least as large as the minimum
+ * size of the `child`
+ **/
+COMPONENT_STUB_2(SizeLimiter, Component*, child, Coordinate, max_size)
+	RENDER_STUB
+	{
+		if (child == nullptr) return;
+		child->render(output_buffer, size);
+	}
+
+	GETMAXSIZE_STUB(max_size.x, max_size.y);
+
+	virtual inline Coordinate getMinSize()
+	{
+		if (child == nullptr) return Coordinate{ 0,0 };
+		return child->getMinSize();
+	}
+};
+
 // TODO: transition away from component stubs
+
 // TODO: add lots of comments
 // TODO: tab menu, tabs
 // TODO: reading UI layout from file
+
 // TODO: input
-// TODO: focus zone (i.e. you need to hit tab to switch between focus zones
-// TODO: input library, bindings?
-// TODO: more advanced sizing and formatting boxes
-// TODO: object renderer
+	// TODO: focus zone (i.e. you need to hit tab to switch between focus zones)
+	// TODO: input library, bindings?
+// TODO: 3D object renderer
 
 class Page
 {

@@ -186,3 +186,5 @@ the loader reports fairly descriptive errors if it encounters invalid syntax whi
 ### Integrating with C++
 
 the `PageManager` keeps track of your entire UI tree for you, how great is that! the `PageManager` handles loading LayoutScript files for you. actually nevermind, i haven't actually written this bit of code yet so i won't document it yet either // TODO: ls/c++ integration documentation
+
+## PageManager

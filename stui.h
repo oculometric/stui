@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include <string>
-#include <format>
 #include <iostream>
 #include <vector>
 #include <chrono>
@@ -26,9 +25,9 @@ using namespace std;
 #define ANSI_ESCAPE '\033'
 #define ANSI_CLEAR_SCREEN ANSI_ESCAPE << "[2J" 
 #define ANSI_CLEAR_SCROLL ANSI_ESCAPE << "[3J"
-#define ANSI_SETCURSOR(x,y) ANSI_ESCAPE << format("[{};{}H", y, x)
-#define ANSI_PANUP(n) ANSI_ESCAPE << format("[{}T", n)
-#define ANSI_PANDOWN(n) ANSI_ESCAPE << format("[{}S", n)
+#define ANSI_SETCURSOR(x,y) ANSI_ESCAPE << '[' << y << ';' << x << 'H'
+#define ANSI_PANUP(n) ANSI_ESCAPE << '[' << n << 'T'
+#define ANSI_PANDOWN(n) ANSI_ESCAPE << '[' << n << 'S'
 
 namespace stui
 {
@@ -338,6 +337,28 @@ protected:
 			memcpy(dst + dst_offset.x + ((y + dst_offset.y) * dst_size.x), src + src_offset.x + ((y + src_offset.y) * src_size.x), area_size.x);
 		}
 	}
+};
+ 
+class Input
+{
+public:
+	typedef uint16_t Key;
+
+	inline vector<Key> getQueuedKeyEvents()
+	{
+	}
+	// TODO: here
+	// size_t const BufferSize = 512;
+//char buffer[BufferSize];
+
+//if (std::cin.readsome(buffer, BufferSize) >= 1) {
+//}
+//std::ios_base::sync_with_stdio(false)
+/// or if (std::cin.rdbuf() and std::cin.rdbuf()->in_avail() >= 0) {
+//}
+// different solution for windows
+
+// also getch() from conio.h
 };
 
 /**
@@ -668,6 +689,37 @@ public:
 	GETMINSIZE_STUB { return Coordinate{ static_cast<int>(size), 1 }; }
 };
 
+class ListView : public Component, public Utility
+{
+public:
+	vector<string> elements;
+	size_t scroll;
+
+	ListView(vector<string> _elements, size_t _scroll) : elements(_elements), scroll(_scroll) { }
+
+	RENDER_STUB
+	{
+		if (size.x < 2 || size.y < 2) return;
+		drawBox(Coordinate{ 0,0 }, size, output_buffer, size);
+		int row = 0 - static_cast<int>(scroll);
+		int index = -1;
+		for (string element : elements)
+		{
+			index++;
+			row++;
+			if (row < 1) continue;
+			if (row >= size.y - 2) break;
+
+			drawText(stripNullsAndMore(element, "\n\t"), false, Coordinate{ 1, row }, Coordinate{ size.x - 2, 1 }, output_buffer, size);
+			string index_str = " (" + to_string(index) + ")";
+			drawText(index_str, false, Coordinate{ size.x - 1 - static_cast<int>(index_str.length()), row }, Coordinate{ size.x - 2, 1 }, output_buffer, size);
+		}
+	}
+
+	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }
+	GETMINSIZE_STUB { return Coordinate{ 10, 3 }; }
+};
+
 /**
  * @brief complex display element capable of visualising tree structures as a heirarchy
  * with nested, expandable nodes.
@@ -676,7 +728,7 @@ public:
  * index into your own array of proprietary nodes). expansion of nodes can be toggled;
  * if a node is expanded then its children will be shown, otherwise they will not.
  **/
-class TreeDisplay : public Component, public Utility
+class TreeView : public Component, public Utility
 {
 public:
 	struct Node
@@ -690,10 +742,11 @@ public:
 	Node* root;
 	size_t scroll;
 
-	TreeDisplay(Node* _root, size_t _scroll) : root(_root), scroll(_scroll) { }
+	TreeView(Node* _root, size_t _scroll) : root(_root), scroll(_scroll) { }
 
 	RENDER_STUB
 	{
+		if (size.x < 2 || size.y < 2) return;
 		drawBox(Coordinate{ 0,0 }, size, output_buffer, size);
 		if (root == nullptr) return;
 		int top = 1 - static_cast<int>(scroll);
@@ -710,7 +763,7 @@ private:
 
 		if (top > 0)
 		{
-			drawText((node->expanded ? "\xaa " : "> ") + node->name, false, Coordinate{ 1 + depth, top }, Coordinate{ buffer_size.x - 4 - depth, 1 }, output_buffer, buffer_size);
+			drawText((node->expanded ? "\xaa " : "> ") + stripNullsAndMore(node->name, " \n\t"), false, Coordinate{ 1 + depth, top }, Coordinate{ buffer_size.x - 4 - depth, 1 }, output_buffer, buffer_size);
 			string id_desc = " [" + to_string(node->children.size()) + "]";
 			drawText(id_desc, false, Coordinate{ buffer_size.x - (int)id_desc.length() - 1, top }, Coordinate{ (int)id_desc.length(), 1 }, output_buffer, buffer_size);
 		}

@@ -944,7 +944,7 @@ public:
 	 * the fraction of the delta time which was taken up by the time between calls (the
 	 * remaining fraction being occupied by the `targetFramerate` function idling)
 	 **/
-	static inline FrameData targetFramerate(int fps, chrono::system_clock::time_point& last_frame_time)
+	static inline FrameData targetFramerate(int fps, chrono::steady_clock::time_point& last_frame_time)
 	{
 		chrono::duration<float> active_frame_duration = chrono::high_resolution_clock::now() - last_frame_time;
 

@@ -4,6 +4,7 @@
 - [ ] add a proper license, including to the top of each header
 - [ ] make some demo files (.layout, .cpp)
 - [ ] test under linux (and mac, preferably)
+- [x] remove boxes around components and convert to its own element BorderedBox
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions
@@ -12,7 +13,8 @@
 - [x] change from .stui to .layout
 
 ## New Components
-- [ ] list view
+- [x] list view
+- [x] bordered box
 - [ ] 3D object renderer component
 - [ ] tab menu to switch between pages (accessed via number keys)
 - [ ] button
@@ -23,7 +25,7 @@
 ## Comments
 - [ ] add an extended comment explaining how to write your own components
 - [ ] add comments inside functions across stui.h
-- [ ] add doxy comments to the rest of stui.h
+- [x] add doxy comments to the rest of stui.h
 - [ ] add doxy and detailed comments to stui_external.h
 
 ## Input

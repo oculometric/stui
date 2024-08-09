@@ -407,8 +407,7 @@ public:
 	{
 		if (size.y < 2 || size.x < 2) return;
 
-		drawBox(Coordinate{ 0,0 }, size, output_buffer, size);
-		drawText(text, true, Coordinate{ 1,1 }, Coordinate{ size.x - 2, size.y - 2 }, output_buffer, size);
+		drawText(text, true, Coordinate{ 0,0 }, Coordinate{ size.x, size.y }, output_buffer, size);
 	}
 
 	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }
@@ -689,6 +688,39 @@ public:
 	GETMINSIZE_STUB { return Coordinate{ static_cast<int>(size), 1 }; }
 };
 
+/**
+ * @brief draws a border around another component using IBM box characters.
+ **/
+class BorderedBox : public Component, public Utility
+{
+public:
+	Component* child;
+
+	BorderedBox(Component* _child) : child(_child) { }
+
+	RENDER_STUB
+	{
+		if (size.x < 3 || size.y < 3) return;
+		drawBox(Coordinate{ 0,0 }, size, output_buffer, size);
+		if (child == nullptr) return;
+
+		Coordinate component_size{ size.x - 2, size.y - 2 };
+		char* component_buffer = makeBuffer(component_size);
+		child->render(component_buffer, component_size);
+		copyBox(component_buffer, component_size, Coordinate{ 0,0 }, component_size, output_buffer, size, Coordinate{ 1,1 });
+		delete[] component_buffer;
+	}
+
+	GETMAXSIZE_STUB { return (child == nullptr) ? Coordinate{ -1,-1 } : child->getMaxSize(); }
+	GETMINSIZE_STUB { return (child == nullptr) ? Coordinate{ 2,2 } : child->getMinSize(); }
+};
+
+/**
+ * @brief element which displays a list of strings.
+ * 
+ * allows scrolling.
+ * 
+ **/
 class ListView : public Component, public Utility
 {
 public:
@@ -700,19 +732,18 @@ public:
 	RENDER_STUB
 	{
 		if (size.x < 2 || size.y < 2) return;
-		drawBox(Coordinate{ 0,0 }, size, output_buffer, size);
-		int row = 0 - static_cast<int>(scroll);
+		int row = -1 - static_cast<int>(scroll);
 		int index = -1;
 		for (string element : elements)
 		{
 			index++;
 			row++;
-			if (row < 1) continue;
+			if (row < 0) continue;
 			if (row >= size.y - 2) break;
 
-			drawText(stripNullsAndMore(element, "\n\t"), false, Coordinate{ 1, row }, Coordinate{ size.x - 2, 1 }, output_buffer, size);
+			drawText(stripNullsAndMore(element, "\n\t"), false, Coordinate{ 0, row }, Coordinate{ size.x, 1 }, output_buffer, size);
 			string index_str = " (" + to_string(index) + ")";
-			drawText(index_str, false, Coordinate{ size.x - 1 - static_cast<int>(index_str.length()), row }, Coordinate{ size.x - 2, 1 }, output_buffer, size);
+			drawText(index_str, false, Coordinate{ size.x - static_cast<int>(index_str.length()), row }, Coordinate{ size.x, 1 }, output_buffer, size);
 		}
 	}
 
@@ -747,9 +778,8 @@ public:
 	RENDER_STUB
 	{
 		if (size.x < 2 || size.y < 2) return;
-		drawBox(Coordinate{ 0,0 }, size, output_buffer, size);
 		if (root == nullptr) return;
-		int top = 1 - static_cast<int>(scroll);
+		int top = 0 - static_cast<int>(scroll);
 		printNode(root, 0, top, output_buffer, size);
 	}
 
@@ -759,13 +789,13 @@ public:
 private:
 	static inline void printNode(Node* node, int depth, int& top, char* output_buffer, Coordinate buffer_size)
 	{
-		if (top >= buffer_size.y - 1) return;
+		if (top >= buffer_size.y) return;
 
-		if (top > 0)
+		if (top >= 0)
 		{
-			drawText((node->expanded ? "\xaa " : "> ") + stripNullsAndMore(node->name, " \n\t"), false, Coordinate{ 1 + depth, top }, Coordinate{ buffer_size.x - 4 - depth, 1 }, output_buffer, buffer_size);
+			drawText((node->expanded ? "\xaa " : "> ") + stripNullsAndMore(node->name, "\n\t"), false, Coordinate{ depth, top }, Coordinate{ buffer_size.x - 2 - depth, 1 }, output_buffer, buffer_size);
 			string id_desc = " [" + to_string(node->children.size()) + "]";
-			drawText(id_desc, false, Coordinate{ buffer_size.x - (int)id_desc.length() - 1, top }, Coordinate{ (int)id_desc.length(), 1 }, output_buffer, buffer_size);
+			drawText(id_desc, false, Coordinate{ buffer_size.x - (int)id_desc.length(), top }, Coordinate{ (int)id_desc.length(), 1 }, output_buffer, buffer_size);
 		}
 		if (node->expanded)
 		{
@@ -848,9 +878,23 @@ public:
 	}
 };
 
+/**
+ * @brief purely static class which encapsulates code for rendering a page
+ * to the terminal. a page just consists of a `Component` tree
+ * 
+ **/
 class Page : public Utility
 {
 public:
+	/**
+	 * @brief draws a `Component` into the terminal via `std::cout`.
+	 * 
+	 * if the `Component` has children, their drawing will be handled automatically
+	 * by the `Component` itself. the root `Component` is always drawn to fill the
+	 * terminal, which is completely cleared to prevent scrolling jank.
+	 * 
+	 * @param root_component element to draw into the terminal
+	 **/
 	static inline void render(Component* root_component)
 	{
 		setCursorVisible(false);
@@ -875,12 +919,29 @@ public:
 		delete[] root_staging_buffer;
 	}
 
+	/**
+	 * @brief stores information about a frame-wait which just happened
+	 * 
+	 **/
 	struct FrameData
 	{
-		float delta_time;
-		float active_fraction;
+		float delta_time;		// time since the last time `targetFramerate` was called
+		float active_fraction;	// fraction of the delta_time which was taken up by rendering
 	};
 
+	/**
+	 * @brief maintains the desired framerate by waiting for the remainder of the frame's 
+	 * duration.
+	 * 
+	 * requires a variable in which to store the last time the function was called in order
+	 * to work correctly.
+	 * 
+	 * @param fps desired framerate in frames per second
+	 * @param last_frame_time persistent storage for the time the function was last called
+	 * @return information about the frame: the delta time since the previous call, and
+	 * the fraction of the delta time which was taken up by the time between calls (the
+	 * remaining fraction being occupied by the `targetFramerate` function idling)
+	 **/
 	static inline FrameData targetFramerate(int fps, chrono::steady_clock::time_point& last_frame_time)
 	{
 		chrono::duration<float> active_frame_duration = chrono::high_resolution_clock::now() - last_frame_time;
@@ -895,6 +956,14 @@ public:
 	}
 
 private:
+	/**
+	 * @brief calculate an appropriate size for a `Component` (or, one dimension of it)
+	 * 
+	 * @param available amount of space available to use
+	 * @param max maximum desired size of the subject
+	 * @param min minimum desired size of the subject
+	 * @return resulting constrained size
+	 **/
 	static inline int getConstrainedSize(int available, int max, int min)
 	{
 		int size = 0;
@@ -905,11 +974,19 @@ private:
 		else return max(size, min);
 	}
 
+	/**
+	 * @brief clear the entire terminal, including scrollback and onscreen buffers
+	 **/
 	static inline void clear()
 	{
 		OUTPUT_TARGET << ANSI_CLEAR_SCREEN << ANSI_CLEAR_SCROLL;
 	}
 
+	/**
+	 * @brief get the size of the terminal window in characters
+	 * 
+	 * @return size of the terminal window 
+	 **/
 	static inline Coordinate getScreenSize()
 	{
 #if defined(_WIN32)
@@ -923,11 +1000,21 @@ private:
 #endif
 	}
 
+	/**
+	 * @brief move the cursor to a given position in the terminal window
+	 * 
+	 * @param position desired position of the cursor
+	 **/
 	static inline void setCursorPosition(Coordinate position)
 	{
 		OUTPUT_TARGET << ANSI_SETCURSOR(position.x, position.y);
 	}
 
+	/**
+	 * @brief toggle terminal cursor visibility
+	 * 
+	 * @param visible whether or not the cursor should be visible
+	 **/
 	static inline void setCursorVisible(bool visible)
 	{
 #if defined(_WIN32)

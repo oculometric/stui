@@ -5,6 +5,8 @@
 #include <vector>
 #include <chrono>
 #include <thread>
+#include <cstring>
+#include <cmath>
 
 #if defined(_WIN32)
 	#define WIN32_LEAN_AND_MEAN
@@ -942,7 +944,7 @@ public:
 	 * the fraction of the delta time which was taken up by the time between calls (the
 	 * remaining fraction being occupied by the `targetFramerate` function idling)
 	 **/
-	static inline FrameData targetFramerate(int fps, chrono::steady_clock::time_point& last_frame_time)
+	static inline FrameData targetFramerate(int fps, chrono::system_clock::time_point& last_frame_time)
 	{
 		chrono::duration<float> active_frame_duration = chrono::high_resolution_clock::now() - last_frame_time;
 
@@ -964,14 +966,14 @@ private:
 	 * @param min minimum desired size of the subject
 	 * @return resulting constrained size
 	 **/
-	static inline int getConstrainedSize(int available, int max, int min)
+	static inline int getConstrainedSize(int available, int _max, int _min)
 	{
 		int size = 0;
-		if (max == -1) size = available;
-		else size = min(available, max);
+		if (_max == -1) size = available;
+		else size = min(available, _max);
 
-		if (size < min) return -1;
-		else return max(size, min);
+		if (size < _min) return -1;
+		else return max(size, _min);
 	}
 
 	/**

@@ -3,8 +3,9 @@
 ## Misc
 - [ ] add a proper license, including to the top of each header
 - [ ] make some demo files (.layout, .cpp)
-- [ ] test under linux (and mac, preferably)
+- [x] test under linux (and mac, preferably) - it didnt work `:(`
 - [x] remove boxes around components and convert to its own element BorderedBox
+- [ ] fix displaying in non-windows terminals (UTF8 display)
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions

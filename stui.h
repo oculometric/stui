@@ -47,12 +47,15 @@ inline string stripNullsAndMore(string str, const char* others)
     string result = "";
     for (char c : str)
     {
-        if (c < ' ') continue;
+        if (c < ' ' && c != '\n' && c != '\t') continue;
 		bool is_valid = true;
 		for (size_t i = 0; others[i] != '\0'; i++)
 			if (c == others[i]) is_valid = false;
 		if (is_valid)
-        	result += c;
+		{
+			if (c == '\t') result += "    ";
+			else result += c;
+		}
     }
     return result;
 }
@@ -210,7 +213,7 @@ protected:
 			size_t max_end = min(last_index + max_width - 1, text.length() - 1);
 			size_t next_end = max_end;
 			bool trim_whitespace = true;
-			while (text[next_end] != ' ')
+			while (text[next_end] != ' ' && next_end != text.length() - 1)
 			{
 				if (next_end == last_index)
 				{
@@ -361,8 +364,7 @@ public:
 		RIGHT_CTRL  = 0b00000010,
 		SHIFT       = 0b00000100,
 		LEFT_ALT    = 0b00010000,
-		RIGHT_ALT   = 0b00100000,
-		CAPS_LOCK   = 0b01000000
+		RIGHT_ALT   = 0b00100000
 	};
 
 	/**
@@ -389,8 +391,13 @@ public:
 	{
 		vector<Key> events;
 #if defined(_WIN32)
+		DWORD events_available;
+		GetNumberOfConsoleInputEvents(GetStdHandle(STD_INPUT_HANDLE), &events_available);
+		if (events_available < 1) return events;
+
 		INPUT_RECORD records[32] = {};
 		DWORD records_read;
+
 		if (ReadConsoleInput(GetStdHandle(STD_INPUT_HANDLE), records, 32, &records_read) == 0)
 			throw runtime_error("input error");
 		
@@ -399,6 +406,7 @@ public:
 			{
 				Key k{ };
 				k.key = records[i].Event.KeyEvent.uChar.AsciiChar;
+				if (k.key == '\r') k.key = '\n';
 				k.control_states = ControlKeys::NONE;
 				DWORD control_key = records[i].Event.KeyEvent.dwControlKeyState;
 				if (control_key & 0x01) k.control_states = (ControlKeys)(k.control_states | ControlKeys::RIGHT_ALT);
@@ -406,12 +414,11 @@ public:
 				if (control_key & 0x04) k.control_states = (ControlKeys)(k.control_states | ControlKeys::RIGHT_CTRL);
 				if (control_key & 0x08) k.control_states = (ControlKeys)(k.control_states | ControlKeys::LEFT_CTRL);
 				if (control_key & 0x10) k.control_states = (ControlKeys)(k.control_states | ControlKeys::SHIFT);
-				if (control_key & 0x80) k.control_states = (ControlKeys)(k.control_states | ControlKeys::CAPS_LOCK);
 				events.push_back(k);
 			}
-#endif
+#elif defined(__linux__)
 		// TODO: linux implementation
-
+#endif
 		return events;
 	}
 	
@@ -423,10 +430,9 @@ public:
 	static inline void processShortcuts(vector<Shortcut> shortcuts, vector<Key>& key_events)
 	{
 		vector<Key> non_processed;
-		while (!key_events.empty())
+		for (size_t i = 0; i < key_events.size(); i++)
 		{
-			Key k = key_events[key_events.size() - 1];
-			key_events.pop_back();
+			Key k = key_events[i];
 			bool consumed = false;
 			for (Shortcut s : shortcuts)
 			{
@@ -442,11 +448,10 @@ public:
 	{
 		vector<Key> non_processed;
 		vector<uint8_t> result;
-		while (!key_events.empty())
+		for (size_t i = 0; i < key_events.size(); i++)
 		{
-			Key k = key_events[key_events.size() - 1];
-			key_events.pop_back();
-			if (k.control_states == 0 && k.key >= 32 && k.key <= 127)
+			Key k = key_events[i];
+			if ((k.control_states == ControlKeys::NONE || k.control_states == ControlKeys::SHIFT) && ((k.key >= 32 && k.key <= 127) || k.key == '\n' || k.key == '\t'))
 			{
 				result.push_back(static_cast<uint8_t>(k.key));
 			}
@@ -457,6 +462,8 @@ public:
 		}
 
 		key_events = non_processed;
+
+		return result;
 	}
 
 	// TODO: here
@@ -468,7 +475,6 @@ public:
 //std::ios_base::sync_with_stdio(false)
 /// or if (std::cin.rdbuf() and std::cin.rdbuf()->in_avail() >= 0) {
 //}
-// different solution for windows
 
 // also getch() from conio.h
 };
@@ -519,7 +525,7 @@ public:
 	{
 		if (size.y < 2 || size.x < 2) return;
 
-		drawText(text, true, Coordinate{ 0,0 }, Coordinate{ size.x, size.y }, output_buffer, size);
+		drawText(stripNullsAndMore(text, ""), true, Coordinate{ 0,0 }, Coordinate{ size.x, size.y }, output_buffer, size);
 	}
 
 	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }

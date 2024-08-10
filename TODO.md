@@ -5,7 +5,7 @@
 - [ ] make some demo files (.layout, .cpp)
 - [x] test under linux (and mac, preferably) - it didnt work `:(`
 - [x] remove boxes around components and convert to its own element BorderedBox
-- [ ] fix displaying in non-windows terminals (UTF8 display)
+- [ ] fix displaying in non-windows terminals (UTF8 display in Linux)
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions
@@ -28,10 +28,12 @@
 - [ ] add comments inside functions across stui.h
 - [x] add doxy comments to the rest of stui.h
 - [ ] add doxy and detailed comments to stui_external.h
+- [ ] doxy comments in Input
 
 ## Input
-- [ ] simple input tracking library (see planetarium)
-- [ ] ability to add shortcut bindings to callbacks
+- [x] simple input tracking library (see planetarium)
+- [ ] input reading on linux
+- [x] ability to add shortcut bindings to callbacks
 - [ ] widget focus system (shift-tabbing between focussable views, moving selection inside focussed view)
 - [ ] input for tree view (selection, expansion)
 - [ ] action callbacks e.g. for buttons, text boxes

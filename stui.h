@@ -340,15 +340,125 @@ protected:
 		}
 	}
 };
- 
+
+/**
+ * @brief class which encapsulates input functionality which you can use to receive and handle
+ * input in useful ways.
+ **/
 class Input
 {
 public:
-	typedef uint16_t Key;
-
-	inline vector<Key> getQueuedKeyEvents()
+	/**
+	 * @brief enumerates the possible control key states (shift, alt, and control). 
+	 * 
+	 * left and right shift are treated as the same on Windows, so for cross-platform-ness i'll
+	 * settle for that.
+	 **/
+	enum ControlKeys
 	{
+		NONE        = 0b00000000,
+		LEFT_CTRL   = 0b00000001,
+		RIGHT_CTRL  = 0b00000010,
+		SHIFT       = 0b00000100,
+		LEFT_ALT    = 0b00010000,
+		RIGHT_ALT   = 0b00100000,
+		CAPS_LOCK   = 0b01000000
+	};
+
+	/**
+	 * @brief describes a key input event. though we only care about key down or key repeat
+	 * events.
+	 **/
+	struct Key
+	{
+		uint16_t key;
+		ControlKeys control_states;
+	};
+
+	/**
+	 * @brief describes a shortcut linking a desired key-bind to a function that should
+	 * be called when the binding is triggered.
+	 **/
+	struct Shortcut
+	{
+		Input::Key binding;
+		void (*callback)();
+	};
+
+	static inline vector<Key> getQueuedKeyEvents()
+	{
+		vector<Key> events;
+#if defined(_WIN32)
+		INPUT_RECORD records[32] = {};
+		DWORD records_read;
+		if (ReadConsoleInput(GetStdHandle(STD_INPUT_HANDLE), records, 32, &records_read) == 0)
+			throw runtime_error("input error");
+		
+		for (size_t i = 0; i < records_read; i++)
+			if (records[i].EventType == KEY_EVENT && records[i].Event.KeyEvent.bKeyDown)
+			{
+				Key k{ };
+				k.key = records[i].Event.KeyEvent.uChar.AsciiChar;
+				k.control_states = ControlKeys::NONE;
+				DWORD control_key = records[i].Event.KeyEvent.dwControlKeyState;
+				if (control_key & 0x01) k.control_states = (ControlKeys)(k.control_states | ControlKeys::RIGHT_ALT);
+				if (control_key & 0x02) k.control_states = (ControlKeys)(k.control_states | ControlKeys::LEFT_ALT);
+				if (control_key & 0x04) k.control_states = (ControlKeys)(k.control_states | ControlKeys::RIGHT_CTRL);
+				if (control_key & 0x08) k.control_states = (ControlKeys)(k.control_states | ControlKeys::LEFT_CTRL);
+				if (control_key & 0x10) k.control_states = (ControlKeys)(k.control_states | ControlKeys::SHIFT);
+				if (control_key & 0x80) k.control_states = (ControlKeys)(k.control_states | ControlKeys::CAPS_LOCK);
+				events.push_back(k);
+			}
+#endif
+		// TODO: linux implementation
+
+		return events;
 	}
+	
+	static inline bool compare(Key a, Key b)
+	{
+		return a.key == b.key && a.control_states == b.control_states;
+	}
+	
+	static inline void processShortcuts(vector<Shortcut> shortcuts, vector<Key>& key_events)
+	{
+		vector<Key> non_processed;
+		while (!key_events.empty())
+		{
+			Key k = key_events[key_events.size() - 1];
+			key_events.pop_back();
+			bool consumed = false;
+			for (Shortcut s : shortcuts)
+			{
+				if (compare(k, s.binding)) { consumed = true; s.callback(); }
+			}
+			if (!consumed) non_processed.push_back(k);
+		}
+
+		key_events = non_processed;
+	}
+	
+	static inline vector<uint8_t> getTextCharacters(vector<Key>& key_events)
+	{
+		vector<Key> non_processed;
+		vector<uint8_t> result;
+		while (!key_events.empty())
+		{
+			Key k = key_events[key_events.size() - 1];
+			key_events.pop_back();
+			if (k.control_states == 0 && k.key >= 32 && k.key <= 127)
+			{
+				result.push_back(static_cast<uint8_t>(k.key));
+			}
+			else
+			{
+				non_processed.push_back(k);
+			}
+		}
+
+		key_events = non_processed;
+	}
+
 	// TODO: here
 	// size_t const BufferSize = 512;
 //char buffer[BufferSize];

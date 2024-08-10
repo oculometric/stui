@@ -16,12 +16,12 @@
 ## New Components
 - [x] list view
 - [x] bordered box
-- [ ] 3D object renderer component
 - [ ] tab menu to switch between pages (accessed via number keys)
-- [ ] button
+- [x] button
 - [ ] text entry box
 - [ ] radio button
 - [ ] check box
+- [ ] 3D object renderer component
 
 ## Comments
 - [ ] add an extended comment explaining how to write your own components
@@ -34,6 +34,7 @@
 - [x] simple input tracking library (see planetarium)
 - [ ] input reading on linux
 - [x] ability to add shortcut bindings to callbacks
+- [x] input system for components
 - [ ] widget focus system (shift-tabbing between focussable views, moving selection inside focussed view)
 - [ ] input for tree view (selection, expansion)
 - [ ] action callbacks e.g. for buttons, text boxes

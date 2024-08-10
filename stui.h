@@ -21,6 +21,8 @@ using namespace std;
 #define RENDER_STUB virtual inline void render(char* output_buffer, Coordinate size) override
 #define GETMINSIZE_STUB virtual inline Coordinate getMinSize() override
 #define GETMAXSIZE_STUB virtual inline Coordinate getMaxSize() override
+#define HANDLEINPUT_STUB virtual inline bool handleInput(uint8_t input_character) override
+#define	ISFOCUSABLE_STUB virtual inline bool isFocusable() override
 
 #define OUTPUT_TARGET cout
 
@@ -113,6 +115,26 @@ public:
 	 * @returns a `Coordinate` representing the minimum size for the `Component`
 	 **/
 	virtual inline Coordinate getMinSize() { return { 0, 0 }; }
+
+	/**
+	 * @brief handle a single key-press event.
+	 * 
+	 * not all subclasses need to implement this, but if you want to handle input you probably
+	 * should.
+	 * 
+	 * @param input_character the character to handle
+	 * @returns true if the input was consumed or false if not
+	 **/
+	virtual inline bool handleInput(uint8_t input_character) { return false; }
+
+	/**
+	 * @brief returns whether or not the component can be focused for input.
+	 * 
+	 * should be overriden by subclasses which want to receive input.
+	 * 
+	 * @returns true if the component is focusable
+	 **/
+	virtual inline bool isFocusable() { return false; }
 };
 
 /**
@@ -345,11 +367,14 @@ protected:
 };
 
 /**
- * @brief class which encapsulates input functionality which you can use to receive and handle
- * input in useful ways.
+ * @brief class which encapsulates input functionality which is used to receive and handle
+ * input in useful ways. another way of encapsulating functionality to hide it from the you!
+ * just pretend this isn't here.
  **/
 class Input
 {
+	friend class Page;
+
 public:
 	/**
 	 * @brief enumerates the possible control key states (shift, alt, and control). 
@@ -365,6 +390,14 @@ public:
 		SHIFT       = 0b00000100,
 		LEFT_ALT    = 0b00010000,
 		RIGHT_ALT   = 0b00100000
+	};
+
+	enum ArrowKeys
+	{
+		UP          = 0x11,
+		DOWN		= 0x12,
+		LEFT		= 0x13,
+		RIGHT		= 0x14
 	};
 
 	/**
@@ -387,6 +420,7 @@ public:
 		void (*callback)();
 	};
 
+private:
 	static inline vector<Key> getQueuedKeyEvents()
 	{
 		vector<Key> events;
@@ -395,7 +429,7 @@ public:
 		GetNumberOfConsoleInputEvents(GetStdHandle(STD_INPUT_HANDLE), &events_available);
 		if (events_available < 1) return events;
 
-		INPUT_RECORD records[32] = {};
+		INPUT_RECORD records[32] = { };
 		DWORD records_read;
 
 		if (ReadConsoleInput(GetStdHandle(STD_INPUT_HANDLE), records, 32, &records_read) == 0)
@@ -406,6 +440,10 @@ public:
 			{
 				Key k{ };
 				k.key = records[i].Event.KeyEvent.uChar.AsciiChar;
+				if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_UP) k.key = ArrowKeys::UP;
+				else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_DOWN) k.key = ArrowKeys::DOWN;
+				else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_LEFT) k.key = ArrowKeys::LEFT;
+				else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_RIGHT) k.key = ArrowKeys::RIGHT;
 				if (k.key == '\r') k.key = '\n';
 				k.control_states = ControlKeys::NONE;
 				DWORD control_key = records[i].Event.KeyEvent.dwControlKeyState;
@@ -451,7 +489,14 @@ public:
 		for (size_t i = 0; i < key_events.size(); i++)
 		{
 			Key k = key_events[i];
-			if ((k.control_states == ControlKeys::NONE || k.control_states == ControlKeys::SHIFT) && ((k.key >= 32 && k.key <= 127) || k.key == '\n' || k.key == '\t'))
+			if ((k.control_states == ControlKeys::NONE || k.control_states == ControlKeys::SHIFT) && (
+				  (k.key >= 32 && k.key <= 127) 
+				|| k.key == '\n' 
+				|| k.key == '\t' 
+				|| k.key == ArrowKeys::UP
+				|| k.key == ArrowKeys::DOWN
+				|| k.key == ArrowKeys::LEFT
+				|| k.key == ArrowKeys::RIGHT))
 			{
 				result.push_back(static_cast<uint8_t>(k.key));
 			}
@@ -492,6 +537,7 @@ public:
 	int alignment;
 	
 	Text(string _text, int _alignment) : text(_text), alignment(_alignment) { }
+
 	RENDER_STUB
 	{
 		if (size.y < 1) return;
@@ -512,14 +558,41 @@ public:
 };
 
 /**
+ * @brief simple clickable button.
+ **/
+class Button : public Component, public Utility
+{
+public:
+	string text;
+	void (*callback)();
+	bool enabled;
+
+	Button(string _text, void (*_callback)(), bool _enabled) : text(_text), callback(_callback), enabled(_enabled) { }
+
+	RENDER_STUB
+	{
+		if (size.y < 1) return;
+
+		drawText("> " + text + "< ", false, Coordinate{ 0,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
+	}
+
+	GETMAXSIZE_STUB { return Coordinate{ -1,1 }; }
+	GETMINSIZE_STUB { return Coordinate{ static_cast<int>(text.length()) + 4,1 }; }
+
+	HANDLEINPUT_STUB { if (input_character == '\n' && callback != nullptr) { callback(); return true; } }
+	ISFOCUSABLE_STUB { return enabled; }
+};
+
+/**
  * @brief multi-line wrapping text area, with a box outline.
  **/
 class TextArea : public Component, public Utility
 {
 public:
 	string text;
+	bool editable;
 
-	TextArea(string _text) : text(_text) { }
+	TextArea(string _text, bool _editable) : text(_text), editable(_editable) { }
 
 	RENDER_STUB
 	{
@@ -530,6 +603,16 @@ public:
 
 	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 3, 3 }; }
+
+	HANDLEINPUT_STUB
+	{
+		if (input_character == '\b') text.pop_back();
+		else text.push_back(input_character);
+
+		return true;
+	}
+
+	ISFOCUSABLE_STUB { return editable; }
 };
 
 /**
@@ -1035,6 +1118,15 @@ public:
 		OUTPUT_TARGET << root_staging_buffer;
 
 		delete[] root_staging_buffer;
+	}
+
+	static inline void handleInput(Component* root_component, vector<Input::Shortcut> shortcut_bindings)
+	{
+		auto keys = Input::getQueuedKeyEvents();
+		Input::processShortcuts({}, keys);
+		auto text_keys = stui::Input::getTextCharacters(keys);
+
+		// TODO: find the focussed component and send input
 	}
 
 	/**

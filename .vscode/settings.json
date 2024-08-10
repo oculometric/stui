@@ -8,6 +8,10 @@
         "vector": "cpp",
         "xstring": "cpp",
         "xutility": "cpp",
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "ostream": "cpp",
+        "initializer_list": "cpp",
+        "type_traits": "cpp",
+        "xtree": "cpp"
     }
 }

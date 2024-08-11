@@ -7,8 +7,9 @@
 - [x] remove boxes around components and convert to its own element BorderedBox
 - [ ] fix displaying in non-windows terminals (UTF8 display in Linux)
 - [x] migrate to more complex buffer system
-- [ ] bordered box add name
+- [x] bordered box add name
 - [x] make colours pixel-specific
+- [ ] add greyed-out colour and use it for all unfocused selections
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions
@@ -47,8 +48,11 @@
 - [x] hook up focus component passthrough in Page::render
     - [x] button
     - [ ] text area
+    - [ ] text input box
     - [x] list view
-    - [ ] tree view
+    - [x] tree view
     - [x] tab display
 - [ ] input for tree view (selection, expansion)
+- [ ] fix input for text area
+- [ ] fix input for text input box
 - [x] action callbacks e.g. for buttons, text boxes

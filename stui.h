@@ -779,21 +779,26 @@ public:
 };
 
 /**
- * @brief multi-line wrapping text area, with a box outline.
+ * @brief multi-line wrapping text area.
  **/
 class TextArea : public Component, public Utility
 {
 public:
 	string text;
 	bool editable;
+	size_t cursor_index;
 
-	TextArea(string _text, bool _editable) : text(_text), editable(_editable) { }
+	TextArea(string _text, bool _editable, size_t _cursor_index) : text(_text), editable(_editable), cursor_index(_cursor_index) { }
 
 	RENDER_STUB
 	{
 		if (size.y < 2 || size.x < 2) return;
 
 		drawText(stripNullsAndMore(text, ""), true, Coordinate{ 0,0 }, Coordinate{ size.x, size.y }, output_buffer, size);
+		// TODO: account for line-wrapping here...
+		cursor_index = min(cursor_index, min(text.length(), (size.x * size.y) - 1));
+		if (editable && focused)
+			output_buffer[cursor_index].colour = getInvertedColour();
 	}
 
 	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }
@@ -801,7 +806,12 @@ public:
 
 	HANDLEINPUT_STUB
 	{
+		if (!editable || !focused) return false;
+		// TODO: apply characters in the right place, and move cursor...
 		if (input_character == '\b') text.pop_back();
+		else if (input_character == Input::ArrowKeys::RIGHT) cursor_index++;
+		else if (input_character == Input::ArrowKeys::LEFT && cursor_index > 0) cursor_index--;
+		// TODO: implement moving the cursor here...
 		else text.push_back(input_character);
 
 		return true;
@@ -1091,13 +1101,16 @@ class BorderedBox : public Component, public Utility
 {
 public:
 	Component* child;
+	string name;
 
-	BorderedBox(Component* _child) : child(_child) { }
+	BorderedBox(Component* _child, string _name) : child(_child), name(_name) { }
 
 	RENDER_STUB
 	{
 		if (size.x < 3 || size.y < 3) return;
 		drawBox(Coordinate{ 0,0 }, size, output_buffer, size);
+		if (name.size() > 0)
+			drawText(name, false, Coordinate{ 3,0 }, Coordinate{ size.x - 6,1 }, output_buffer, size);
 		if (child == nullptr) return;
 
 		Coordinate component_size{ size.x - 2, size.y - 2 };

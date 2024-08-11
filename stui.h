@@ -579,7 +579,40 @@ public:
 	GETMAXSIZE_STUB { return Coordinate{ -1,1 }; }
 	GETMINSIZE_STUB { return Coordinate{ static_cast<int>(text.length()) + 4,1 }; }
 
-	HANDLEINPUT_STUB { if (input_character == '\n' && callback != nullptr) { callback(); return true; } }
+	HANDLEINPUT_STUB { if (input_character == '\n' && callback != nullptr) { callback(); return true; } return false; }
+	ISFOCUSABLE_STUB { return enabled; }
+};
+
+/**
+ * @brief simple text entry box.
+ **/
+class TextInputBox : public Component, public Utility
+{
+public:
+	string text;
+	void (*callback)();
+	bool enabled;
+
+	TextInputBox(string _text, void (*_callback)(), bool _enabled) : text(_text), callback(_callback), enabled(_enabled) { }
+
+	RENDER_STUB
+	{
+		if (size.y < 1) return;
+
+		drawText("> " + text, false, Coordinate{ 0,0 }, Coordinate{ static_cast<int>(text.length()) + 2,1 }, output_buffer, size);
+	}
+
+	GETMAXSIZE_STUB { return Coordinate{ -1,1 }; }
+	GETMINSIZE_STUB { return Coordinate{ 12,1 }; }
+
+	HANDLEINPUT_STUB
+	{
+		if (input_character == '\n' && callback != nullptr) callback();
+		else text += input_character;
+
+		return true;
+	}
+	
 	ISFOCUSABLE_STUB { return enabled; }
 };
 

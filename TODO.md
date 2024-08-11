@@ -9,8 +9,9 @@
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions
-- [ ] implement all the various functions for the PageManager
+- [x] implement all the various functions for the PageManager
 - [ ] complete ability to read UI from file
+- [ ] implement ensureIntegrity
 - [x] change from .stui to .layout
 
 ## New Components
@@ -18,7 +19,7 @@
 - [x] bordered box
 - [ ] tab menu to switch between pages (accessed via number keys)
 - [x] button
-- [ ] text entry box
+- [x] text entry box
 - [ ] radio button
 - [ ] check box
 - [ ] 3D object renderer component

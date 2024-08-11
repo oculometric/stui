@@ -10,34 +10,52 @@ class PageManager
 {
 private:
 	vector<Component*> pages;
-	map<string, Component*> all_components;
+	map<string, Component*> components;
 
 public:
 	inline PageManager() { }
 	inline PageManager(string formating_file) { readFromFile(formating_file); }
 
-	inline bool ensureIntegrity();
+	inline bool ensureIntegrity(); // search the tree, register unregistered, unregister and delete unreferenced 
 	inline bool readFromFile(string formatting_file);
 
-	inline Component* operator[](size_t page);
-	inline Component* operator[](string identifier);
+	inline Component* operator[](size_t page) { if (page < pages.size()) return pages[page]; throw runtime_error("page index out of range"); }
+	inline Component* operator[](string identifier) { return components[identifier]; }
 
-	inline void registerComponent(Component* component, string identifier);
-	inline void unregisterComponent(string identifier);
-	inline void addPage(Component* page_root);
-	inline void removePage(size_t page_index);
+	inline void registerComponent(Component* component, string identifier)
+	{
+		if (isNameUnique(identifier)) components.insert(pair<string, Component*>(identifier, component));
+		else components.insert(pair<string, Component*>(getUniqueName(), component));
+	}
+
+	inline void unregisterComponent(string identifier)
+	{
+		if (components.contains(identifier)) { delete components[identifier]; components.erase(identifier); }
+		else throw runtime_error("no component registered with that name");
+	}
+
+	inline void addPage(Component* page_root) { pages.push_back(page_root); }
+	inline void removePage(size_t page_index) { if (page_index < pages.size()) pages.erase(pages.begin() + page_index); }
 	inline size_t countPages() { return pages.size(); }
 
-	inline ~PageManager();
+	inline ~PageManager() { for (pair<string, Component*> p : components) delete p.second; }
 private:
 	inline bool isNameUnique(string name)
 	{
 		if (name.length() < 1) return false;
 
-		return !all_components.contains(name);
+		return !components.contains(name);
 	}
 
-	inline string getUniqueName();
+	inline string getUniqueName()
+	{
+		size_t i = 0;
+
+		while (components.contains("__component_" + to_string(i)))
+			i++;
+		
+		return "__component_" + to_string(i);
+	}
 
 	static inline void reportError(string input, size_t char_index, string summary)
 	{

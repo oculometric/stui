@@ -18,7 +18,7 @@
 
 using namespace std;
 
-#define RENDER_STUB virtual inline void render(char* output_buffer, Coordinate size, bool focused) override
+#define RENDER_STUB virtual inline void render(Tixel* output_buffer, Coordinate size) override
 #define GETMINSIZE_STUB virtual inline Coordinate getMinSize() override
 #define GETMAXSIZE_STUB virtual inline Coordinate getMaxSize() override
 #define HANDLEINPUT_STUB virtual inline bool handleInput(uint8_t input_character) override
@@ -32,6 +32,7 @@ using namespace std;
 #define ANSI_SETCURSOR(x,y) ANSI_ESCAPE << '[' << y << ';' << x << 'H'
 #define ANSI_PANUP(n) ANSI_ESCAPE << '[' << n << 'T'
 #define ANSI_PANDOWN(n) ANSI_ESCAPE << '[' << n << 'S'
+#define ANSI_SET_COLOUR(c) ANSI_ESCAPE << '[' << to_string(c) << 'm'
 
 namespace stui
 {
@@ -91,7 +92,6 @@ struct Tixel
 	 **/
 	enum ColourCommand
 	{
-		PASS		= 0b0000,
 		FG_BLACK 	= 0b00000001,
 		FG_RED   	= 0b00000010,
 		FG_GREEN 	= 0b00000100,
@@ -99,7 +99,7 @@ struct Tixel
 		FG_YELLOW 	= 0b00000110,
 		FG_CYAN	    = 0b00001100,
 		FG_MAGENTA	= 0b00001010,
-		FG_WHITE	= 0b00001110,
+		FG_WHITE	= 0b00001111,
 		BG_BLACK 	= 0b00010000,
 		BG_RED   	= 0b00100000,
 		BG_GREEN 	= 0b01000000,
@@ -107,11 +107,37 @@ struct Tixel
 		BG_YELLOW 	= 0b01100000,
 		BG_CYAN	    = 0b11000000,
 		BG_MAGENTA	= 0b10100000,
-		BG_WHITE	= 0b11100000,
+		BG_WHITE	= 0b11110000,
 	};
 
-	uint8_t character;
-	ColourCommand colour;
+	uint8_t character = ' ';
+	ColourCommand colour = (ColourCommand)(ColourCommand::FG_WHITE | ColourCommand::BG_BLUE);
+
+	inline void operator=(uint8_t c) { character = c; }
+
+	static inline int toANSI(ColourCommand c)
+	{
+		switch (c)
+		{
+		case FG_BLACK: return 30;
+		case BG_BLACK: return 40;
+		case FG_RED: return 91;
+		case BG_RED: return 101;
+		case FG_GREEN: return 92;
+		case BG_GREEN: return 102;
+		case FG_YELLOW: return 93;
+		case BG_YELLOW: return 103;
+		case FG_BLUE: return 94;
+		case BG_BLUE: return 104;
+		case FG_MAGENTA: return 95;
+		case BG_MAGENTA: return 105;
+		case FG_CYAN: return 96;
+		case BG_CYAN: return 106;
+		case FG_WHITE: return 97;
+		case BG_WHITE: return 107;
+		default: return 40;
+		}
+	}
 };
 
 /**
@@ -123,8 +149,10 @@ struct Tixel
 class Component
 {
 public:
+	bool focused = false;
+
 	/**
-	 * @brief draws the `Component` into a character buffer, with a specified size.
+	 * @brief draws the `Component` into a `Tixel` buffer, with a specified size.
 	 * 
 	 * implementations should assume that the `output_buffer` has been allocated to be the correct
 	 * `size`, but should also check that any drawing is performed within the limits of the `size`
@@ -134,7 +162,7 @@ public:
 	 * to right, top to bottom
 	 * @param size size of the buffer
 	 **/
-	virtual inline void render(char* output_buffer, Coordinate size, bool focused) { }
+	virtual inline void render(Tixel* output_buffer, Coordinate size) { }
 	
 	/**
 	 * @brief returns the maximum desired size that this component should be given.
@@ -200,7 +228,7 @@ protected:
 	 * @param buffer pointer to a character array ordered left-to-right, top-to-bottom
 	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
 	 **/
-	static inline void drawBox(Coordinate box_origin, Coordinate box_size, char* buffer, Coordinate buffer_size)
+	static inline void drawBox(Coordinate box_origin, Coordinate box_size, Tixel* buffer, Coordinate buffer_size)
 	{
 		if (buffer == nullptr) return;
 		if (box_size.x <= 0 || box_size.y <= 0) return;
@@ -320,7 +348,7 @@ protected:
 	 * @param buffer pointer to a character array ordered left-to-right, top-to-bottom
 	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
 	 **/
-	static inline void drawText(string text, bool wrap, Coordinate text_origin, Coordinate max_size, char* buffer, Coordinate buffer_size)
+	static inline void drawText(string text, bool wrap, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size)
 	{
 		if (buffer == nullptr) return;
 		if (buffer_size.x <= 0 || buffer_size.y <= 0) return;
@@ -366,14 +394,15 @@ protected:
 	 * @returns pointer to newly-allocated block of memory, or `nullptr` if the buffer size would be
 	 * less than 1
 	 **/
-	static inline char* makeBuffer(Coordinate buffer_size)
+	static inline Tixel* makeBuffer(Coordinate buffer_size)
 	{
 		if (buffer_size.x <= 0 || buffer_size.y <= 0) return nullptr;
 
 		size_t size = buffer_size.x * buffer_size.y;
-		char* buf = new char[size + 1];
-		memset(buf, ' ', size);
-		buf[size] = '\0';
+		Tixel* buf = new Tixel[size + 1];
+		for (size_t i = 0; i < size; i++)
+			buf[i] = Tixel{ ' ', getDefaultColour() };
+		buf[size] = Tixel{ '\0', getDefaultColour() };
 
 		return buf;
 	}
@@ -399,7 +428,7 @@ protected:
 	 * @param dst_offset position of the top-left corner of the box to copy to in the destination buffer.
 	 * must be positive in both dimensions
 	 **/
-	static inline void copyBox(const char* src, Coordinate src_size, Coordinate src_offset, Coordinate area_size, char* dst, Coordinate dst_size, Coordinate dst_offset)
+	static inline void copyBox(const Tixel* src, Coordinate src_size, Coordinate src_offset, Coordinate area_size, Tixel* dst, Coordinate dst_size, Coordinate dst_offset)
 	{
 		if (src == nullptr || dst == nullptr) return;
 		if (area_size.x <= 0 || area_size.y <= 0) return;
@@ -410,7 +439,45 @@ protected:
 
 		for (int y = 0; y < area_size.y; y++)
 		{
-			memcpy(dst + dst_offset.x + ((y + dst_offset.y) * dst_size.x), src + src_offset.x + ((y + src_offset.y) * src_size.x), area_size.x);
+			memcpy(dst + dst_offset.x + ((y + dst_offset.y) * dst_size.x), src + src_offset.x + ((y + src_offset.y) * src_size.x), area_size.x * sizeof(Tixel));
+		}
+	}
+
+	/**
+	 * @brief get the current default colour configuration for the interface.
+	 * 
+	 * @returns the current colour configuration
+	 **/
+	static inline Tixel::ColourCommand getDefaultColour()
+	{
+		return (Tixel::ColourCommand)(Tixel::ColourCommand::BG_BLACK | Tixel::ColourCommand::FG_WHITE);
+	}
+
+	/**
+	 * @brief get the current inverse of the default colour configuration for the interface.
+	 * 
+	 * this means that the foreground and background colours are flipped.
+	 * 
+	 * @returns the current colour configuration, inverted
+	 **/
+	static inline Tixel::ColourCommand getInvertedColour()
+	{
+		return (Tixel::ColourCommand)(Tixel::ColourCommand::FG_BLACK | Tixel::ColourCommand::BG_WHITE);
+	}
+
+	static inline void fillColour(Tixel::ColourCommand colour, Coordinate origin, Coordinate size, Tixel* buffer, Coordinate buffer_size)
+	{
+		for (int y = 0; y < size.y; y++)
+		{
+			if (y + origin.y < 0) continue;
+			if (y + origin.y >= buffer_size.y) break;
+
+			for (int x = 0; x < size.x; x++)
+			{
+				if (x + origin.x < 0) continue;
+				if (x + origin.x >= buffer_size.x) break;
+				buffer[x + origin.x + ((y + origin.y) * buffer_size.x)].colour = colour;
+			}
 		}
 	}
 };
@@ -511,7 +578,11 @@ private:
 				if (control_key & 0x01) k.control_states = (ControlKeys)(k.control_states | ControlKeys::RIGHT_ALT);
 				if (control_key & 0x02) k.control_states = (ControlKeys)(k.control_states | ControlKeys::LEFT_ALT);
 				if (control_key & 0x04) k.control_states = (ControlKeys)(k.control_states | ControlKeys::RIGHT_CTRL);
-				if (control_key & 0x08) k.control_states = (ControlKeys)(k.control_states | ControlKeys::LEFT_CTRL);
+				if (control_key & 0x08)
+				{
+					k.control_states = (ControlKeys)(k.control_states | ControlKeys::LEFT_CTRL);
+					k.key += 96;
+				}
 				if (control_key & 0x10) k.control_states = (ControlKeys)(k.control_states | ControlKeys::SHIFT);
 				events.push_back(k);
 			}
@@ -661,13 +732,15 @@ public:
 	{
 		if (size.y < 1) return;
 
-		drawText("> " + text + "< ", false, Coordinate{ 0,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
+		drawText("> " + text + " <", false, Coordinate{ 0,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
+		if (enabled && focused)
+			fillColour(getInvertedColour(), Coordinate{ 0,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
 	}
 
 	GETMAXSIZE_STUB { return Coordinate{ -1,1 }; }
 	GETMINSIZE_STUB { return Coordinate{ static_cast<int>(text.length()) + 4,1 }; }
 
-	HANDLEINPUT_STUB { if (input_character == '\n' && callback != nullptr) { callback(); return true; } return false; }
+	HANDLEINPUT_STUB { if (input_character == '\n' && callback != nullptr && focused && enabled) { callback(); return true; } return false; }
 	ISFOCUSABLE_STUB { return enabled; }
 };
 
@@ -695,6 +768,7 @@ public:
 
 	HANDLEINPUT_STUB
 	{
+		if (!focused || !enabled) return false;
 		if (input_character == '\n' && callback != nullptr) callback();
 		else text += input_character;
 
@@ -846,8 +920,8 @@ public:
 		for (size_t i = 0; i < children.size(); i++)
 		{
 			Coordinate component_size{ children[i]->getMaxSize().x == -1 ? size.x : min(size.x, children[i]->getMaxSize().x), calculated_heights[i] };
-			char* component_buffer = makeBuffer(component_size);
-			children[i]->render(component_buffer, component_size, false);
+			Tixel* component_buffer = makeBuffer(component_size);
+			children[i]->render(component_buffer, component_size);
 			copyBox(component_buffer, component_size, Coordinate{ 0,0 }, component_size, output_buffer, size, Coordinate{ 0,y_offset });
 			delete[] component_buffer;
 			y_offset += component_size.y;
@@ -935,8 +1009,8 @@ public:
 		for (size_t i = 0; i < children.size(); i++)
 		{
 			Coordinate component_size{ calculated_widths[i], children[i]->getMaxSize().y == -1 ? size.y : min(size.y, children[i]->getMaxSize().y) };
-			char* component_buffer = makeBuffer(component_size);
-			children[i]->render(component_buffer, component_size, false);
+			Tixel* component_buffer = makeBuffer(component_size);
+			children[i]->render(component_buffer, component_size);
 			copyBox(component_buffer, component_size, Coordinate{ 0,0 }, component_size, output_buffer, size, Coordinate{ x_offset,0 });
 			delete[] component_buffer;
 			x_offset += component_size.x;
@@ -1027,8 +1101,8 @@ public:
 		if (child == nullptr) return;
 
 		Coordinate component_size{ size.x - 2, size.y - 2 };
-		char* component_buffer = makeBuffer(component_size);
-		child->render(component_buffer, component_size, false);
+		Tixel* component_buffer = makeBuffer(component_size);
+		child->render(component_buffer, component_size);
 		copyBox(component_buffer, component_size, Coordinate{ 0,0 }, component_size, output_buffer, size, Coordinate{ 1,1 });
 		delete[] component_buffer;
 	}
@@ -1048,14 +1122,16 @@ class ListView : public Component, public Utility
 public:
 	vector<string> elements;
 	size_t scroll;
+	size_t selected_index = 0;
 
-	ListView(vector<string> _elements, size_t _scroll) : elements(_elements), scroll(_scroll) { }
+	ListView(vector<string> _elements, size_t _scroll, size_t _selected_index) : elements(_elements), scroll(_scroll), selected_index(_selected_index) { }
 
 	RENDER_STUB
 	{
 		if (size.x < 2 || size.y < 2) return;
 		int row = -1 - static_cast<int>(scroll);
 		int index = -1;
+		selected_index = min(selected_index, elements.size() - 1);
 		for (string element : elements)
 		{
 			index++;
@@ -1066,11 +1142,24 @@ public:
 			drawText(stripNullsAndMore(element, "\n\t"), false, Coordinate{ 0, row }, Coordinate{ size.x, 1 }, output_buffer, size);
 			string index_str = " (" + to_string(index) + ")";
 			drawText(index_str, false, Coordinate{ size.x - static_cast<int>(index_str.length()), row }, Coordinate{ size.x, 1 }, output_buffer, size);
+			if (index == selected_index && focused)
+				fillColour(getInvertedColour(), Coordinate{ 0,index }, Coordinate{ size.x,1 }, output_buffer, size);
 		}
 	}
 
 	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 10, 3 }; }
+
+	ISFOCUSABLE_STUB { return true; }
+
+	HANDLEINPUT_STUB
+	{
+		if (input_character == Input::ArrowKeys::DOWN && selected_index < elements.size() - 1) selected_index++;
+		else if (input_character == Input::ArrowKeys::UP && selected_index > 0) selected_index--;
+		else return false;
+
+		return true;
+	}
 };
 
 /**
@@ -1094,8 +1183,9 @@ public:
 
 	Node* root;
 	size_t scroll;
+	size_t selected_index = 0;
 
-	TreeView(Node* _root, size_t _scroll) : root(_root), scroll(_scroll) { }
+	TreeView(Node* _root, size_t _scroll, size_t _selected_index) : root(_root), scroll(_scroll), selected_index(_selected_index) { }
 
 	RENDER_STUB
 	{
@@ -1108,8 +1198,94 @@ public:
 	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 10, 3 }; }
 
+	ISFOCUSABLE_STUB { return true; }
+
+	HANDLEINPUT_STUB
+	{
+		if (!focused) return false;
+
+		vector<Node*> parents;
+		vector<size_t> indices_within_parents;
+		Node* node = findNodeWithID(selected_index, parents, indices_within_parents);
+		if (node == nullptr)
+		{
+			if (root != nullptr) selected_index = root->id;
+			return true;
+		}
+		if (input_character == Input::ArrowKeys::DOWN)
+		{
+			size_t steps_up = 0;
+
+			Node* tmp_parent = node;
+			size_t next_index = 0;
+			while (!(tmp_parent->children.size() > next_index && tmp_parent->expanded))
+			{
+				steps_up++;
+				if (steps_up > parents.size()) return true;
+				tmp_parent = parents[parents.size() - steps_up];
+				next_index = indices_within_parents[parents.size() - steps_up] + 1;
+			}
+			if (steps_up == 0)
+				selected_index = tmp_parent->children[0]->id;
+			else
+				selected_index = tmp_parent->children[next_index]->id;
+			
+			// TODO: auto-scrolling
+		}
+		else if (input_character == Input::ArrowKeys::UP)
+		{
+			// TODO: upward navigation
+		}
+		else if (input_character == Input::ArrowKeys::RIGHT)
+		{
+			node->expanded = true;
+		}
+		else if (input_character == Input::ArrowKeys::LEFT)
+		{
+			node->expanded = false;
+		}
+		else return false;
+
+		return true;
+	}
+
 private:
-	static inline void printNode(Node* node, int depth, int& top, char* output_buffer, Coordinate buffer_size)
+	inline Node* findNodeWithID(uint32_t id, vector<Node*>& parents, vector<size_t>& indices)
+	{
+		Node* current_node = root;
+		parents.clear();
+		indices.clear();
+		size_t level = 0;
+		while (current_node->id != id)
+		{
+			if (!current_node->children.empty())
+			{
+				parents.push_back(current_node);
+				indices.push_back(0);
+				current_node = current_node->children[0];
+				level++;
+			}
+			else
+			{
+				if (level == 0) return nullptr;
+				if (indices[level - 1] < parents[level - 1]->children.size() - 1)
+				{
+					indices[level - 1]++;
+					current_node = parents[level - 1]->children[indices[level - 1]];
+				}
+				else
+				{
+					level--;
+					indices.pop_back();
+					parents.pop_back();
+				}
+			}
+		}
+
+		return current_node;
+	}
+
+	inline void printNode(Node* node, int depth, int& top, Tixel* output_buffer, Coordinate buffer_size)
 	{
 		if (top >= buffer_size.y) return;
 
@@ -1118,6 +1294,8 @@ private:
 			drawText((node->expanded ? "\xaa " : "> ") + stripNullsAndMore(node->name, "\n\t"), false, Coordinate{ depth, top }, Coordinate{ buffer_size.x - 2 - depth, 1 }, output_buffer, buffer_size);
 			string id_desc = " [" + to_string(node->children.size()) + "]";
 			drawText(id_desc, false, Coordinate{ buffer_size.x - (int)id_desc.length(), top }, Coordinate{ (int)id_desc.length(), 1 }, output_buffer, buffer_size);
+			if (focused && selected_index == node->id)
+				fillColour(getInvertedColour(), Coordinate{ 0,top, }, Coordinate{ buffer_size.x,1 }, output_buffer, buffer_size);
 		}
 		if (node->expanded)
 		{
@@ -1188,7 +1366,7 @@ public:
 	RENDER_STUB
 	{
 		if (child == nullptr) return;
-		child->render(output_buffer, size, false);
+		child->render(output_buffer, size);
 	}
 
 	GETMAXSIZE_STUB { return Coordinate{ max_size.x, max_size.y }; }
@@ -1214,9 +1392,11 @@ public:
 		int offset = 0;
 		for (size_t i = 0; i < tab_descriptions.size(); i++)
 		{
-			string tab_text = " [" + to_string(i) + " - " + tab_descriptions[i] + "]";
+			string tab_text = "[" + to_string(i+1) + " - " + tab_descriptions[i] + "]";
 			drawText(tab_text, false, Coordinate{ offset,0 }, Coordinate{ size.x,1 }, output_buffer, size);
-			offset += tab_text.length();
+			if (i == current_tab)
+				fillColour(getInvertedColour(), Coordinate{ offset,0 }, Coordinate{ static_cast<int>(tab_text.length()),1 }, output_buffer, size);
+			offset += static_cast<int>(tab_text.length() + 1);
 		}
 	}
 
@@ -1246,21 +1426,48 @@ public:
 		setCursorVisible(false);
 		Coordinate screen_size = getScreenSize();
 
-		char* root_staging_buffer = makeBuffer(screen_size);
+		Tixel* root_staging_buffer = makeBuffer(screen_size);
 
 		Coordinate root_component_size
 		{
 			getConstrainedSize(screen_size.x, root_component->getMaxSize().x, root_component->getMinSize().x),
 			getConstrainedSize(screen_size.y, root_component->getMaxSize().y, root_component->getMinSize().y)
 		};
-		char* root_component_buffer = makeBuffer(root_component_size);
-		root_component->render(root_component_buffer, root_component_size, false);
+		Tixel* root_component_buffer = makeBuffer(root_component_size);
+		root_component->render(root_component_buffer, root_component_size);
 		copyBox(root_component_buffer, root_component_size, Coordinate{ 0,0 }, root_component_size, root_staging_buffer, screen_size, Coordinate{ 0,0 });
 		delete[] root_component_buffer;
 
 		OUTPUT_TARGET << ANSI_CLEAR_SCROLL;
+		OUTPUT_TARGET << ANSI_SET_COLOUR(Tixel::toANSI(Tixel::ColourCommand::FG_WHITE));
+		OUTPUT_TARGET << ANSI_SET_COLOUR(Tixel::toANSI(Tixel::ColourCommand::BG_BLACK));
 		setCursorPosition(Coordinate{ 0,0 });
-		OUTPUT_TARGET << root_staging_buffer;
+
+		string output;
+		output.reserve(4 * screen_size.x * screen_size.y);
+
+		Tixel::ColourCommand foreground = (Tixel::ColourCommand)0;
+		Tixel::ColourCommand background = (Tixel::ColourCommand)0;
+
+		for (size_t i = 0; i < screen_size.x * screen_size.y; i++)
+		{
+			Tixel::ColourCommand new_foreground = (Tixel::ColourCommand)(root_staging_buffer[i].colour & Tixel::ColourCommand::FG_WHITE);
+			Tixel::ColourCommand new_background = (Tixel::ColourCommand)(root_staging_buffer[i].colour & Tixel::ColourCommand::BG_WHITE);
+			stringstream s;
+			if (foreground != new_foreground)
+				s << ANSI_SET_COLOUR(Tixel::toANSI(new_foreground));
+
+			if (background != new_background)
+				s << ANSI_SET_COLOUR(Tixel::toANSI(new_background));
+			output += s.str();
+			
+			foreground = new_foreground;
+			background = new_background;
+
+			output.push_back(root_staging_buffer[i].character);
+		}
+
+		OUTPUT_TARGET << output;
 
 		delete[] root_staging_buffer;
 	}
@@ -1268,11 +1475,12 @@ public:
 	static inline void handleInput(Component* focused_component, vector<Input::Shortcut> shortcut_bindings)
 	{
 		auto keys = Input::getQueuedKeyEvents();
-		Input::processShortcuts({}, keys);
+		Input::processShortcuts(shortcut_bindings, keys);
 		auto text_keys = stui::Input::getTextCharacters(keys);
 
 		if (focused_component == nullptr) return;
-		// TODO: find the focussed component and send input
+		for (uint8_t k : text_keys)
+			focused_component->handleInput(k);
 	}
 
 	/**

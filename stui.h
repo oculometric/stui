@@ -18,7 +18,7 @@
 
 using namespace std;
 
-#define RENDER_STUB virtual inline void render(char* output_buffer, Coordinate size) override
+#define RENDER_STUB virtual inline void render(char* output_buffer, Coordinate size, bool focused) override
 #define GETMINSIZE_STUB virtual inline Coordinate getMinSize() override
 #define GETMAXSIZE_STUB virtual inline Coordinate getMaxSize() override
 #define HANDLEINPUT_STUB virtual inline bool handleInput(uint8_t input_character) override
@@ -72,10 +72,53 @@ struct Coordinate
 };
 
 /**
+ * @brief structure describing the value of a terminal-pixel, which
+ * may optionally have a command to change colour specified.
+ * 
+ * if `PASS` is specified for either side of the colour command (FG/BG),
+ * then this `Tixel` will inherit the colour configuration of the
+ * previous pixel (for whichever of FG/BG were not specified for this
+ * `Tixel`).
+ **/
+struct Tixel
+{
+	/**
+	 * @brief enumerates possible foreground and background colours
+	 * for a `Tixel`.
+	 * 
+	 * one FG and one BG colour can be or-ed together to set both on
+	 * this `Tixel`
+	 **/
+	enum ColourCommand
+	{
+		PASS		= 0b0000,
+		FG_BLACK 	= 0b00000001,
+		FG_RED   	= 0b00000010,
+		FG_GREEN 	= 0b00000100,
+		FG_BLUE  	= 0b00001000,
+		FG_YELLOW 	= 0b00000110,
+		FG_CYAN	    = 0b00001100,
+		FG_MAGENTA	= 0b00001010,
+		FG_WHITE	= 0b00001110,
+		BG_BLACK 	= 0b00010000,
+		BG_RED   	= 0b00100000,
+		BG_GREEN 	= 0b01000000,
+		BG_BLUE  	= 0b10000000,
+		BG_YELLOW 	= 0b01100000,
+		BG_CYAN	    = 0b11000000,
+		BG_MAGENTA	= 0b10100000,
+		BG_WHITE	= 0b11100000,
+	};
+
+	uint8_t character;
+	ColourCommand colour;
+};
+
+/**
  * @brief base class from which all UI components inherit.
  * 
  * all `Component` subclasses must override the `render`, `getMaxSize`, and 
- * `getMinSize` methods (ideally using the relevant macros) 
+ * `getMinSize` methods (ideally using the relevant macros).
  **/
 class Component
 {
@@ -91,7 +134,7 @@ public:
 	 * to right, top to bottom
 	 * @param size size of the buffer
 	 **/
-	virtual inline void render(char* output_buffer, Coordinate size) { }
+	virtual inline void render(char* output_buffer, Coordinate size, bool focused) { }
 	
 	/**
 	 * @brief returns the maximum desired size that this component should be given.
@@ -235,8 +278,14 @@ protected:
 			size_t max_end = min(last_index + max_width - 1, text.length() - 1);
 			size_t next_end = max_end;
 			bool trim_whitespace = true;
-			while (text[next_end] != ' ' && next_end != text.length() - 1)
+			while (text[next_end] != ' ')
 			{
+				if (next_end == text.length() - 1)
+				{
+					trim_whitespace = false;
+					break;
+				}
+
 				if (next_end == last_index)
 				{
 					next_end = max_end;
@@ -392,6 +441,9 @@ public:
 		RIGHT_ALT   = 0b00100000
 	};
 
+	/**
+	 * @brief enumerates the arrow keys for identifying directional key strokes
+	 **/
 	enum ArrowKeys
 	{
 		UP          = 0x11,
@@ -421,6 +473,15 @@ public:
 	};
 
 private:
+	/**
+	 * @brief queries the system's input buffer and fetches all available key events.
+	 * 
+	 * only returns the key-down key events (and repeats). translates presence of meta
+	 * keys like CTRL, SHIFT, ALT. also moves some relevant key presses down into the
+	 * ASCII range to make them easier to read (specifically the arrow keys).
+	 * 
+	 * @returns list of key-press events
+	 **/
 	static inline vector<Key> getQueuedKeyEvents()
 	{
 		vector<Key> events;
@@ -460,11 +521,28 @@ private:
 		return events;
 	}
 	
+	/**
+	 * @brief checks if a key event is equal to another specified key event
+	 * 
+	 * @param a first key event
+	 * @param b second key event
+	 * @returns whether or not the key events are identical
+	 **/
 	static inline bool compare(Key a, Key b)
 	{
 		return a.key == b.key && a.control_states == b.control_states;
 	}
 	
+	/**
+	 * @brief iterate through a list of key events and handle any shortcuts which
+	 * are found within it. 
+	 * 
+	 * when a shortcut instance is found, that key event is consumed and removed
+	 * from the input list.
+	 * 
+	 * @param shortcuts list of keyboard shortcut bindings
+	 * @param key_events list of key events to check
+	 **/
 	static inline void processShortcuts(vector<Shortcut> shortcuts, vector<Key>& key_events)
 	{
 		vector<Key> non_processed;
@@ -482,6 +560,16 @@ private:
 		key_events = non_processed;
 	}
 	
+	/**
+	 * @brief iterate through a list of key events and extract only the text
+	 * characters into a list.
+	 * 
+	 * when a text character is found, it is consumed and removed from the input
+	 * list.
+	 * 
+	 * @param key_events list of key events to check
+	 * @returns list of extracted text characters
+	 **/
 	static inline vector<uint8_t> getTextCharacters(vector<Key>& key_events)
 	{
 		vector<Key> non_processed;
@@ -612,7 +700,7 @@ public:
 
 		return true;
 	}
-	
+
 	ISFOCUSABLE_STUB { return enabled; }
 };
 
@@ -759,7 +847,7 @@ public:
 		{
 			Coordinate component_size{ children[i]->getMaxSize().x == -1 ? size.x : min(size.x, children[i]->getMaxSize().x), calculated_heights[i] };
 			char* component_buffer = makeBuffer(component_size);
-			children[i]->render(component_buffer, component_size);
+			children[i]->render(component_buffer, component_size, false);
 			copyBox(component_buffer, component_size, Coordinate{ 0,0 }, component_size, output_buffer, size, Coordinate{ 0,y_offset });
 			delete[] component_buffer;
 			y_offset += component_size.y;
@@ -848,7 +936,7 @@ public:
 		{
 			Coordinate component_size{ calculated_widths[i], children[i]->getMaxSize().y == -1 ? size.y : min(size.y, children[i]->getMaxSize().y) };
 			char* component_buffer = makeBuffer(component_size);
-			children[i]->render(component_buffer, component_size);
+			children[i]->render(component_buffer, component_size, false);
 			copyBox(component_buffer, component_size, Coordinate{ 0,0 }, component_size, output_buffer, size, Coordinate{ x_offset,0 });
 			delete[] component_buffer;
 			x_offset += component_size.x;
@@ -940,7 +1028,7 @@ public:
 
 		Coordinate component_size{ size.x - 2, size.y - 2 };
 		char* component_buffer = makeBuffer(component_size);
-		child->render(component_buffer, component_size);
+		child->render(component_buffer, component_size, false);
 		copyBox(component_buffer, component_size, Coordinate{ 0,0 }, component_size, output_buffer, size, Coordinate{ 1,1 });
 		delete[] component_buffer;
 	}
@@ -1100,7 +1188,7 @@ public:
 	RENDER_STUB
 	{
 		if (child == nullptr) return;
-		child->render(output_buffer, size);
+		child->render(output_buffer, size, false);
 	}
 
 	GETMAXSIZE_STUB { return Coordinate{ max_size.x, max_size.y }; }
@@ -1110,6 +1198,30 @@ public:
 		if (child == nullptr) return Coordinate{ 0,0 };
 		return child->getMinSize();
 	}
+};
+
+class TabDisplay : public Component, public Utility
+{
+public:
+	vector<string> tab_descriptions;
+	size_t current_tab;
+
+	TabDisplay(vector<string> _tab_descriptions, size_t _current_tab) : tab_descriptions(_tab_descriptions), current_tab(_current_tab) { }
+
+	RENDER_STUB
+	{
+		if (size.y < 1) return;
+		int offset = 0;
+		for (size_t i = 0; i < tab_descriptions.size(); i++)
+		{
+			string tab_text = " [" + to_string(i) + " - " + tab_descriptions[i] + "]";
+			drawText(tab_text, false, Coordinate{ offset,0 }, Coordinate{ size.x,1 }, output_buffer, size);
+			offset += tab_text.length();
+		}
+	}
+
+	GETMAXSIZE_STUB { return Coordinate{ -1,1 }; }
+	GETMINSIZE_STUB { return Coordinate{ 10,1 }; }
 };
 
 /**
@@ -1142,7 +1254,7 @@ public:
 			getConstrainedSize(screen_size.y, root_component->getMaxSize().y, root_component->getMinSize().y)
 		};
 		char* root_component_buffer = makeBuffer(root_component_size);
-		root_component->render(root_component_buffer, root_component_size);
+		root_component->render(root_component_buffer, root_component_size, false);
 		copyBox(root_component_buffer, root_component_size, Coordinate{ 0,0 }, root_component_size, root_staging_buffer, screen_size, Coordinate{ 0,0 });
 		delete[] root_component_buffer;
 
@@ -1153,12 +1265,13 @@ public:
 		delete[] root_staging_buffer;
 	}
 
-	static inline void handleInput(Component* root_component, vector<Input::Shortcut> shortcut_bindings)
+	static inline void handleInput(Component* focused_component, vector<Input::Shortcut> shortcut_bindings)
 	{
 		auto keys = Input::getQueuedKeyEvents();
 		Input::processShortcuts({}, keys);
 		auto text_keys = stui::Input::getTextCharacters(keys);
 
+		if (focused_component == nullptr) return;
 		// TODO: find the focussed component and send input
 	}
 

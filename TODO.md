@@ -6,6 +6,7 @@
 - [x] test under linux (and mac, preferably) - it didnt work `:(`
 - [x] remove boxes around components and convert to its own element BorderedBox
 - [ ] fix displaying in non-windows terminals (UTF8 display in Linux)
+- [ ] migrate to more complex buffer system
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions
@@ -17,7 +18,7 @@
 ## New Components
 - [x] list view
 - [x] bordered box
-- [ ] tab menu to switch between pages (accessed via number keys)
+- [x] tab menu to switch between pages (accessed via number keys)
 - [x] button
 - [x] text entry box
 - [ ] radio button
@@ -25,11 +26,10 @@
 - [ ] 3D object renderer component
 
 ## Comments
-- [ ] add an extended comment explaining how to write your own components
 - [ ] add comments inside functions across stui.h
 - [x] add doxy comments to the rest of stui.h
 - [ ] add doxy and detailed comments to stui_external.h
-- [ ] doxy comments in Input
+- [x] doxy comments in Input
 
 ## Input
 - [x] simple input tracking library (see planetarium)
@@ -37,5 +37,15 @@
 - [x] ability to add shortcut bindings to callbacks
 - [x] input system for components
 - [ ] widget focus system (shift-tabbing between focussable views, moving selection inside focussed view)
+    - [ ] horizontalbox
+    - [ ] verticalbox
+    - [ ] sizelimiter
+    - [ ] borderedbox
+- [ ] focus highlighting
+    - [ ] button
+    - [ ] text area
+    - [ ] list view
+    - [ ] tree view
+    - [ ] tab display
 - [ ] input for tree view (selection, expansion)
-- [ ] action callbacks e.g. for buttons, text boxes
+- [x] action callbacks e.g. for buttons, text boxes

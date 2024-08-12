@@ -2,13 +2,13 @@
 
 int main(int argc, char** argv)
 {
-    stui::Text t1("text widget", -1);
+    stui::Label t1("text widget", -1);
     stui::Spinner s1(0, 0);
     stui::Spinner s2(0, 1);
     stui::Spinner s3(0, 2);
     stui::Spinner s4(0, 3);
     stui::HorizontalSpacer hs(2);
-    stui::Text t2("right-aligned text", 1);
+    stui::Label t2("right-aligned text", 1);
     stui::HorizontalBox top_box({ &t1, &hs, &s1, &hs, &s2, &hs, &s3, &hs, &s4, &hs, &t2 });
     stui::ProgressBar pb(0.2f);
 

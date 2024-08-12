@@ -9,7 +9,9 @@
 - [x] migrate to more complex buffer system
 - [x] bordered box add name
 - [x] make colours pixel-specific
-- [ ] add greyed-out colour and use it for all unfocused selections
+- [x] add greyed-out colour and use it for all unfocused selections
+- [ ] potentially make scrollable views with extra space have a '...' to indicate more content
+- [ ] add handling for delete (not backspace)
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions
@@ -39,20 +41,17 @@
 - [ ] input reading on linux
 - [x] ability to add shortcut bindings to callbacks
 - [x] input system for components
-- [ ] widget focus system (shift-tabbing between focussable views, moving selection inside focussed view)
-    - [ ] horizontalbox
-    - [ ] verticalbox
-    - [ ] sizelimiter
-    - [ ] borderedbox
+- [x] widget focus system (shift-tabbing between focussable views, moving selection inside focussed view) ?
 - [x] focus highlighting
 - [x] hook up focus component passthrough in Page::render
     - [x] button
     - [ ] text area
-    - [ ] text input box
+    - [x] text input box
     - [x] list view
     - [x] tree view
     - [x] tab display
-- [ ] input for tree view (selection, expansion)
+- [x] input for tree view (selection, expansion)
 - [ ] fix input for text area
-- [ ] fix input for text input box
+- [x] fix input for text input box
 - [x] action callbacks e.g. for buttons, text boxes
+- [ ] widget focus toolkit

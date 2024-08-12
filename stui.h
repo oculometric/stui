@@ -100,6 +100,7 @@ struct Tixel
 		FG_YELLOW 	= 0b00000110,
 		FG_CYAN	    = 0b00001100,
 		FG_MAGENTA	= 0b00001010,
+		FG_GRAY		= 0b00001110,
 		FG_WHITE	= 0b00001111,
 		BG_BLACK 	= 0b00010000,
 		BG_RED   	= 0b00100000,
@@ -108,13 +109,15 @@ struct Tixel
 		BG_YELLOW 	= 0b01100000,
 		BG_CYAN	    = 0b11000000,
 		BG_MAGENTA	= 0b10100000,
-		BG_WHITE	= 0b11110000,
+		BG_GRAY		= 0b11100000,
+		BG_WHITE	= 0b11110000
 	};
 
 	uint8_t character = ' ';
 	ColourCommand colour = (ColourCommand)(ColourCommand::FG_WHITE | ColourCommand::BG_BLUE);
 
 	inline void operator=(uint8_t c) { character = c; }
+	inline void operator=(char c) { character = static_cast<uint8_t>(c); }
 
 	static inline int toANSI(ColourCommand c)
 	{
@@ -134,6 +137,8 @@ struct Tixel
 		case BG_MAGENTA: return 105;
 		case FG_CYAN: return 96;
 		case BG_CYAN: return 106;
+		case FG_GRAY: return 37;
+		case BG_GRAY: return 47;
 		case FG_WHITE: return 97;
 		case BG_WHITE: return 107;
 		default: return 40;
@@ -455,19 +460,40 @@ protected:
 	}
 
 	/**
-	 * @brief get the current inverse of the default colour configuration for the interface.
+	 * @brief get the current highlighted colour configuration for the interface.
 	 * 
-	 * this means that the foreground and background colours are flipped.
-	 * 
-	 * @returns the current colour configuration, inverted
+	 * @returns the current highlighted colour configuration
 	 **/
-	static inline Tixel::ColourCommand getInvertedColour()
+	static inline Tixel::ColourCommand getHighlightedColour()
 	{
 		return (Tixel::ColourCommand)(Tixel::ColourCommand::FG_BLACK | Tixel::ColourCommand::BG_WHITE);
 	}
 
+	/**
+	 * @brief get the current unfocused colour configuration for the interface.
+	 * 
+	 * @returns the current unfocused colour configuration
+	 **/
+	static inline Tixel::ColourCommand getUnfocusedColour()
+	{
+		return (Tixel::ColourCommand)(Tixel::ColourCommand::FG_BLACK | Tixel::ColourCommand::BG_GRAY);
+	}
+
+	/**
+	 * @brief fill a specified box area with a particular colour command.
+	 * 
+	 * @param colour colour command to fill the area with
+	 * @param origin starting offset of the area
+	 * @param size size of the area. must be positive in both axes
+	 * @param buffer output buffer into which the filled box should be drawn
+	 * @param buffer_size size of the output buffer
+	 **/
 	static inline void fillColour(Tixel::ColourCommand colour, Coordinate origin, Coordinate size, Tixel* buffer, Coordinate buffer_size)
 	{
+		if (size.x <= 0 || size.y <= 0) return;
+		if (buffer == nullptr) return;
+		if (buffer_size.x <= 0 || buffer_size.y <= 0) return;
+
 		for (int y = 0; y < size.y; y++)
 		{
 			if (y + origin.y < 0) continue;
@@ -653,6 +679,7 @@ private:
 				  (k.key >= 32 && k.key <= 127) 
 				|| k.key == '\n' 
 				|| k.key == '\t' 
+				|| k.key == '\b'
 				|| k.key == ArrowKeys::UP
 				|| k.key == ArrowKeys::DOWN
 				|| k.key == ArrowKeys::LEFT
@@ -671,7 +698,6 @@ private:
 		return result;
 	}
 
-	// TODO: here
 	// size_t const BufferSize = 512;
 //char buffer[BufferSize];
 
@@ -690,13 +716,13 @@ private:
  * text `alignment` can be specified as < 0 for left-aligned, = 0 for center-aligned, or
  * > 0 for right-aligned
  **/
-class Text : public Component, public Utility
+class Label : public Component, public Utility
 {
 public:
 	string text;
 	int alignment;
 	
-	Text(string _text, int _alignment) : text(_text), alignment(_alignment) { }
+	Label(string _text, int _alignment) : text(_text), alignment(_alignment) { }
 
 	RENDER_STUB
 	{
@@ -734,8 +760,8 @@ public:
 		if (size.y < 1) return;
 
 		drawText("> " + text + " <", false, Coordinate{ 0,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
-		if (enabled && focused)
-			fillColour(getInvertedColour(), Coordinate{ 0,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
+		if (focused)
+			fillColour(enabled ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
 	}
 
 	GETMAXSIZE_STUB { return Coordinate{ -1,1 }; }
@@ -750,6 +776,8 @@ public:
  **/
 class TextInputBox : public Component, public Utility
 {
+	size_t cursor_index = 0;
+	int last_rendered_width = 0;
 public:
 	string text;
 	void (*callback)();
@@ -760,18 +788,40 @@ public:
 	RENDER_STUB
 	{
 		if (size.y < 1) return;
+		last_rendered_width = size.x;
 
-		drawText("> " + text, false, Coordinate{ 0,0 }, Coordinate{ static_cast<int>(text.length()) + 2,1 }, output_buffer, size);
+		drawText("> " + text, false, Coordinate{ 0,0 }, Coordinate{ size.x - 3,1 }, output_buffer, size);
+		if (enabled) output_buffer[cursor_index + 2].colour = focused ? getHighlightedColour() : getUnfocusedColour();
 	}
 
 	GETMAXSIZE_STUB { return Coordinate{ -1,1 }; }
-	GETMINSIZE_STUB { return Coordinate{ 12,1 }; }
+	GETMINSIZE_STUB { return Coordinate{ 6,1 }; }
 
 	HANDLEINPUT_STUB
 	{
 		if (!focused || !enabled) return false;
-		if (input_character == '\n' && callback != nullptr) callback();
-		else text += input_character;
+		if (input_character == '\n') { if (callback != nullptr) callback(); }
+		else if (input_character == Input::ArrowKeys::LEFT) { if (cursor_index > 0) cursor_index--; }
+		else if (input_character == Input::ArrowKeys::RIGHT) { if (cursor_index < text.length()) cursor_index++; }
+		else if (input_character == Input::ArrowKeys::UP) cursor_index = 0;
+		else if (input_character == Input::ArrowKeys::DOWN) cursor_index = text.length();
+		else if (input_character == '\b')
+		{ if (cursor_index > 0)
+		{
+			for (size_t first = cursor_index - 1; first < text.length() - 1; first++)
+				text[first] = text[first + 1];
+			text.pop_back();
+			cursor_index--;
+		} }
+		else if (input_character == '\t') return false;
+		else if (cursor_index < last_rendered_width - 3)
+		{
+			text.push_back(' ');
+			for (size_t first = text.length() - 1; first > cursor_index; first--)
+				text[first] = text[first - 1];
+			text[cursor_index] = input_character;
+			cursor_index++;
+		}
 
 		return true;
 	}
@@ -798,8 +848,8 @@ public:
 		drawText(stripNullsAndMore(text, ""), true, Coordinate{ 0,0 }, Coordinate{ size.x, size.y }, output_buffer, size);
 		// TODO: account for line-wrapping here...
 		cursor_index = min(cursor_index, min(text.length(), (size.x * size.y) - 1));
-		if (editable && focused)
-			output_buffer[cursor_index].colour = getInvertedColour();
+		if (editable)
+			output_buffer[cursor_index].colour = focused ? getHighlightedColour() : getUnfocusedColour();
 	}
 
 	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }
@@ -1067,15 +1117,15 @@ public:
 class VerticalSpacer : public Component
 {
 public:
-	size_t size;
+	size_t height;
 	
-	VerticalSpacer(size_t _size) : size(_size) { }
+	VerticalSpacer(size_t _size) : height(_size) { }
 	
 	RENDER_STUB
 	{ }
 
-	GETMAXSIZE_STUB { return Coordinate{ 1, static_cast<int>(size) }; }
-	GETMINSIZE_STUB { return Coordinate{ 1, static_cast<int>(size) }; }
+	GETMAXSIZE_STUB { return Coordinate{ 1, static_cast<int>(height) }; }
+	GETMINSIZE_STUB { return Coordinate{ 1, static_cast<int>(height) }; }
 };
 
 /**
@@ -1084,15 +1134,15 @@ public:
 class HorizontalSpacer : public Component
 {
 public:
-	size_t size;
+	size_t width;
 	
-	HorizontalSpacer(size_t _size) : size(_size) { }
+	HorizontalSpacer(size_t _size) : width(_size) { }
 
 	RENDER_STUB
 	{ }
 
-	GETMAXSIZE_STUB { return Coordinate{ static_cast<int>(size), 1 }; }
-	GETMINSIZE_STUB { return Coordinate{ static_cast<int>(size), 1 }; }
+	GETMAXSIZE_STUB { return Coordinate{ static_cast<int>(width), 1 }; }
+	GETMINSIZE_STUB { return Coordinate{ static_cast<int>(width), 1 }; }
 };
 
 /**
@@ -1122,7 +1172,7 @@ public:
 	}
 
 	GETMAXSIZE_STUB { return (child == nullptr) ? Coordinate{ -1,-1 } : child->getMaxSize(); }
-	GETMINSIZE_STUB { return (child == nullptr) ? Coordinate{ 2,2 } : child->getMinSize(); }
+	GETMINSIZE_STUB { return (child == nullptr) ? Coordinate{ 2,2 } : Coordinate{ child->getMinSize().x + 2, child->getMinSize().y + 2 }; }
 };
 
 /**
@@ -1133,6 +1183,8 @@ public:
  **/
 class ListView : public Component, public Utility
 {
+	int last_render_height = 0;
+
 public:
 	vector<string> elements;
 	size_t scroll;
@@ -1143,6 +1195,7 @@ public:
 	RENDER_STUB
 	{
 		if (size.x < 2 || size.y < 2) return;
+		last_render_height = size.y;
 		int row = -1 - static_cast<int>(scroll);
 		int index = -1;
 		selected_index = min(selected_index, elements.size() - 1);
@@ -1151,13 +1204,13 @@ public:
 			index++;
 			row++;
 			if (row < 0) continue;
-			if (row >= size.y - 2) break;
+			if (row >= size.y) break;
 
 			drawText(stripNullsAndMore(element, "\n\t"), false, Coordinate{ 0, row }, Coordinate{ size.x, 1 }, output_buffer, size);
 			string index_str = " (" + to_string(index) + ")";
 			drawText(index_str, false, Coordinate{ size.x - static_cast<int>(index_str.length()), row }, Coordinate{ size.x, 1 }, output_buffer, size);
-			if (index == selected_index && focused)
-				fillColour(getInvertedColour(), Coordinate{ 0,index }, Coordinate{ size.x,1 }, output_buffer, size);
+			if (index == selected_index)
+				fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0, row }, Coordinate{ size.x,1 }, output_buffer, size);
 		}
 	}
 
@@ -1168,8 +1221,18 @@ public:
 
 	HANDLEINPUT_STUB
 	{
-		if (input_character == Input::ArrowKeys::DOWN && selected_index < elements.size() - 1) selected_index++;
-		else if (input_character == Input::ArrowKeys::UP && selected_index > 0) selected_index--;
+		if (input_character == Input::ArrowKeys::DOWN && selected_index < elements.size() - 1)
+		{
+			selected_index++;
+			if (static_cast<int>(selected_index) - static_cast<int>(scroll) >= last_render_height)
+				scroll++;
+		}
+		else if (input_character == Input::ArrowKeys::UP && selected_index > 0)
+		{
+			selected_index--;
+			if (static_cast<int>(selected_index) - static_cast<int>(scroll) < 0 && scroll > 0)
+				scroll--;
+		}
 		else return false;
 
 		return true;
@@ -1186,6 +1249,8 @@ public:
  **/
 class TreeView : public Component, public Utility
 {
+	int last_render_height = 0;
+
 public:
 	struct Node
 	{
@@ -1204,6 +1269,7 @@ public:
 	RENDER_STUB
 	{
 		if (size.x < 2 || size.y < 2) return;
+		last_render_height = size.y;
 		if (root == nullptr) return;
 		int top = 0 - static_cast<int>(scroll);
 		printNode(root, 0, top, output_buffer, size);
@@ -1220,12 +1286,14 @@ public:
 
 		vector<Node*> parents;
 		vector<size_t> indices_within_parents;
-		Node* node = findNodeWithID(selected_index, parents, indices_within_parents);
+		int actual_offset;
+		Node* node = findNodeWithID(selected_index, parents, indices_within_parents, actual_offset);
 		if (node == nullptr)
 		{
 			if (root != nullptr) selected_index = root->id;
 			return true;
 		}
+
 		if (input_character == Input::ArrowKeys::DOWN)
 		{
 			size_t steps_up = 0;
@@ -1244,11 +1312,24 @@ public:
 			else
 				selected_index = tmp_parent->children[next_index]->id;
 			
-			// TODO: auto-scrolling
+			if (actual_offset - static_cast<int>(scroll) >= last_render_height)
+				scroll++;
 		}
 		else if (input_character == Input::ArrowKeys::UP)
 		{
-			// TODO: upward navigation
+			if (parents.size() < 1) return true;
+			else if (indices_within_parents[parents.size() - 1] == 0)
+				selected_index = parents[parents.size() - 1]->id;
+			else
+			{
+				Node* tmp_parent = parents[parents.size() - 1]->children[indices_within_parents[parents.size() - 1] - 1];
+				while (tmp_parent->expanded && tmp_parent->children.size() > 0)
+					tmp_parent = tmp_parent->children[tmp_parent->children.size() - 1];
+				selected_index = tmp_parent->id;
+			}
+
+			if (actual_offset - static_cast<int>(scroll) <= 0 && scroll > 0)
+				scroll--;
 		}
 		else if (input_character == Input::ArrowKeys::RIGHT)
 		{
@@ -1264,20 +1345,31 @@ public:
 	}
 
 private:
-	inline Node* findNodeWithID(uint32_t id, vector<Node*>& parents, vector<size_t>& indices)
+	inline Node* findNodeWithID(uint32_t id, vector<Node*>& parents, vector<size_t>& indices, int& actual_offset)
 	{
 		Node* current_node = root;
 		parents.clear();
 		indices.clear();
-		size_t level = 0;
+		actual_offset = 0;
+		if (root == nullptr) return nullptr;
+		int level = 0;
+		int parent_expansion_level = root->expanded ? 0 : -1;
 		while (current_node->id != id)
 		{
+		// TODO: actual_offset is still not correct
 			if (!current_node->children.empty())
 			{
 				parents.push_back(current_node);
 				indices.push_back(0);
-				current_node = current_node->children[0];
 				level++;
+				current_node = current_node->children[0];
+
+				if (parent_expansion_level == (level - 1))
+				{
+					actual_offset++;
+					if (current_node->expanded)
+						parent_expansion_level++;
+				}
 			}
 			else
 			{
@@ -1285,10 +1377,28 @@ private:
 				if (indices[level - 1] < parents[level - 1]->children.size() - 1)
 				{
 					indices[level - 1]++;
+					if (parent_expansion_level == level)
+					{
+						if (current_node->expanded)
+							parent_expansion_level--;
+					}
+					
+					if (parent_expansion_level == (level - 1))	
+						actual_offset++;
+
 					current_node = parents[level - 1]->children[indices[level - 1]];
+					
+					if (parent_expansion_level == (level - 1) && current_node->expanded)
+						parent_expansion_level++;
 				}
 				else
 				{
+					if (parent_expansion_level == level)
+					{
+						actual_offset++;
+						if (current_node->expanded)
+							parent_expansion_level--;
+					}
 					level--;
 					indices.pop_back();
 					parents.pop_back();
@@ -1308,8 +1418,8 @@ private:
 			drawText((node->expanded ? "\xaa " : "> ") + stripNullsAndMore(node->name, "\n\t"), false, Coordinate{ depth, top }, Coordinate{ buffer_size.x - 2 - depth, 1 }, output_buffer, buffer_size);
 			string id_desc = " [" + to_string(node->children.size()) + "]";
 			drawText(id_desc, false, Coordinate{ buffer_size.x - (int)id_desc.length(), top }, Coordinate{ (int)id_desc.length(), 1 }, output_buffer, buffer_size);
-			if (focused && selected_index == node->id)
-				fillColour(getInvertedColour(), Coordinate{ 0,top, }, Coordinate{ buffer_size.x,1 }, output_buffer, buffer_size);
+			if (selected_index == node->id)
+				fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,top, }, Coordinate{ buffer_size.x,1 }, output_buffer, buffer_size);
 		}
 		if (node->expanded)
 		{
@@ -1409,7 +1519,7 @@ public:
 			string tab_text = "[" + to_string(i+1) + " - " + tab_descriptions[i] + "]";
 			drawText(tab_text, false, Coordinate{ offset,0 }, Coordinate{ size.x,1 }, output_buffer, size);
 			if (i == current_tab)
-				fillColour(getInvertedColour(), Coordinate{ offset,0 }, Coordinate{ static_cast<int>(tab_text.length()),1 }, output_buffer, size);
+				fillColour(getUnfocusedColour(), Coordinate{ offset,0 }, Coordinate{ static_cast<int>(tab_text.length()),1 }, output_buffer, size);
 			offset += static_cast<int>(tab_text.length() + 1);
 		}
 	}

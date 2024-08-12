@@ -19,6 +19,12 @@
 
 using namespace std;
 
+#if defined(_WIN32)
+	using clock_type = chrono::steady_clock;
+#elif defined(__linux__)
+	using clock_type = chrono::system_clock;
+#endif
+
 #define RENDER_STUB virtual inline void render(Tixel* output_buffer, Coordinate size) override
 #define GETMINSIZE_STUB virtual inline Coordinate getMinSize() override
 #define GETMAXSIZE_STUB virtual inline Coordinate getMaxSize() override
@@ -30,10 +36,13 @@ using namespace std;
 #define ANSI_ESCAPE '\033'
 #define ANSI_CLEAR_SCREEN ANSI_ESCAPE << "[2J" 
 #define ANSI_CLEAR_SCROLL ANSI_ESCAPE << "[3J"
-#define ANSI_SETCURSOR(x,y) ANSI_ESCAPE << '[' << y << ';' << x << 'H'
+#define ANSI_SET_CURSOR(x,y) ANSI_ESCAPE << '[' << y << ';' << x << 'H'
+#define ANSI_HIDE_CURSOR ANSI_ESCAPE << "[?25l"
 #define ANSI_PANUP(n) ANSI_ESCAPE << '[' << n << 'T'
 #define ANSI_PANDOWN(n) ANSI_ESCAPE << '[' << n << 'S'
 #define ANSI_SET_COLOUR(c) ANSI_ESCAPE << '[' << to_string(c) << 'm'
+
+#define EASCII_BOXTOPLEFT '\xc9'
 
 namespace stui
 {
@@ -113,11 +122,12 @@ struct Tixel
 		BG_WHITE	= 0b11110000
 	};
 
-	uint8_t character = ' ';
+	uint32_t character = ' ';
 	ColourCommand colour = (ColourCommand)(ColourCommand::FG_WHITE | ColourCommand::BG_BLUE);
 
-	inline void operator=(uint8_t c) { character = c; }
-	inline void operator=(char c) { character = static_cast<uint8_t>(c); }
+	inline void operator=(uint32_t c) { character = static_cast<uint32_t>(c); }
+	inline void operator=(uint8_t c) { character = static_cast<uint32_t>(c); }
+	inline void operator=(char c) { character = static_cast<uint32_t>(static_cast<uint8_t>(c)); }
 
 	static inline int toANSI(ColourCommand c)
 	{
@@ -834,22 +844,21 @@ public:
  **/
 class TextArea : public Component, public Utility
 {
+	size_t cursor_index = 0;
+	size_t line_index = 0 ;
 public:
 	string text;
 	bool editable;
-	size_t cursor_index;
 
-	TextArea(string _text, bool _editable, size_t _cursor_index) : text(_text), editable(_editable), cursor_index(_cursor_index) { }
+	TextArea(string _text, bool _editable) : text(_text), editable(_editable) { }
 
 	RENDER_STUB
 	{
 		if (size.y < 2 || size.x < 2) return;
 
 		drawText(stripNullsAndMore(text, ""), true, Coordinate{ 0,0 }, Coordinate{ size.x, size.y }, output_buffer, size);
-		// TODO: account for line-wrapping here...
-		cursor_index = min(cursor_index, min(text.length(), (size.x * size.y) - 1));
 		if (editable)
-			output_buffer[cursor_index].colour = focused ? getHighlightedColour() : getUnfocusedColour();
+			output_buffer[cursor_index + (line_index  * size.x)].colour = focused ? getHighlightedColour() : getUnfocusedColour();
 	}
 
 	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }
@@ -1588,7 +1597,15 @@ public:
 			foreground = new_foreground;
 			background = new_background;
 
-			output.push_back(root_staging_buffer[i].character);
+			// TODO: handle 32-bit UTF-8
+			// TODO: make windows respect it
+			// TODO: translate existing specials into UTF-8
+
+			uint32_t chr = root_staging_buffer[i].character;
+			output.push_back(chr & 0xFF);
+			if (chr & 0x80) output.push_back((chr >> 8) & 0xFF);
+			if (chr & 0x8000) output.push_back((chr >> 16) & 0xFF);
+			if (chr & 0x800000) output.push_back((chr >> 24) & 0xFF);
 		}
 
 		OUTPUT_TARGET << output;
@@ -1630,7 +1647,7 @@ public:
 	 * the fraction of the delta time which was taken up by the time between calls (the
 	 * remaining fraction being occupied by the `targetFramerate` function idling)
 	 **/
-	static inline FrameData targetFramerate(int fps, chrono::steady_clock::time_point& last_frame_time)
+	static inline FrameData targetFramerate(int fps, clock_type::time_point& last_frame_time)
 	{
 		chrono::duration<float> active_frame_duration = chrono::high_resolution_clock::now() - last_frame_time;
 
@@ -1695,7 +1712,7 @@ private:
 	 **/
 	static inline void setCursorPosition(Coordinate position)
 	{
-		OUTPUT_TARGET << ANSI_SETCURSOR(position.x, position.y);
+		OUTPUT_TARGET << ANSI_SET_CURSOR(position.x, position.y);
 	}
 
 	/**
@@ -1711,7 +1728,7 @@ private:
 		info.bVisible = visible;
 		SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
 #elif defined(__linux__)
-		// TODO: linux implementation
+		OUTPUT_TARGET << ANSI_HIDE_CURSOR;
 #endif
 	}
 };

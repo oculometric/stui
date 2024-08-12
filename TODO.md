@@ -5,13 +5,15 @@
 - [ ] make some demo files (.layout, .cpp)
 - [x] test under linux (and mac, preferably) - it didnt work `:(`
 - [x] remove boxes around components and convert to its own element BorderedBox
-- [ ] fix displaying in non-windows terminals (UTF8 display in Linux)
+- [ ] fix displaying in non-windows terminals (UTF8 display in Linux) by widening the character buffer type
 - [x] migrate to more complex buffer system
 - [x] bordered box add name
 - [x] make colours pixel-specific
 - [x] add greyed-out colour and use it for all unfocused selections
 - [ ] potentially make scrollable views with extra space have a '...' to indicate more content
 - [ ] add handling for delete (not backspace)
+- [ ] update help (do this last probably)
+- [ ] intercept Ctrl C
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions
@@ -29,6 +31,7 @@
 - [ ] radio button
 - [ ] check box
 - [ ] 3D object renderer component
+- [ ] slider
 
 ## Comments
 - [ ] add comments inside functions across stui.h

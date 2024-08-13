@@ -1,5 +1,6 @@
-#include <stui.h>
 
+#define STUI_IMPLEMENTATION
+#include <stui.h>
 
 int main(int argc, char** argv)
 {
@@ -91,6 +92,6 @@ int main(int argc, char** argv)
         stui::Page::handleInput(focusables[focus_index], {});
         // TODO: callback to navigate from one focusable to the next using shift tab
 
-        //stui::Page::render(&root);
+        stui::Page::render(&root);
     }
 }

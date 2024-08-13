@@ -14,8 +14,8 @@
 - [ ] add handling for delete (not backspace)
 - [ ] update help (do this last probably)
 - [x] intercept Ctrl C
-- [ ] make everything non-inline, switch to #define-d implementation
-- [ ] fix right-aligned label
+- [x] make everything non-inline, switch to #define-d implementation
+- [x] fix right-aligned label
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions

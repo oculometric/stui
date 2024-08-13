@@ -29,10 +29,10 @@ using namespace std;
 	using clock_type = chrono::system_clock;
 #endif
 
-#define RENDER_STUB virtual inline void render(Tixel* output_buffer, Coordinate size) override
+#define RENDER_STUB virtual void render(Tixel* output_buffer, Coordinate size) override
 #define GETMINSIZE_STUB virtual inline Coordinate getMinSize() override
 #define GETMAXSIZE_STUB virtual inline Coordinate getMaxSize() override
-#define HANDLEINPUT_STUB virtual inline bool handleInput(uint8_t input_character, Input::ControlKeys modifiers) override
+#define HANDLEINPUT_STUB virtual bool handleInput(uint8_t input_character, Input::ControlKeys modifiers) override
 #define	ISFOCUSABLE_STUB virtual inline bool isFocusable() override
 
 #define OUTPUT_TARGET cout
@@ -85,7 +85,8 @@ namespace stui
  * @param others array of additional characters that should be excluded
  * @return repaired string 
  **/
-inline string stripNullsAndMore(string str, const char* others)
+string stripNullsAndMore(string str, const char* others)
+#ifdef STUI_IMPLEMENTATION
 {
     string result = "";
     for (char c : str)
@@ -102,6 +103,8 @@ inline string stripNullsAndMore(string str, const char* others)
     }
     return result;
 }
+#endif
+;
 
 /**
  * @brief two-dimensional integer coordinate pair.
@@ -159,7 +162,8 @@ struct Tixel
 	inline void operator=(uint8_t c) { character = static_cast<uint32_t>(c); }
 	inline void operator=(char c) { character = static_cast<uint32_t>(static_cast<uint8_t>(c)); }
 
-	static inline int toANSI(ColourCommand c)
+	static int toANSI(ColourCommand c)
+#ifdef STUI_IMPLEMENTATION
 	{
 		switch (c)
 		{
@@ -184,6 +188,8 @@ struct Tixel
 		default: return 40;
 		}
 	}
+#endif
+	;
 };
 
 /**
@@ -253,7 +259,8 @@ private:
 	 * 
 	 * @returns list of key-press events
 	 **/
-	static inline vector<Key> getQueuedKeyEvents()
+	static vector<Key> getQueuedKeyEvents()
+#ifdef STUI_IMPLEMENTATION
 	{
 		vector<Key> events;
 #if defined(_WIN32)
@@ -306,7 +313,9 @@ private:
 #endif
 		return events;
 	}
-	
+#endif
+	;
+
 	/**
 	 * @brief checks if a key event is equal to another specified key event
 	 * 
@@ -329,7 +338,8 @@ private:
 	 * @param shortcuts list of keyboard shortcut bindings
 	 * @param key_events list of key events to check
 	 **/
-	static inline void processShortcuts(vector<Shortcut> shortcuts, vector<Key>& key_events)
+	static void processShortcuts(vector<Shortcut> shortcuts, vector<Key>& key_events)
+#ifdef STUI_IMPLEMENTATION
 	{
 		vector<Key> non_processed;
 		for (size_t i = 0; i < key_events.size(); i++)
@@ -345,6 +355,8 @@ private:
 
 		key_events = non_processed;
 	}
+#endif
+	;
 	
 	/**
 	 * @brief iterate through a list of key events and extract only the text
@@ -356,7 +368,8 @@ private:
 	 * @param key_events list of key events to check
 	 * @returns list of extracted text characters
 	 **/
-	static inline vector<pair<uint8_t, ControlKeys>> getTextCharacters(vector<Key>& key_events)
+	static vector<pair<uint8_t, ControlKeys>> getTextCharacters(vector<Key>& key_events)
+#ifdef STUI_IMPLEMENTATION
 	{
 		vector<Key> non_processed;
 		vector<pair<uint8_t, ControlKeys>> result;
@@ -385,6 +398,8 @@ private:
 
 		return result;
 	}
+#endif
+	;
 };
 
 /**
@@ -475,7 +490,8 @@ protected:
 	 * @param buffer pointer to a character array ordered left-to-right, top-to-bottom
 	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
 	 **/
-	static inline void drawBox(Coordinate box_origin, Coordinate box_size, Tixel* buffer, Coordinate buffer_size)
+	static void drawBox(Coordinate box_origin, Coordinate box_size, Tixel* buffer, Coordinate buffer_size)
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (buffer == nullptr) return;
 		if (box_size.x <= 0 || box_size.y <= 0) return;
@@ -514,6 +530,8 @@ protected:
 			}
 		}
 	}
+#endif
+	;
 
 	/**
 	 * @brief converts a single string into an array of lines of a given maximum length.
@@ -526,7 +544,8 @@ protected:
 	 * 
 	 * @returns list of individual lines of text
 	 **/
-	static inline vector<string> wrapText(string text, size_t max_width)
+	static vector<string> wrapText(string text, size_t max_width)
+#ifdef STUI_IMPLEMENTATION
 	{
 		vector<string> result;
 		size_t start = 0;
@@ -543,8 +562,11 @@ protected:
 			result[0] = string(1, text[0]) + result[0];
 		return result;
 	}
+#endif
+	;
 
-	static inline vector<string> wrapTextInner(string text, size_t max_width)
+	static vector<string> wrapTextInner(string text, size_t max_width)
+#ifdef STUI_IMPLEMENTATION
 	{
 		vector<string> lines;
 		size_t last_index = 0;
@@ -574,6 +596,8 @@ protected:
 		}
 		return lines;
 	}
+#endif
+	;
 
 	/**
 	 * @brief draws a block of text into a buffer.
@@ -595,7 +619,8 @@ protected:
 	 * @param buffer pointer to a character array ordered left-to-right, top-to-bottom
 	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
 	 **/
-	static inline void drawText(string text, bool wrap, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size)
+	static void drawText(string text, bool wrap, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size)
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (buffer == nullptr) return;
 		if (buffer_size.x <= 0 || buffer_size.y <= 0) return;
@@ -627,6 +652,8 @@ protected:
 			}
 		}
 	}
+#endif
+	;
 
 	/**
 	 * @brief simplifies allocation of 2D text buffers.
@@ -641,7 +668,8 @@ protected:
 	 * @returns pointer to newly-allocated block of memory, or `nullptr` if the buffer size would be
 	 * less than 1
 	 **/
-	static inline Tixel* makeBuffer(Coordinate buffer_size)
+	static Tixel* makeBuffer(Coordinate buffer_size)
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (buffer_size.x <= 0 || buffer_size.y <= 0) return nullptr;
 
@@ -653,6 +681,8 @@ protected:
 
 		return buf;
 	}
+#endif
+	;
 
 	/**
 	 * @brief copy an area from one buffer to another.
@@ -675,7 +705,8 @@ protected:
 	 * @param dst_offset position of the top-left corner of the box to copy to in the destination buffer.
 	 * must be positive in both dimensions
 	 **/
-	static inline void copyBox(const Tixel* src, Coordinate src_size, Coordinate src_offset, Coordinate area_size, Tixel* dst, Coordinate dst_size, Coordinate dst_offset)
+	static void copyBox(const Tixel* src, Coordinate src_size, Coordinate src_offset, Coordinate area_size, Tixel* dst, Coordinate dst_size, Coordinate dst_offset)
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (src == nullptr || dst == nullptr) return;
 		if (area_size.x <= 0 || area_size.y <= 0) return;
@@ -689,6 +720,8 @@ protected:
 			memcpy(dst + dst_offset.x + ((y + dst_offset.y) * dst_size.x), src + src_offset.x + ((y + src_offset.y) * src_size.x), area_size.x * sizeof(Tixel));
 		}
 	}
+#endif
+	;
 
 	/**
 	 * @brief get the current default colour configuration for the interface.
@@ -729,7 +762,8 @@ protected:
 	 * @param buffer output buffer into which the filled box should be drawn
 	 * @param buffer_size size of the output buffer
 	 **/
-	static inline void fillColour(Tixel::ColourCommand colour, Coordinate origin, Coordinate size, Tixel* buffer, Coordinate buffer_size)
+	static void fillColour(Tixel::ColourCommand colour, Coordinate origin, Coordinate size, Tixel* buffer, Coordinate buffer_size)
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (size.x <= 0 || size.y <= 0) return;
 		if (buffer == nullptr) return;
@@ -748,6 +782,8 @@ protected:
 			}
 		}
 	}
+#endif
+	;
 };
 
 /**
@@ -765,6 +801,7 @@ public:
 	Label(string _text, int _alignment) : text(_text), alignment(_alignment) { }
 
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (size.y < 1) return;
 
@@ -773,11 +810,13 @@ public:
 			offset.x = 0;
 		else if (alignment == 0)
 			offset.x = static_cast<int>((size.x - text.length()) / 2);
-		else if (alignment > 1)
+		else if (alignment > 0)
 			offset.x = static_cast<int>(size.x - text.length());
 
 		drawText(stripNullsAndMore(text, "\n\t"), false, offset, Coordinate{ static_cast<int>(text.length()), 1 }, output_buffer, size);
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB { return Coordinate{ -1, 1 }; }
 	GETMINSIZE_STUB { return Coordinate{ static_cast<int>(text.length()), 1 }; }
@@ -796,6 +835,7 @@ public:
 	Button(string _text, void (*_callback)(), bool _enabled) : text(_text), callback(_callback), enabled(_enabled) { }
 
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (size.y < 1) return;
 
@@ -803,11 +843,21 @@ public:
 		if (focused)
 			fillColour(enabled ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB { return Coordinate{ -1,1 }; }
 	GETMINSIZE_STUB { return Coordinate{ static_cast<int>(text.length()) + 4,1 }; }
 
-	HANDLEINPUT_STUB { if (input_character == '\n' && callback != nullptr && focused && enabled) { callback(); return true; } return false; }
+	HANDLEINPUT_STUB
+#ifdef STUI_IMPLEMENTATION
+	{
+		if (input_character == '\n' && callback != nullptr && focused && enabled) { callback(); return true; }
+		return false;
+	}
+#endif
+	;
+
 	ISFOCUSABLE_STUB { return enabled; }
 };
 
@@ -827,6 +877,7 @@ public:
 	RadioButton(vector<string> _options, size_t _selected_index, bool _enabled) : options(_options), selected_index(_selected_index), enabled(_enabled) { }
 
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (size.y < 1) return;
 
@@ -839,6 +890,8 @@ public:
 				fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,line }, Coordinate{ size.x,1}, output_buffer, size);
 		}
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB { return Coordinate{ -1,-1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 5, static_cast<int>(options.size()) }; }
@@ -846,6 +899,7 @@ public:
 	ISFOCUSABLE_STUB { return true; }
 
 	HANDLEINPUT_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (!focused || !enabled) return false;
 
@@ -856,6 +910,8 @@ public:
 		if (input_character == ' ' || input_character == '\n') selected_index = highlighted_index;
 		return false;
 	}
+#endif
+	;
 };
 
 /**
@@ -873,6 +929,7 @@ public:
 	ToggleButton(vector<pair<string, bool>> _options, bool _enabled) : options(_options), enabled(_enabled) { }
 
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (size.y < 1) return;
 
@@ -885,6 +942,8 @@ public:
 				fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,line }, Coordinate{ size.x,1}, output_buffer, size);
 		}
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB { return Coordinate{ -1,-1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 5, static_cast<int>(options.size()) }; }
@@ -892,6 +951,7 @@ public:
 	ISFOCUSABLE_STUB { return true; }
 
 	HANDLEINPUT_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (!focused || !enabled) return false;
 
@@ -902,6 +962,8 @@ public:
 		if (input_character == ' ' || input_character == '\n') options[highlighted_index].second = !options[highlighted_index].second;
 		return false;
 	}
+#endif
+	;
 };
 
 /**
@@ -919,6 +981,7 @@ public:
 	TextInputBox(string _text, void (*_callback)(), bool _enabled) : text(_text), callback(_callback), enabled(_enabled) { }
 
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (size.y < 1) return;
 		last_rendered_width = size.x;
@@ -926,11 +989,14 @@ public:
 		drawText("> " + text, false, Coordinate{ 0,0 }, Coordinate{ size.x - 3,1 }, output_buffer, size);
 		if (enabled) output_buffer[cursor_index + 2].colour = focused ? getHighlightedColour() : getUnfocusedColour();
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB { return Coordinate{ -1,1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 6,1 }; }
 
 	HANDLEINPUT_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (!focused || !enabled) return false;
 		if (input_character == '\n') { if (callback != nullptr) callback(); }
@@ -958,6 +1024,8 @@ public:
 
 		return true;
 	}
+#endif
+	;
 
 	ISFOCUSABLE_STUB { return enabled; }
 };
@@ -976,6 +1044,7 @@ public:
 	TextArea(string _text, bool _editable) : text(_text), editable(_editable) { }
 
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (size.y < 2 || size.x < 2) return;
 
@@ -983,11 +1052,14 @@ public:
 		if (editable)
 			output_buffer[cursor_index + (line_index  * size.x)].colour = focused ? getHighlightedColour() : getUnfocusedColour();
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 3, 3 }; }
 
 	HANDLEINPUT_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (!editable || !focused) return false;
 		// TODO: apply characters in the right place, and move cursor...
@@ -999,6 +1071,8 @@ public:
 
 		return true;
 	}
+#endif
+	;
 
 	ISFOCUSABLE_STUB { return editable; }
 };
@@ -1016,6 +1090,7 @@ public:
 	ProgressBar(float _fraction) : fraction(_fraction) { }
 
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (size.y < 1) return;
 
@@ -1024,6 +1099,8 @@ public:
 		for (int i = 0; i < size.x; i++)
 			output_buffer[i] = i < completed ? UNICODE_BLOCK : UNICODE_LIGHT_SHADE;
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB { return Coordinate{ -1, 1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 1, 1 }; }
@@ -1040,6 +1117,7 @@ public:
 	Slider(float _value) : value(_value) { }
 
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (size.x < 3 || size.y < 1) return;
 
@@ -1049,6 +1127,8 @@ public:
 			output_buffer[x] = '-';
 		output_buffer[(int)round(value * (size.x - 2.0f)) + 1].colour = focused ? getHighlightedColour() : getUnfocusedColour();
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB { return Coordinate{ -1,1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 5,1 }; }
@@ -1056,6 +1136,7 @@ public:
 	ISFOCUSABLE_STUB { return true; }
 
 	HANDLEINPUT_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (!focused) return false;
 		float difference = 0.0;
@@ -1065,6 +1146,8 @@ public:
 		value = max(0.0f, min(value + difference, 1.0f));
 		return true;
 	}
+#endif
+	;
 };
 
 /**
@@ -1090,9 +1173,12 @@ public:
 	Spinner(size_t _state, int _type) : state(_state), type(_type) { }
 
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		output_buffer[0] = sequences[type % types][state % 4];
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB { return Coordinate{ 1, 1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 1, 1 }; }
@@ -1113,6 +1199,7 @@ public:
 	VerticalBox(vector<Component*> _children) : children(_children) { }
 	
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{	
 		vector<int> min_heights(children.size());
 		vector<int> max_heights(children.size());
@@ -1153,6 +1240,8 @@ public:
 			y_offset += component_size.y;
 		}
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB
 	{
@@ -1202,6 +1291,7 @@ public:
 	HorizontalBox(vector<Component*> _children) : children(_children) { }
 
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		vector<int> min_widths(children.size());
 		vector<int> max_widths(children.size());
@@ -1242,6 +1332,8 @@ public:
 			x_offset += component_size.x;
 		}
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB
 	{
@@ -1285,9 +1377,6 @@ public:
 	size_t height;
 	
 	VerticalSpacer(size_t _size) : height(_size) { }
-	
-	RENDER_STUB
-	{ }
 
 	GETMAXSIZE_STUB { return Coordinate{ 1, static_cast<int>(height) }; }
 	GETMINSIZE_STUB { return Coordinate{ 1, static_cast<int>(height) }; }
@@ -1302,9 +1391,6 @@ public:
 	size_t width;
 	
 	HorizontalSpacer(size_t _size) : width(_size) { }
-
-	RENDER_STUB
-	{ }
 
 	GETMAXSIZE_STUB { return Coordinate{ static_cast<int>(width), 1 }; }
 	GETMINSIZE_STUB { return Coordinate{ static_cast<int>(width), 1 }; }
@@ -1322,6 +1408,7 @@ public:
 	BorderedBox(Component* _child, string _name) : child(_child), name(_name) { }
 
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (size.x < 3 || size.y < 3) return;
 		drawBox(Coordinate{ 0,0 }, size, output_buffer, size);
@@ -1335,6 +1422,8 @@ public:
 		copyBox(component_buffer, component_size, Coordinate{ 0,0 }, component_size, output_buffer, size, Coordinate{ 1,1 });
 		delete[] component_buffer;
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB { return (child == nullptr) ? Coordinate{ -1,-1 } : child->getMaxSize(); }
 	GETMINSIZE_STUB { return (child == nullptr) ? Coordinate{ 2,2 } : Coordinate{ child->getMinSize().x + 2, child->getMinSize().y + 2 }; }
@@ -1358,6 +1447,7 @@ public:
 	ListView(vector<string> _elements, size_t _scroll, size_t _selected_index) : elements(_elements), scroll(_scroll), selected_index(_selected_index) { }
 
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (size.x < 2 || size.y < 2) return;
 		last_render_height = size.y;
@@ -1378,6 +1468,8 @@ public:
 				fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0, row }, Coordinate{ size.x,1 }, output_buffer, size);
 		}
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 10, 3 }; }
@@ -1385,6 +1477,7 @@ public:
 	ISFOCUSABLE_STUB { return true; }
 
 	HANDLEINPUT_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (input_character == Input::ArrowKeys::DOWN && selected_index < elements.size() - 1)
 		{
@@ -1402,6 +1495,8 @@ public:
 
 		return true;
 	}
+#endif
+	;
 };
 
 /**
@@ -1432,6 +1527,7 @@ public:
 	TreeView(Node* _root, size_t _scroll, size_t _selected_index) : root(_root), scroll(_scroll), selected_index(_selected_index) { }
 
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (size.x < 2 || size.y < 2) return;
 		last_render_height = size.y;
@@ -1439,6 +1535,8 @@ public:
 		int top = 0 - static_cast<int>(scroll);
 		printNode(root, 0, top, output_buffer, size);
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 10, 3 }; }
@@ -1446,6 +1544,7 @@ public:
 	ISFOCUSABLE_STUB { return true; }
 
 	HANDLEINPUT_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (!focused) return false;
 
@@ -1508,6 +1607,8 @@ public:
 
 		return true;
 	}
+#endif
+	;
 
 private:
 	inline Node* findNodeWithID(uint32_t id, vector<Node*>& parents, vector<size_t>& indices, int& actual_offset)
@@ -1574,7 +1675,8 @@ private:
 		return current_node;
 	}
 
-	inline void printNode(Node* node, int depth, int& top, Tixel* output_buffer, Coordinate buffer_size)
+	void printNode(Node* node, int depth, int& top, Tixel* output_buffer, Coordinate buffer_size)
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (top >= buffer_size.y) return;
 
@@ -1596,6 +1698,8 @@ private:
 			}
 		}
 	}
+#endif
+	;
 };
 
 /**
@@ -1615,6 +1719,7 @@ public:
 	ImageView(uint8_t* _grayscale_image, Coordinate _image_size) : grayscale_image(_grayscale_image), image_size(_image_size) { }
 	
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (grayscale_image == nullptr) return;
 
@@ -1634,6 +1739,8 @@ public:
 			}
 		}
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB { return Coordinate{ image_size.x * 2, image_size.y }; }
 	GETMINSIZE_STUB { return Coordinate{ 1, 1 }; }
@@ -1654,10 +1761,13 @@ public:
 	SizeLimiter(Component* _child, Coordinate _max_size) : child(_child), max_size(_max_size) { }
 	
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (child == nullptr) return;
 		child->render(output_buffer, size);
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB { return Coordinate{ max_size.x, max_size.y }; }
 
@@ -1681,6 +1791,7 @@ public:
 	TabDisplay(vector<string> _tab_descriptions, size_t _current_tab) : tab_descriptions(_tab_descriptions), current_tab(_current_tab) { }
 
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (size.y < 1) return;
 		int offset = 0;
@@ -1693,12 +1804,17 @@ public:
 			offset += static_cast<int>(tab_text.length() + 1);
 		}
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB { return Coordinate{ -1,1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 10,1 }; }
 };
 
+#ifdef STUI_IMPLEMENTATION
 static termios original_termios;
+#endif
+
 /**
  * @brief encapsulates some functionality relating to control of the terminal window.
  * 
@@ -1712,6 +1828,7 @@ class Terminal
 
 public:
 	static void configure()
+#ifdef STUI_IMPLEMENTATION
 	{
 #if defined(_WIN32)
 		SetConsoleCtrlHandler(windowsControlHandler, true);
@@ -1726,10 +1843,13 @@ public:
 		tcsetattr(STDIN_FILENO, TCSANOW, &new_termios);
 #endif
 	}
+#endif
+	;
 
 private:
 #if defined(_WIN32)
-	static inline int WINAPI windowsControlHandler(DWORD control_type)
+	static int WINAPI windowsControlHandler(DWORD control_type)
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (control_type == 0)
 		{
@@ -1741,8 +1861,12 @@ private:
 
 		return 1;
 	}
+#endif
+	;
+
 #elif defined(__linux__)
-	static inline void linuxControlHandler(int control_type)
+	static void linuxControlHandler(int control_type)
+#ifdef STUI_IMPLEMENTATION
 	{
 		if (control_type == 2)
 		{
@@ -1754,11 +1878,9 @@ private:
 			exit(0);
 		}
 	}
+#endif
+	;
 
-	static inline void linuxSelectHandler(int value)
-	{
-		cout << "select!" << value << endl;
-	}
 #endif
 
 	/**
@@ -1843,7 +1965,8 @@ public:
 	 * 
 	 * @param root_component element to draw into the terminal
 	 **/
-	static inline void render(Component* root_component)
+	static void render(Component* root_component)
+#ifdef STUI_IMPLEMENTATION
 	{
 		Terminal::setCursorVisible(false);
 		Terminal::enableUTF8();
@@ -1899,6 +2022,8 @@ public:
 
 		delete[] root_staging_buffer;
 	}
+#endif
+	;
 
 	/**
 	 * @brief check for queued input, handle shortcut triggers, and send remaining
@@ -1907,7 +2032,8 @@ public:
 	 * @param focused_component component to send input to
 	 * @param shortcut_bindings list of shortcuts to check for
 	 **/
-	static inline void handleInput(Component* focused_component, vector<Input::Shortcut> shortcut_bindings)
+	static void handleInput(Component* focused_component, vector<Input::Shortcut> shortcut_bindings)
+#ifdef STUI_IMPLEMENTATION
 	{
 		auto keys = Input::getQueuedKeyEvents();
 		Input::processShortcuts(shortcut_bindings, keys);
@@ -1917,6 +2043,8 @@ public:
 		for (pair<uint8_t, Input::ControlKeys> k : text_keys)
 			focused_component->handleInput(k.first, k.second);
 	}
+#endif
+	;
 
 	/**
 	 * @brief stores information about a frame-wait which just happened
@@ -1941,7 +2069,8 @@ public:
 	 * the fraction of the delta time which was taken up by the time between calls (the
 	 * remaining fraction being occupied by the `targetFramerate` function idling)
 	 **/
-	static inline FrameData targetFramerate(int fps, clock_type::time_point& last_frame_time)
+	static FrameData targetFramerate(int fps, clock_type::time_point& last_frame_time)
+#ifdef STUI_IMPLEMENTATION
 	{
 		chrono::duration<float> active_frame_duration = chrono::high_resolution_clock::now() - last_frame_time;
 
@@ -1953,6 +2082,8 @@ public:
 
 		return FrameData{ total_frame_duration.count(), active_frame_duration.count() / total_frame_duration.count() };
 	}
+#endif
+	;
 
 private:
 	/**

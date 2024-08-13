@@ -2,6 +2,8 @@
 
 int main(int argc, char** argv)
 {
+    stui::Terminal::configure();
+
     stui::Label t1("text widget", -1);
     stui::Spinner s1(0, 0);
     stui::Spinner s2(0, 1);

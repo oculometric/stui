@@ -15,6 +15,7 @@
 	#include <Windows.h>
 #elif defined(__linux__)
 	#include <sys/ioctl.h>
+	#include <signal.h>
 #endif
 
 using namespace std;
@@ -1566,7 +1567,35 @@ public:
 class Terminal
 {
 	friend class Page;
+public:
+	static void configure()
+	{
+#if defined(_WIN32)
+		SetConsoleCtrlHandler(windowsControlHandler, false);
+#elif defined(__linux__)
+		signal(SIGINT, linuxControlHandler);
+#endif
+	}
+
 private:
+#if defined(_WIN32)
+	static inline int WINAPI windowsControlHandler(DWORD control_type)
+	{
+		// TODO: windows side
+	}
+#elif defined(__linux__)
+	static inline void linuxControlHandler(int control_type)
+	{
+		if (control_type == 2)
+		{
+			setCursorVisible(true);
+			clear();
+			setCursorPosition(Coordinate{ 0,0 });
+			exit(0);
+		}
+	}
+#endif
+
 	/**
 	 * @brief clear the entire terminal, including scrollback and onscreen buffers
 	 **/

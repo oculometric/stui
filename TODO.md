@@ -28,7 +28,7 @@
 - [x] tab menu to switch between pages (accessed via number keys)
 - [x] button
 - [x] text entry box
-- [ ] radio button
+- [x] radio button
 - [ ] check box
 - [ ] 3D object renderer component
 - [ ] slider

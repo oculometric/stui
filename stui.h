@@ -66,8 +66,10 @@ using namespace std;
 #define UNICODE_BOXLIGHT_UPRIGHT (uint32_t)0x9494e2
 #define UNICODE_BOXLIGHT_UPRIGHTDOWN (uint32_t)0x9c94e2
 #define UNICODE_BOXLIGHT_UPRIGHTDOWNLEFT (uint32_t)0xbc94e2
-#define UNICODE_MIDDLE_DOT (uint32_t) 0xb7c2
-#define UNICODE_NOT (uint32_t) 0xacc2
+#define UNICODE_MIDDLE_DOT (uint32_t)0xb7c2
+#define UNICODE_NOT (uint32_t)0xacc2
+#define UNICODE_CIRCLE_HOLLOW (uint32_t)0xbe8ce2
+#define UNICODE_CIRCLE_FILLED (uint32_t)0x998ae2
 
 namespace stui
 {
@@ -793,6 +795,49 @@ public:
 
 	HANDLEINPUT_STUB { if (input_character == '\n' && callback != nullptr && focused && enabled) { callback(); return true; } return false; }
 	ISFOCUSABLE_STUB { return enabled; }
+};
+
+class RadioButton : public Component, public Utility
+{
+	size_t highlighted_index = 0;
+
+public:
+	vector<string> options;
+	size_t selected_index;
+	bool enabled;
+
+	RadioButton(vector<string> _options, size_t _selected_index, bool _enabled) : options(_options), selected_index(_selected_index), enabled(_enabled) { }
+
+	RENDER_STUB
+	{
+		if (size.y < 1) return;
+
+		for (int line = 0; line < options.size(); line++)
+		{
+			if (line >= size.y) break;
+			drawText("[ ] " + options[line], false, Coordinate{ 0,line }, Coordinate{ size.x,1 }, output_buffer, size);
+			output_buffer[(line * size.x) + 1] = selected_index == line ? '*' : ' ';
+			if (line == highlighted_index && enabled)
+				fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,line }, Coordinate{ size.x,1}, output_buffer, size);
+		}
+	}
+
+	GETMAXSIZE_STUB { return Coordinate{ -1,-1 }; }
+	GETMINSIZE_STUB { return Coordinate{ 5, static_cast<int>(options.size()) }; }
+
+	ISFOCUSABLE_STUB { return true; }
+
+	HANDLEINPUT_STUB
+	{
+		if (!focused || !enabled) return false;
+
+		if (input_character == Input::ArrowKeys::UP && highlighted_index > 0) highlighted_index--;
+		if (input_character == Input::ArrowKeys::DOWN && highlighted_index + 1 < options.size()) highlighted_index++;
+		if (input_character == Input::ArrowKeys::LEFT) highlighted_index = 0;
+		if (input_character == Input::ArrowKeys::RIGHT) highlighted_index = max(0, static_cast<int>(options.size()) - 1);
+		if (input_character == ' ' || input_character == '\n') selected_index = highlighted_index;
+		return false;
+	}
 };
 
 /**

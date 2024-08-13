@@ -69,7 +69,7 @@ int main(int argc, char** argv)
         stui::Page::FrameData delta = stui::Page::targetFramerate(12, frame_time);
         timer += delta.delta_time;
 
-        pb.fraction = timer;
+        pb.fraction = fmod(timer, 1.0f);
         s1.state = (timer * 8);
         s2.state = s1.state;
         s3.state = s1.state;

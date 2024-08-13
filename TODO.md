@@ -5,7 +5,7 @@
 - [ ] make some demo files (.layout, .cpp)
 - [x] test under linux (and mac, preferably) - it didnt work `:(`
 - [x] remove boxes around components and convert to its own element BorderedBox
-- [ ] fix displaying in non-windows terminals (UTF8 display in Linux) by widening the character buffer type
+- [x] fix displaying in non-windows terminals (UTF8 display in Linux) by widening the character buffer type
 - [x] migrate to more complex buffer system
 - [x] bordered box add name
 - [x] make colours pixel-specific

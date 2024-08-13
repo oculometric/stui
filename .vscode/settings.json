@@ -12,6 +12,7 @@
         "ostream": "cpp",
         "initializer_list": "cpp",
         "type_traits": "cpp",
-        "xtree": "cpp"
+        "xtree": "cpp",
+        "format": "cpp"
     }
 }

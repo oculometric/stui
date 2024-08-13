@@ -38,11 +38,35 @@ using namespace std;
 #define ANSI_CLEAR_SCROLL ANSI_ESCAPE << "[3J"
 #define ANSI_SET_CURSOR(x,y) ANSI_ESCAPE << '[' << y << ';' << x << 'H'
 #define ANSI_HIDE_CURSOR ANSI_ESCAPE << "[?25l"
+#define ANSI_SHOW_CURSOR ANSI_ESCAPE << "[?25h"
 #define ANSI_PANUP(n) ANSI_ESCAPE << '[' << n << 'T'
 #define ANSI_PANDOWN(n) ANSI_ESCAPE << '[' << n << 'S'
 #define ANSI_SET_COLOUR(c) ANSI_ESCAPE << '[' << to_string(c) << 'm'
 
-#define EASCII_BOXTOPLEFT '\xc9'
+#define UNICODE_BLOCK (uint32_t)0x8896e2
+#define UNICODE_BLOCK_1_8 (uint32_t)0x8196e2
+#define UNICODE_BLOCK_3_8 (uint32_t)0x8396e2
+#define UNICODE_BLOCK_6_8 (uint32_t)0x8696e2
+#define UNICODE_BLOCK_6_8 (uint32_t)0x8696e2
+#define UNICODE_LIGHT_SHADE (uint32_t)0x9196e2
+#define UNICODE_MID_SHADE (uint32_t)0x9296e2
+#define UNICODE_DARK_SHADE (uint32_t)0x9396e2
+#define UNICODE_BOX_TOPLEFT (uint32_t)0x8f94e2
+#define UNICODE_BOX_HORIZONTAL (uint32_t)0x8194e2
+#define UNICODE_BOX_TOPRIGHT (uint32_t)0x9394e2
+#define UNICODE_BOX_VERTICAL (uint32_t)0x8394e2
+#define UNICODE_BOX_BOTTOMLEFT (uint32_t)0x9794e2
+#define UNICODE_BOX_BOTTOMRIGHT (uint32_t)0x9b94e2
+#define UNICODE_QUADRANT_LOWERLEFT (uint32_t)0x9696e2
+#define UNICODE_QUADRANT_TOPLEFT (uint32_t)0x9896e2
+#define UNICODE_QUADRANT_TOPRIGHT (uint32_t)0x9d96e2
+#define UNICODE_QUADRANT_LOWERRIGHT (uint32_t)0x9796e2
+#define UNICODE_BOXLIGHT_UP (uint32_t)0xb595e2
+#define UNICODE_BOXLIGHT_UPRIGHT (uint32_t)0x9494e2
+#define UNICODE_BOXLIGHT_UPRIGHTDOWN (uint32_t)0x9c94e2
+#define UNICODE_BOXLIGHT_UPRIGHTDOWNLEFT (uint32_t)0xbc94e2
+#define UNICODE_MIDDLE_DOT (uint32_t) 0xb7c2
+#define UNICODE_NOT (uint32_t) 0xacc2
 
 namespace stui
 {
@@ -256,7 +280,7 @@ protected:
 				if (x < 0) continue;
 				if (x >= buffer_size.x) break;
 
-				buffer[x + (box_origin.y * buffer_size.x)] = (x == box_origin.x ? '\xc9' : (x == box_origin.x + box_size.x - 1 ? '\xbb' : '\xcd'));
+				buffer[x + (box_origin.y * buffer_size.x)] = (x == box_origin.x ? UNICODE_BOX_TOPLEFT : (x == box_origin.x + box_size.x - 1 ? UNICODE_BOX_TOPRIGHT : UNICODE_BOX_HORIZONTAL));
 			}
 		}
 
@@ -266,10 +290,10 @@ protected:
 			if (y >= buffer_size.y) break;
 
 			if (box_origin.x >= 0 && box_origin.x < buffer_size.x)
-				buffer[box_origin.x + (y * buffer_size.x)] = '\xba';
+				buffer[box_origin.x + (y * buffer_size.x)] = UNICODE_BOX_VERTICAL;
 
 			if (box_origin.x + box_size.x - 1 >= 0 && box_origin.x + box_size.x - 1 < buffer_size.x)
-				buffer[box_origin.x + box_size.x + (y * buffer_size.x) - 1] = '\xba';
+				buffer[box_origin.x + box_size.x + (y * buffer_size.x) - 1] = UNICODE_BOX_VERTICAL;
 		}
 
 		if (box_origin.y + box_size.y - 1 >= 0 && box_origin.y + box_size.y - 1 < buffer_size.y)
@@ -279,7 +303,7 @@ protected:
 				if (x < 0) continue;
 				if (x >= buffer_size.x) break;
 
-				buffer[x + ((box_origin.y + box_size.y - 1) * buffer_size.x)] = (x == box_origin.x ? '\xc8' : (x == box_origin.x + box_size.x - 1 ? '\xbc' : '\xcd'));
+				buffer[x + ((box_origin.y + box_size.y - 1) * buffer_size.x)] = (x == box_origin.x ? UNICODE_BOX_BOTTOMLEFT : (x == box_origin.x + box_size.x - 1 ? UNICODE_BOX_BOTTOMRIGHT : UNICODE_BOX_HORIZONTAL));
 			}
 		}
 	}
@@ -899,7 +923,7 @@ public:
 		int completed = (int)round((float)size.x * fraction);
 			
 		for (int i = 0; i < size.x; i++)
-			output_buffer[i] = i < completed ? '\xdb' : '\xb0';
+			output_buffer[i] = i < completed ? UNICODE_BLOCK : UNICODE_LIGHT_SHADE;
 	}
 
 	GETMAXSIZE_STUB { return Coordinate{ -1, 1 }; }
@@ -914,6 +938,14 @@ public:
  **/
 class Spinner : public Component
 {
+	static constexpr int types = 4;
+	static constexpr uint32_t sequences[types][4]
+	{
+		{ '|', '/', '-', '\\' },
+		{ UNICODE_QUADRANT_LOWERLEFT, UNICODE_QUADRANT_TOPLEFT, UNICODE_QUADRANT_TOPRIGHT, UNICODE_QUADRANT_LOWERRIGHT },
+		{ UNICODE_BOXLIGHT_UP, UNICODE_BOXLIGHT_UPRIGHT, UNICODE_BOXLIGHT_UPRIGHTDOWN, UNICODE_BOXLIGHT_UPRIGHTDOWNLEFT },
+		{ UNICODE_BLOCK_1_8, UNICODE_BLOCK_3_8, UNICODE_BLOCK_6_8, UNICODE_BLOCK }
+	};
 public:
 	size_t state;
 	int type;
@@ -922,20 +954,7 @@ public:
 
 	RENDER_STUB
 	{
-		const char* sequence;
-		switch (type)
-		{
-		case 1:
-			sequence = "\xdc\xdd\xdf\xde"; break;
-		case 2:
-			sequence = "\xbf\xd9\xc0\xda"; break;
-		case 3:
-			sequence = "\xdf\xdb\xdc\xdb"; break;
-		case 0:
-		default:
-			sequence = "|/-\\"; break;
-		} 
-		output_buffer[0] = sequence[state % 4];
+		output_buffer[0] = sequences[type % types][state % 4];
 	}
 
 	GETMAXSIZE_STUB { return Coordinate{ 1, 1 }; }
@@ -1424,7 +1443,8 @@ private:
 
 		if (top >= 0)
 		{
-			drawText((node->expanded ? "\xaa " : "> ") + stripNullsAndMore(node->name, "\n\t"), false, Coordinate{ depth, top }, Coordinate{ buffer_size.x - 2 - depth, 1 }, output_buffer, buffer_size);
+			drawText((node->expanded ? "  " : "> ") + stripNullsAndMore(node->name, "\n\t"), false, Coordinate{ depth, top }, Coordinate{ buffer_size.x - 2 - depth, 1 }, output_buffer, buffer_size);
+			if (node->expanded) output_buffer[depth + (top * buffer_size.x)] = UNICODE_NOT;
 			string id_desc = " [" + to_string(node->children.size()) + "]";
 			drawText(id_desc, false, Coordinate{ buffer_size.x - (int)id_desc.length(), top }, Coordinate{ (int)id_desc.length(), 1 }, output_buffer, buffer_size);
 			if (selected_index == node->id)
@@ -1465,13 +1485,13 @@ public:
 		{
 			for (int x = 0; x < size.x; x++)
 			{
-				char out = ' ';
+				uint32_t out = ' ';
 				uint8_t in = grayscale_image[(x / 2) + (y * image_size.x)];
-				if (in >= 192) out = '\xdb';
-				else if (in >= 128) out = '\xb2';
-				else if (in >= 96) out = '\xb1';
-				else if (in >= 64) out = '\xb0';
-				else if (in >= 32) out = '\xfa';
+				if (in >= 192) out = UNICODE_BLOCK;
+				else if (in >= 128) out = UNICODE_DARK_SHADE;
+				else if (in >= 96) out = UNICODE_MID_SHADE;
+				else if (in >= 64) out = UNICODE_LIGHT_SHADE;
+				else if (in >= 32) out = UNICODE_MIDDLE_DOT;
 				else out = ' ';
 				output_buffer[x + (y * size.x)] = out;
 			}
@@ -1538,6 +1558,81 @@ public:
 };
 
 /**
+ * @brief encapsulates some functionality relating to control of the terminal window.
+ * 
+ * before you start drawing things using `Page`, you should definitely call `configure`,
+ * although it's not strictly necessary.
+ */
+class Terminal
+{
+	friend class Page;
+private:
+	/**
+	 * @brief clear the entire terminal, including scrollback and onscreen buffers
+	 **/
+	static inline void clear()
+	{
+		OUTPUT_TARGET << ANSI_CLEAR_SCREEN << ANSI_CLEAR_SCROLL;
+	}
+
+	/**
+	 * @brief get the size of the terminal window in characters
+	 * 
+	 * @return size of the terminal window 
+	 **/
+	static inline Coordinate getScreenSize()
+	{
+#if defined(_WIN32)
+		CONSOLE_SCREEN_BUFFER_INFO info;
+		GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
+		return Coordinate{ info.dwSize.X, info.dwSize.Y };
+#elif defined(__linux__)
+		struct winsize size;
+		ioctl(fileno(stdout), TIOCGWINSZ, &size);
+		return Coordinate{ (int)size.ws_col, (int)size.ws_row };
+#endif
+	}
+
+	/**
+	 * @brief move the cursor to a given position in the terminal window
+	 * 
+	 * @param position desired position of the cursor
+	 **/
+	static inline void setCursorPosition(Coordinate position)
+	{
+		OUTPUT_TARGET << ANSI_SET_CURSOR(position.x, position.y);
+	}
+
+	/**
+	 * @brief toggle terminal cursor visibility
+	 * 
+	 * @param visible whether or not the cursor should be visible
+	 **/
+	static inline void setCursorVisible(bool visible)
+	{
+#if defined(_WIN32)
+		CONSOLE_CURSOR_INFO info;
+		GetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
+		info.bVisible = visible;
+		SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
+#elif defined(__linux__)
+		if (visible) OUTPUT_TARGET << ANSI_SHOW_CURSOR;
+		else OUTPUT_TARGET << ANSI_HIDE_CURSOR;
+#endif
+	}
+
+	/**
+	 * @brief forces the current terminal to respect UTF-8
+	 */
+	static inline void enableUTF8()
+	{
+#if defined(_WIN32)
+		SetConsoleOutputCP(CP_UTF8);
+#endif
+	}
+};
+
+/**
  * @brief purely static class which encapsulates code for rendering a page
  * to the terminal. a page just consists of a `Component` tree
  * 
@@ -1556,8 +1651,10 @@ public:
 	 **/
 	static inline void render(Component* root_component)
 	{
-		setCursorVisible(false);
-		Coordinate screen_size = getScreenSize();
+		Terminal::setCursorVisible(false);
+		Terminal::enableUTF8();
+
+		Coordinate screen_size = Terminal::getScreenSize();
 
 		Tixel* root_staging_buffer = makeBuffer(screen_size);
 
@@ -1574,7 +1671,7 @@ public:
 		OUTPUT_TARGET << ANSI_CLEAR_SCROLL;
 		OUTPUT_TARGET << ANSI_SET_COLOUR(Tixel::toANSI(Tixel::ColourCommand::FG_WHITE));
 		OUTPUT_TARGET << ANSI_SET_COLOUR(Tixel::toANSI(Tixel::ColourCommand::BG_BLACK));
-		setCursorPosition(Coordinate{ 0,0 });
+		Terminal::setCursorPosition(Coordinate{ 0,0 });
 
 		string output;
 		output.reserve(4 * screen_size.x * screen_size.y);
@@ -1597,10 +1694,6 @@ public:
 			foreground = new_foreground;
 			background = new_background;
 
-			// TODO: handle 32-bit UTF-8
-			// TODO: make windows respect it
-			// TODO: translate existing specials into UTF-8
-
 			uint32_t chr = root_staging_buffer[i].character;
 			output.push_back(chr & 0xFF);
 			if (chr & 0x80) output.push_back((chr >> 8) & 0xFF);
@@ -1613,6 +1706,13 @@ public:
 		delete[] root_staging_buffer;
 	}
 
+	/**
+	 * @brief check for queued input, handle shortcut triggers, and send remaining
+	 * input to the specified component. order of input event is preserved.
+	 * 
+	 * @param focused_component component to send input to
+	 * @param shortcut_bindings list of shortcuts to check for
+	 **/
 	static inline void handleInput(Component* focused_component, vector<Input::Shortcut> shortcut_bindings)
 	{
 		auto keys = Input::getQueuedKeyEvents();
@@ -1679,58 +1779,7 @@ private:
 		else return max(size, _min);
 	}
 
-	/**
-	 * @brief clear the entire terminal, including scrollback and onscreen buffers
-	 **/
-	static inline void clear()
-	{
-		OUTPUT_TARGET << ANSI_CLEAR_SCREEN << ANSI_CLEAR_SCROLL;
-	}
-
-	/**
-	 * @brief get the size of the terminal window in characters
-	 * 
-	 * @return size of the terminal window 
-	 **/
-	static inline Coordinate getScreenSize()
-	{
-#if defined(_WIN32)
-		CONSOLE_SCREEN_BUFFER_INFO info;
-		GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
-		return Coordinate{ info.dwSize.X, info.dwSize.Y };
-#elif defined(__linux__)
-		struct winsize size;
-		ioctl(fileno(stdout), TIOCGWINSZ, &size);
-		return Coordinate{ (int)size.ws_col, (int)size.ws_row };
-#endif
-	}
-
-	/**
-	 * @brief move the cursor to a given position in the terminal window
-	 * 
-	 * @param position desired position of the cursor
-	 **/
-	static inline void setCursorPosition(Coordinate position)
-	{
-		OUTPUT_TARGET << ANSI_SET_CURSOR(position.x, position.y);
-	}
-
-	/**
-	 * @brief toggle terminal cursor visibility
-	 * 
-	 * @param visible whether or not the cursor should be visible
-	 **/
-	static inline void setCursorVisible(bool visible)
-	{
-#if defined(_WIN32)
-		CONSOLE_CURSOR_INFO info;
-		GetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
-		info.bVisible = visible;
-		SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
-#elif defined(__linux__)
-		OUTPUT_TARGET << ANSI_HIDE_CURSOR;
-#endif
-	}
+	
 };
 
 }

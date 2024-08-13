@@ -1,5 +1,6 @@
 #include <stui.h>
 
+
 int main(int argc, char** argv)
 {
     stui::Terminal::configure();

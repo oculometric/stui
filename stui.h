@@ -732,17 +732,6 @@ private:
 
 		return result;
 	}
-
-	// size_t const BufferSize = 512;
-//char buffer[BufferSize];
-
-//if (std::cin.readsome(buffer, BufferSize) >= 1) {
-//}
-//std::ios_base::sync_with_stdio(false)
-/// or if (std::cin.rdbuf() and std::cin.rdbuf()->in_avail() >= 0) {
-//}
-
-// also getch() from conio.h
 };
 
 /**
@@ -1567,6 +1556,7 @@ public:
 class Terminal
 {
 	friend class Page;
+	friend class Input;
 public:
 	static void configure()
 	{
@@ -1601,6 +1591,11 @@ private:
 			setCursorPosition(Coordinate{ 0,0 });
 			exit(0);
 		}
+	}
+
+	static inline void linuxSelectHandler(int value)
+	{
+		cout << "select!" << value << endl;
 	}
 #endif
 

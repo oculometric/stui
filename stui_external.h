@@ -262,7 +262,43 @@ private:
 		vector<Component*> component_arr;
 	};
 
-	static inline Component* decodeComponentString(string input)
+	static inline string decodeStringArg(string s, string input, size_t offset)
+	{
+		size_t first_char = 0;
+		string str = extractString(s, first_char);
+		if (first_char != s.size())
+			reportError(input, offset + str.size(), "detected junk after string");
+		
+		return str;
+	}
+
+	static inline int decodeIntArg(string s, string input, size_t offset)
+	{
+		try
+		{
+			int i = stoi(s);
+			return i;
+		}
+		catch (exception e)
+		{
+			reportError(input, offset, "invalid integer description");
+		}
+	}
+
+	static inline float decodeFloatArg(string s, string input, size_t offset)
+	{
+		try
+		{
+			float f = stof(s);
+			return f;
+		}
+		catch (exception e)
+		{
+			reportError(input, offset, "invalid float description");
+		}
+	}
+
+	static Component* decodeComponentString(string input)
 	{
 		bool has_name = true;
 		size_t i = 0;
@@ -339,10 +375,10 @@ private:
 			switch (arguments[i].type)
 			{
 			// TODO: implement functions for decoding argument types
-			case INT: arguments[i].int_val = decodeIntArg(split_params[i].second); break;
-			case STRING: arguments[i].string_val = decodeStringArg(split_params[i].second); break;
+			case INT: arguments[i].int_val = decodeIntArg(split_params[i].second, input, split_params[i].first); break;
+			case STRING: arguments[i].string_val = decodeStringArg(split_params[i].second, input, split_params[i].first); break;
 			case COORDINATE: arguments[i].coordinate_val = decodeCoordArg(split_params[i].second); break;
-			case FLOAT: arguments[i].float_val = decodeFloatArg(split_params[i].second); break;
+			case FLOAT: arguments[i].float_val = decodeFloatArg(split_params[i].second, input, split_params[i].first); break;
 			case COMPONENT: arguments[i].component_val = decodeComponentString(split_params[i].second); break;
 			case INT_ARRAY: arguments[i].int_arr = decodeIntArrArg(split_params[i].second); break;
 			case STRING_ARRAY: arguments[i].string_arr = decodeStringArrArg(split_params[i].second); break;

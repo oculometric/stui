@@ -29,7 +29,7 @@ using namespace std;
 #define RENDER_STUB virtual inline void render(Tixel* output_buffer, Coordinate size) override
 #define GETMINSIZE_STUB virtual inline Coordinate getMinSize() override
 #define GETMAXSIZE_STUB virtual inline Coordinate getMaxSize() override
-#define HANDLEINPUT_STUB virtual inline bool handleInput(uint8_t input_character) override
+#define HANDLEINPUT_STUB virtual inline bool handleInput(uint8_t input_character, Input::ControlKeys modifiers) override
 #define	ISFOCUSABLE_STUB virtual inline bool isFocusable() override
 
 #define OUTPUT_TARGET cout
@@ -184,6 +184,196 @@ struct Tixel
 };
 
 /**
+ * @brief class which encapsulates input functionality which is used to receive and handle
+ * input in useful ways. another way of encapsulating functionality to hide it from the you!
+ * just pretend this isn't here.
+ **/
+class Input
+{
+	friend class Page;
+
+public:
+	/**
+	 * @brief enumerates the possible control key states (shift, alt, and control). 
+	 * 
+	 * left and right shift are treated as the same on Windows, so for cross-platform-ness i'll
+	 * settle for that.
+	 **/
+	enum ControlKeys
+	{
+		NONE        = 0b00000000,
+		LEFT_CTRL   = 0b00000001,
+		RIGHT_CTRL  = 0b00000010,
+		SHIFT       = 0b00000100,
+		LEFT_ALT    = 0b00010000,
+		RIGHT_ALT   = 0b00100000
+	};
+
+	/**
+	 * @brief enumerates the arrow keys for identifying directional key strokes
+	 **/
+	enum ArrowKeys
+	{
+		UP          = 0x11,
+		DOWN		= 0x12,
+		LEFT		= 0x13,
+		RIGHT		= 0x14
+	};
+
+	/**
+	 * @brief describes a key input event. though we only care about key down or key repeat
+	 * events.
+	 **/
+	struct Key
+	{
+		uint16_t key;
+		ControlKeys control_states;
+	};
+
+	/**
+	 * @brief describes a shortcut linking a desired key-bind to a function that should
+	 * be called when the binding is triggered.
+	 **/
+	struct Shortcut
+	{
+		Input::Key binding;
+		void (*callback)();
+	};
+
+private:
+	/**
+	 * @brief queries the system's input buffer and fetches all available key events.
+	 * 
+	 * only returns the key-down key events (and repeats). translates presence of meta
+	 * keys like CTRL, SHIFT, ALT. also moves some relevant key presses down into the
+	 * ASCII range to make them easier to read (specifically the arrow keys).
+	 * 
+	 * @returns list of key-press events
+	 **/
+	static inline vector<Key> getQueuedKeyEvents()
+	{
+		vector<Key> events;
+#if defined(_WIN32)
+		DWORD events_available;
+		GetNumberOfConsoleInputEvents(GetStdHandle(STD_INPUT_HANDLE), &events_available);
+		if (events_available < 1) return events;
+
+		INPUT_RECORD records[32] = { };
+		DWORD records_read;
+
+		if (ReadConsoleInput(GetStdHandle(STD_INPUT_HANDLE), records, 32, &records_read) == 0)
+			throw runtime_error("input error");
+		
+		for (size_t i = 0; i < records_read; i++)
+			if (records[i].EventType == KEY_EVENT && records[i].Event.KeyEvent.bKeyDown)
+			{
+				Key k{ };
+				k.key = records[i].Event.KeyEvent.uChar.AsciiChar;
+				if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_UP) k.key = ArrowKeys::UP;
+				else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_DOWN) k.key = ArrowKeys::DOWN;
+				else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_LEFT) k.key = ArrowKeys::LEFT;
+				else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_RIGHT) k.key = ArrowKeys::RIGHT;
+				if (k.key == '\r') k.key = '\n';
+				k.control_states = ControlKeys::NONE;
+				DWORD control_key = records[i].Event.KeyEvent.dwControlKeyState;
+				if (control_key & 0x01) k.control_states = (ControlKeys)(k.control_states | ControlKeys::RIGHT_ALT);
+				if (control_key & 0x02) k.control_states = (ControlKeys)(k.control_states | ControlKeys::LEFT_ALT);
+				if (control_key & 0x04) k.control_states = (ControlKeys)(k.control_states | ControlKeys::RIGHT_CTRL);
+				if (control_key & 0x08)
+				{
+					k.control_states = (ControlKeys)(k.control_states | ControlKeys::LEFT_CTRL);
+					k.key += 96;
+				}
+				if (control_key & 0x10) k.control_states = (ControlKeys)(k.control_states | ControlKeys::SHIFT);
+				events.push_back(k);
+			}
+#elif defined(__linux__)
+		// TODO: linux implementation
+#endif
+		return events;
+	}
+	
+	/**
+	 * @brief checks if a key event is equal to another specified key event
+	 * 
+	 * @param a first key event
+	 * @param b second key event
+	 * @returns whether or not the key events are identical
+	 **/
+	static inline bool compare(Key a, Key b)
+	{
+		return a.key == b.key && a.control_states == b.control_states;
+	}
+	
+	/**
+	 * @brief iterate through a list of key events and handle any shortcuts which
+	 * are found within it. 
+	 * 
+	 * when a shortcut instance is found, that key event is consumed and removed
+	 * from the input list.
+	 * 
+	 * @param shortcuts list of keyboard shortcut bindings
+	 * @param key_events list of key events to check
+	 **/
+	static inline void processShortcuts(vector<Shortcut> shortcuts, vector<Key>& key_events)
+	{
+		vector<Key> non_processed;
+		for (size_t i = 0; i < key_events.size(); i++)
+		{
+			Key k = key_events[i];
+			bool consumed = false;
+			for (Shortcut s : shortcuts)
+			{
+				if (compare(k, s.binding)) { consumed = true; s.callback(); }
+			}
+			if (!consumed) non_processed.push_back(k);
+		}
+
+		key_events = non_processed;
+	}
+	
+	/**
+	 * @brief iterate through a list of key events and extract only the text
+	 * characters into a list.
+	 * 
+	 * when a text character is found, it is consumed and removed from the input
+	 * list.
+	 * 
+	 * @param key_events list of key events to check
+	 * @returns list of extracted text characters
+	 **/
+	static inline vector<pair<uint8_t, ControlKeys>> getTextCharacters(vector<Key>& key_events)
+	{
+		vector<Key> non_processed;
+		vector<pair<uint8_t, ControlKeys>> result;
+		for (size_t i = 0; i < key_events.size(); i++)
+		{
+			Key k = key_events[i];
+			if ((k.control_states == ControlKeys::NONE || k.control_states == ControlKeys::SHIFT) && (
+				  (k.key >= 32 && k.key <= 127) 
+				|| k.key == '\n' 
+				|| k.key == '\t' 
+				|| k.key == '\b'
+				|| k.key == ArrowKeys::UP
+				|| k.key == ArrowKeys::DOWN
+				|| k.key == ArrowKeys::LEFT
+				|| k.key == ArrowKeys::RIGHT))
+			{
+				result.push_back(pair<uint8_t, ControlKeys>(static_cast<uint8_t>(k.key), k.control_states));
+			}
+			else
+			{
+				non_processed.push_back(k);
+			}
+		}
+
+		key_events = non_processed;
+
+		return result;
+	}
+};
+
+/**
  * @brief base class from which all UI components inherit.
  * 
  * all `Component` subclasses must override the `render`, `getMaxSize`, and 
@@ -239,7 +429,7 @@ public:
 	 * @param input_character the character to handle
 	 * @returns true if the input was consumed or false if not
 	 **/
-	virtual inline bool handleInput(uint8_t input_character) { return false; }
+	virtual inline bool handleInput(uint8_t input_character, Input::ControlKeys modifiers) { return false; }
 
 	/**
 	 * @brief returns whether or not the component can be focused for input.
@@ -547,196 +737,6 @@ protected:
 };
 
 /**
- * @brief class which encapsulates input functionality which is used to receive and handle
- * input in useful ways. another way of encapsulating functionality to hide it from the you!
- * just pretend this isn't here.
- **/
-class Input
-{
-	friend class Page;
-
-public:
-	/**
-	 * @brief enumerates the possible control key states (shift, alt, and control). 
-	 * 
-	 * left and right shift are treated as the same on Windows, so for cross-platform-ness i'll
-	 * settle for that.
-	 **/
-	enum ControlKeys
-	{
-		NONE        = 0b00000000,
-		LEFT_CTRL   = 0b00000001,
-		RIGHT_CTRL  = 0b00000010,
-		SHIFT       = 0b00000100,
-		LEFT_ALT    = 0b00010000,
-		RIGHT_ALT   = 0b00100000
-	};
-
-	/**
-	 * @brief enumerates the arrow keys for identifying directional key strokes
-	 **/
-	enum ArrowKeys
-	{
-		UP          = 0x11,
-		DOWN		= 0x12,
-		LEFT		= 0x13,
-		RIGHT		= 0x14
-	};
-
-	/**
-	 * @brief describes a key input event. though we only care about key down or key repeat
-	 * events.
-	 **/
-	struct Key
-	{
-		uint16_t key;
-		ControlKeys control_states;
-	};
-
-	/**
-	 * @brief describes a shortcut linking a desired key-bind to a function that should
-	 * be called when the binding is triggered.
-	 **/
-	struct Shortcut
-	{
-		Input::Key binding;
-		void (*callback)();
-	};
-
-private:
-	/**
-	 * @brief queries the system's input buffer and fetches all available key events.
-	 * 
-	 * only returns the key-down key events (and repeats). translates presence of meta
-	 * keys like CTRL, SHIFT, ALT. also moves some relevant key presses down into the
-	 * ASCII range to make them easier to read (specifically the arrow keys).
-	 * 
-	 * @returns list of key-press events
-	 **/
-	static inline vector<Key> getQueuedKeyEvents()
-	{
-		vector<Key> events;
-#if defined(_WIN32)
-		DWORD events_available;
-		GetNumberOfConsoleInputEvents(GetStdHandle(STD_INPUT_HANDLE), &events_available);
-		if (events_available < 1) return events;
-
-		INPUT_RECORD records[32] = { };
-		DWORD records_read;
-
-		if (ReadConsoleInput(GetStdHandle(STD_INPUT_HANDLE), records, 32, &records_read) == 0)
-			throw runtime_error("input error");
-		
-		for (size_t i = 0; i < records_read; i++)
-			if (records[i].EventType == KEY_EVENT && records[i].Event.KeyEvent.bKeyDown)
-			{
-				Key k{ };
-				k.key = records[i].Event.KeyEvent.uChar.AsciiChar;
-				if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_UP) k.key = ArrowKeys::UP;
-				else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_DOWN) k.key = ArrowKeys::DOWN;
-				else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_LEFT) k.key = ArrowKeys::LEFT;
-				else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_RIGHT) k.key = ArrowKeys::RIGHT;
-				if (k.key == '\r') k.key = '\n';
-				k.control_states = ControlKeys::NONE;
-				DWORD control_key = records[i].Event.KeyEvent.dwControlKeyState;
-				if (control_key & 0x01) k.control_states = (ControlKeys)(k.control_states | ControlKeys::RIGHT_ALT);
-				if (control_key & 0x02) k.control_states = (ControlKeys)(k.control_states | ControlKeys::LEFT_ALT);
-				if (control_key & 0x04) k.control_states = (ControlKeys)(k.control_states | ControlKeys::RIGHT_CTRL);
-				if (control_key & 0x08)
-				{
-					k.control_states = (ControlKeys)(k.control_states | ControlKeys::LEFT_CTRL);
-					k.key += 96;
-				}
-				if (control_key & 0x10) k.control_states = (ControlKeys)(k.control_states | ControlKeys::SHIFT);
-				events.push_back(k);
-			}
-#elif defined(__linux__)
-		// TODO: linux implementation
-#endif
-		return events;
-	}
-	
-	/**
-	 * @brief checks if a key event is equal to another specified key event
-	 * 
-	 * @param a first key event
-	 * @param b second key event
-	 * @returns whether or not the key events are identical
-	 **/
-	static inline bool compare(Key a, Key b)
-	{
-		return a.key == b.key && a.control_states == b.control_states;
-	}
-	
-	/**
-	 * @brief iterate through a list of key events and handle any shortcuts which
-	 * are found within it. 
-	 * 
-	 * when a shortcut instance is found, that key event is consumed and removed
-	 * from the input list.
-	 * 
-	 * @param shortcuts list of keyboard shortcut bindings
-	 * @param key_events list of key events to check
-	 **/
-	static inline void processShortcuts(vector<Shortcut> shortcuts, vector<Key>& key_events)
-	{
-		vector<Key> non_processed;
-		for (size_t i = 0; i < key_events.size(); i++)
-		{
-			Key k = key_events[i];
-			bool consumed = false;
-			for (Shortcut s : shortcuts)
-			{
-				if (compare(k, s.binding)) { consumed = true; s.callback(); }
-			}
-			if (!consumed) non_processed.push_back(k);
-		}
-
-		key_events = non_processed;
-	}
-	
-	/**
-	 * @brief iterate through a list of key events and extract only the text
-	 * characters into a list.
-	 * 
-	 * when a text character is found, it is consumed and removed from the input
-	 * list.
-	 * 
-	 * @param key_events list of key events to check
-	 * @returns list of extracted text characters
-	 **/
-	static inline vector<uint8_t> getTextCharacters(vector<Key>& key_events)
-	{
-		vector<Key> non_processed;
-		vector<uint8_t> result;
-		for (size_t i = 0; i < key_events.size(); i++)
-		{
-			Key k = key_events[i];
-			if ((k.control_states == ControlKeys::NONE || k.control_states == ControlKeys::SHIFT) && (
-				  (k.key >= 32 && k.key <= 127) 
-				|| k.key == '\n' 
-				|| k.key == '\t' 
-				|| k.key == '\b'
-				|| k.key == ArrowKeys::UP
-				|| k.key == ArrowKeys::DOWN
-				|| k.key == ArrowKeys::LEFT
-				|| k.key == ArrowKeys::RIGHT))
-			{
-				result.push_back(static_cast<uint8_t>(k.key));
-			}
-			else
-			{
-				non_processed.push_back(k);
-			}
-		}
-
-		key_events = non_processed;
-
-		return result;
-	}
-};
-
-/**
  * @brief single-line text box.
  * 
  * text `alignment` can be specified as < 0 for left-aligned, = 0 for center-aligned, or
@@ -797,6 +797,10 @@ public:
 	ISFOCUSABLE_STUB { return enabled; }
 };
 
+/**
+ * @brief list of options from which the user can select one by navigating up/down and
+ * pressing enter/space.
+ **/
 class RadioButton : public Component, public Utility
 {
 	size_t highlighted_index = 0;
@@ -836,6 +840,52 @@ public:
 		if (input_character == Input::ArrowKeys::LEFT) highlighted_index = 0;
 		if (input_character == Input::ArrowKeys::RIGHT) highlighted_index = max(0, static_cast<int>(options.size()) - 1);
 		if (input_character == ' ' || input_character == '\n') selected_index = highlighted_index;
+		return false;
+	}
+};
+
+/**
+ * @brief list of options from which the user can select any, all, or none by navigating
+ * up/down and pressing enter/space.
+ **/
+class ToggleButton : public Component, public Utility
+{
+	size_t highlighted_index = 0;
+
+public:
+	vector<pair<string, bool>> options;
+	bool enabled;
+
+	ToggleButton(vector<pair<string, bool>> _options, bool _enabled) : options(_options), enabled(_enabled) { }
+
+	RENDER_STUB
+	{
+		if (size.y < 1) return;
+
+		for (int line = 0; line < options.size(); line++)
+		{
+			if (line >= size.y) break;
+			drawText("[ ] " + options[line].first, false, Coordinate{ 0,line }, Coordinate{ size.x,1 }, output_buffer, size);
+			output_buffer[(line * size.x) + 1] = options[line].second ? '*' : ' ';
+			if (line == highlighted_index && enabled)
+				fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,line }, Coordinate{ size.x,1}, output_buffer, size);
+		}
+	}
+
+	GETMAXSIZE_STUB { return Coordinate{ -1,-1 }; }
+	GETMINSIZE_STUB { return Coordinate{ 5, static_cast<int>(options.size()) }; }
+
+	ISFOCUSABLE_STUB { return true; }
+
+	HANDLEINPUT_STUB
+	{
+		if (!focused || !enabled) return false;
+
+		if (input_character == Input::ArrowKeys::UP && highlighted_index > 0) highlighted_index--;
+		if (input_character == Input::ArrowKeys::DOWN && highlighted_index + 1 < options.size()) highlighted_index++;
+		if (input_character == Input::ArrowKeys::LEFT) highlighted_index = 0;
+		if (input_character == Input::ArrowKeys::RIGHT) highlighted_index = max(0, static_cast<int>(options.size()) - 1);
+		if (input_character == ' ' || input_character == '\n') options[highlighted_index].second = !options[highlighted_index].second;
 		return false;
 	}
 };
@@ -963,6 +1013,44 @@ public:
 
 	GETMAXSIZE_STUB { return Coordinate{ -1, 1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 1, 1 }; }
+};
+
+/**
+ * @brief user-interactible slider widget.
+ **/
+class Slider : public Component, public Utility
+{
+public:
+	float value;
+
+	Slider(float _value) : value(_value) { }
+
+	RENDER_STUB
+	{
+		if (size.x < 3 || size.y < 1) return;
+
+		output_buffer[0] = '[';
+		output_buffer[size.x - 1] = ']';
+		for (int x = 1; x < size.x - 1; x++)
+			output_buffer[x] = '-';
+		output_buffer[(int)round(value * (size.x - 2.0f)) + 1].colour = focused ? getHighlightedColour() : getUnfocusedColour();
+	}
+
+	GETMAXSIZE_STUB { return Coordinate{ -1,1 }; }
+	GETMINSIZE_STUB { return Coordinate{ 5,1 }; }
+
+	ISFOCUSABLE_STUB { return true; }
+
+	HANDLEINPUT_STUB
+	{
+		if (!focused) return false;
+		float difference = 0.0;
+		if (input_character == Input::ArrowKeys::LEFT) difference = -0.01f;
+		if (input_character == Input::ArrowKeys::RIGHT) difference = 0.01f;
+		if (modifiers & Input::ControlKeys::SHIFT) difference *= 5.0f;
+		value = max(0.0f, min(value + difference, 1.0f));
+		return true;
+	}
 };
 
 /**
@@ -1797,8 +1885,8 @@ public:
 		auto text_keys = stui::Input::getTextCharacters(keys);
 
 		if (focused_component == nullptr) return;
-		for (uint8_t k : text_keys)
-			focused_component->handleInput(k);
+		for (pair<uint8_t, Input::ControlKeys> k : text_keys)
+			focused_component->handleInput(k.first, k.second);
 	}
 
 	/**

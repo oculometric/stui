@@ -19,6 +19,8 @@
         "xlocbuf": "cpp",
         "xiosbase": "cpp",
         "iostream": "cpp",
-        "istream": "cpp"
+        "istream": "cpp",
+        "utility": "cpp",
+        "string": "cpp"
     }
 }

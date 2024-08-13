@@ -14,6 +14,7 @@
 - [ ] add handling for delete (not backspace)
 - [ ] update help (do this last probably)
 - [x] intercept Ctrl C
+- [ ] make everything non-inline, switch to #define-d implementation
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions
@@ -21,6 +22,7 @@
 - [ ] complete ability to read UI from file
 - [ ] implement ensureIntegrity
 - [x] change from .stui to .layout
+- [ ] have errors displayed with a line number and an offset along the line (only show the line number)
 
 ## New Components
 - [x] list view
@@ -29,9 +31,9 @@
 - [x] button
 - [x] text entry box
 - [x] radio button
+- [x] slider
 - [ ] check box
 - [ ] 3D object renderer component
-- [ ] slider
 
 ## Comments
 - [ ] add comments inside functions across stui.h

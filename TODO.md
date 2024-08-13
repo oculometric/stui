@@ -13,7 +13,7 @@
 - [ ] potentially make scrollable views with extra space have a '...' to indicate more content
 - [ ] add handling for delete (not backspace)
 - [ ] update help (do this last probably)
-- [ ] intercept Ctrl C
+- [x] intercept Ctrl C
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions

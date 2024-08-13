@@ -1571,7 +1571,7 @@ public:
 	static void configure()
 	{
 #if defined(_WIN32)
-		SetConsoleCtrlHandler(windowsControlHandler, false);
+		SetConsoleCtrlHandler(windowsControlHandler, true);
 #elif defined(__linux__)
 		signal(SIGINT, linuxControlHandler);
 #endif
@@ -1581,7 +1581,15 @@ private:
 #if defined(_WIN32)
 	static inline int WINAPI windowsControlHandler(DWORD control_type)
 	{
-		// TODO: windows side
+		if (control_type == 0)
+		{
+			setCursorVisible(true);
+			clear();
+			setCursorPosition(Coordinate{ 0,0 });
+			exit(0);
+		}
+
+		return 1;
 	}
 #elif defined(__linux__)
 	static inline void linuxControlHandler(int control_type)

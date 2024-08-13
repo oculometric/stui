@@ -21,6 +21,8 @@
         "iostream": "cpp",
         "istream": "cpp",
         "utility": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "deque": "cpp",
+        "bitset": "cpp"
     }
 }

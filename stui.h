@@ -9,6 +9,8 @@
 #include <cmath>
 #include <sstream>
 
+#include <bitset>
+
 #if defined(_WIN32)
 	#define WIN32_LEAN_AND_MEAN
 	#define VC_EXTRALEAN
@@ -16,6 +18,7 @@
 #elif defined(__linux__)
 	#include <sys/ioctl.h>
 	#include <signal.h>
+	#include <termios.h>
 #endif
 
 using namespace std;
@@ -288,6 +291,17 @@ private:
 				events.push_back(k);
 			}
 #elif defined(__linux__)
+		struct timeval tv = { 0L, 0L };
+		fd_set fds;
+		FD_ZERO(&fds);
+		FD_SET(0, &fds);
+		int available = select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
+		for (size_t i = 0; i < available; i++)
+		{
+			//events.push_back(Key{ (uint16_t)getchar(),ControlKeys::NONE });
+			int c = getchar();
+			cout << "chr: " << bitset<16>(c) << " aka 0x" << std::hex << c << endl;
+		}
 		// TODO: linux implementation
 #endif
 		return events;
@@ -1654,6 +1668,10 @@ public:
 	}
 };
 
+/**
+ * @brief shows a list of tabs (or just items of any kind really) arranged horizontally,
+ * where the selection can be shown.
+ */
 class TabDisplay : public Component, public Utility
 {
 public:
@@ -1680,6 +1698,7 @@ public:
 	GETMINSIZE_STUB { return Coordinate{ 10,1 }; }
 };
 
+static termios original_termios;
 /**
  * @brief encapsulates some functionality relating to control of the terminal window.
  * 
@@ -1690,6 +1709,7 @@ class Terminal
 {
 	friend class Page;
 	friend class Input;
+
 public:
 	static void configure()
 	{
@@ -1697,6 +1717,13 @@ public:
 		SetConsoleCtrlHandler(windowsControlHandler, true);
 #elif defined(__linux__)
 		signal(SIGINT, linuxControlHandler);
+		termios new_termios;
+		tcgetattr(STDIN_FILENO, &new_termios);
+		tcgetattr(STDIN_FILENO, &original_termios);
+
+		new_termios.c_lflag &= (~ICANON & ~ECHO);
+        new_termios.c_cc[VMIN] = 1;
+		tcsetattr(STDIN_FILENO, TCSANOW, &new_termios);
 #endif
 	}
 
@@ -1719,6 +1746,8 @@ private:
 	{
 		if (control_type == 2)
 		{
+			tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
+
 			setCursorVisible(true);
 			clear();
 			setCursorPosition(Coordinate{ 0,0 });

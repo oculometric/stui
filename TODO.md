@@ -15,6 +15,7 @@
 - [ ] update help (do this last probably)
 - [x] intercept Ctrl C
 - [ ] make everything non-inline, switch to #define-d implementation
+- [ ] fix right-aligned label
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions
@@ -32,7 +33,7 @@
 - [x] text entry box
 - [x] radio button
 - [x] slider
-- [ ] check box
+- [x] check box
 - [ ] 3D object renderer component
 
 ## Comments

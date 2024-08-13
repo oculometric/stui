@@ -66,7 +66,7 @@ int main(int argc, char** argv)
     auto frame_time = chrono::high_resolution_clock::now();
     float timer = 0.0f;
 
-    size_t focus_index = 0;
+    size_t focus_index = 1;
     vector<stui::Component*> focusables = { &rb, &tib, &list, &tree };
 
     while (true)
@@ -91,6 +91,6 @@ int main(int argc, char** argv)
         stui::Page::handleInput(focusables[focus_index], {});
         // TODO: callback to navigate from one focusable to the next using shift tab
 
-        stui::Page::render(&root);
+        //stui::Page::render(&root);
     }
 }

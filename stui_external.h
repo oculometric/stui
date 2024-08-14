@@ -62,7 +62,7 @@ private:
 		throw runtime_error("STUI format document parsing error:\n\t" + summary
 			+ "\n\tat character " + to_string(char_index)
 			+ "\n\t-> '..." + input.substr(max(0, (int32_t)char_index - 16), 32) + "...'"
-			+ "\n\t" + string(min(16, char_index) + 7, ' ') + "^"
+			+ "\n\t" + string(min((size_t)16, char_index) + 7, ' ') + "^"
 			+ "\n\tterminating parsing.");
 	}
 
@@ -247,19 +247,27 @@ private:
 		COMPONENT_ARRAY
 	};
 
-	struct Argument
+	union ArgumentValue
 	{
-		ArgumentType type = ArgumentType::INT;
-		long long int int_val = 0;
-		string string_val = "";
-		Coordinate coordinate_val = { 0,0 };
-		float float_val = 0.0f;
-		Component* component_val = nullptr;
+		long long int int_val;
+		string string_val;
+		Coordinate coordinate_val;
+		float float_val;
+		Component* component_val;
 		vector<long long int> int_arr;
 		vector<string> string_arr;
 		vector<Coordinate> coordinate_arr;
 		vector<float> float_arr;
 		vector<Component*> component_arr;
+
+		ArgumentValue() { }
+		~ArgumentValue() { }
+	};
+
+	struct Argument
+	{
+		ArgumentType type = ArgumentType::INT;
+		ArgumentValue value;
 	};
 
 	static inline string decodeStringArg(string s, string input, size_t offset)
@@ -296,6 +304,35 @@ private:
 		{
 			reportError(input, offset, "invalid float description");
 		}
+	}
+
+	static inline Coordinate decodeCoordArg(string s, string input, size_t offset)
+	{
+		size_t end_bracket = s.find(']');
+		if (end_bracket == string::npos)
+			reportError(input, offset, "unable to find closing square bracket");
+		
+		size_t separator = s.find(',');
+		if (separator == string::npos || s.find(',', separator + 1) != string::npos)
+			reportError(input, offset, "Coordinate description must contain exactly two comma-separated integers");
+		
+		try
+		{
+			int x = stoi(s.substr(1, separator - 1));
+			int y = stoi(s.substr(separator + 1, end_bracket - separator - 1));
+
+			return Coordinate{ x,y };
+		}
+		catch (exception e)
+		{
+			reportError(input, offset, "invalid integer description");
+		}
+	}
+
+	static inline vector<int> decodeIntArrArg(string s, string input, size_t offset)
+	{
+		size_t closing_brace = findMatchingClosingBrace(s, 0);
+		// TODO: ... here
 	}
 
 	static Component* decodeComponentString(string input)
@@ -375,16 +412,16 @@ private:
 			switch (arguments[i].type)
 			{
 			// TODO: implement functions for decoding argument types
-			case INT: arguments[i].int_val = decodeIntArg(split_params[i].second, input, split_params[i].first); break;
-			case STRING: arguments[i].string_val = decodeStringArg(split_params[i].second, input, split_params[i].first); break;
-			case COORDINATE: arguments[i].coordinate_val = decodeCoordArg(split_params[i].second); break;
-			case FLOAT: arguments[i].float_val = decodeFloatArg(split_params[i].second, input, split_params[i].first); break;
-			case COMPONENT: arguments[i].component_val = decodeComponentString(split_params[i].second); break;
-			case INT_ARRAY: arguments[i].int_arr = decodeIntArrArg(split_params[i].second); break;
-			case STRING_ARRAY: arguments[i].string_arr = decodeStringArrArg(split_params[i].second); break;
+			case INT: arguments[i].value.int_val = decodeIntArg(split_params[i].second, input, split_params[i].first); break;
+			case STRING: arguments[i].value.string_val = decodeStringArg(split_params[i].second, input, split_params[i].first); break;
+			case COORDINATE: arguments[i].value.coordinate_val = decodeCoordArg(split_params[i].second); break;
+			case FLOAT: arguments[i].value.float_val = decodeFloatArg(split_params[i].second, input, split_params[i].first); break;
+			case COMPONENT: arguments[i].value.component_val = decodeComponentString(split_params[i].second); break;
+			case INT_ARRAY: arguments[i].value.int_arr = decodeIntArrArg(split_params[i].second); break;
+			case STRING_ARRAY: arguments[i].value.string_arr = decodeStringArrArg(split_params[i].second); break;
 			case COORDINATE_ARRAY: arguments[i].coordinate_arr = decodeCoordArrArg(split_params[i].second); break;
-			case FLOAT_ARRAY: arguments[i].float_arr = decodeFloatArrArg(split_params[i].second); break;
-			case COMPONENT_ARRAY: arguments[i].component_arr = decodeComponentArrArg(split_params[i].second); break;
+			case FLOAT_ARRAY: arguments[i].value.float_arr = decodeFloatArrArg(split_params[i].second); break;
+			case COMPONENT_ARRAY: arguments[i].value.component_arr = decodeComponentArrArg(split_params[i].second); break;
 			default:
 				reportError(input, split_params[i].first, "what???");
 			}

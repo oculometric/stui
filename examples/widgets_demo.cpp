@@ -1,9 +1,16 @@
-
 #define STUI_IMPLEMENTATION
 #include <stui.h>
 
+size_t focus_index = 1;
+
+void increment_focus()
+{
+    focus_index = (focus_index + 1) % 4;
+}
+
 int main(int argc, char** argv)
 {
+
     stui::Terminal::configure();
 
     stui::Label t1("text widget", -1);
@@ -67,7 +74,6 @@ int main(int argc, char** argv)
     auto frame_time = chrono::high_resolution_clock::now();
     float timer = 0.0f;
 
-    size_t focus_index = 1;
     vector<stui::Component*> focusables = { &rb, &tib, &list, &tree };
 
     while (true)
@@ -89,8 +95,7 @@ int main(int argc, char** argv)
 
         for (size_t i = 0; i < focusables.size(); i++) focusables[i]->focused = (i == focus_index);
 
-        stui::Page::handleInput(focusables[focus_index], {});
-        // TODO: callback to navigate from one focusable to the next using shift tab
+        stui::Page::handleInput(focusables[focus_index], { stui::Input::Shortcut{ stui::Input::Key{ '\n', stui::Input::ControlKeys::NONE }, increment_focus } });
 
         stui::Page::render(&root);
     }

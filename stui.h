@@ -9,8 +9,6 @@
 #include <cmath>
 #include <sstream>
 
-#include <bitset>
-
 #if defined(_WIN32)
 	#define WIN32_LEAN_AND_MEAN
 	#define VC_EXTRALEAN
@@ -19,6 +17,7 @@
 	#include <sys/ioctl.h>
 	#include <signal.h>
 	#include <termios.h>
+	#include <poll.h>
 #endif
 
 using namespace std;
@@ -181,8 +180,8 @@ struct Tixel
 		case BG_MAGENTA: return 105;
 		case FG_CYAN: return 96;
 		case BG_CYAN: return 106;
-		case FG_GRAY: return 37;
-		case BG_GRAY: return 47;
+		case FG_GRAY: return 90;
+		case BG_GRAY: return 100;
 		case FG_WHITE: return 97;
 		case BG_WHITE: return 107;
 		default: return 40;
@@ -211,11 +210,9 @@ public:
 	enum ControlKeys
 	{
 		NONE        = 0b00000000,
-		LEFT_CTRL   = 0b00000001,
-		RIGHT_CTRL  = 0b00000010,
-		SHIFT       = 0b00000100,
-		LEFT_ALT    = 0b00010000,
-		RIGHT_ALT   = 0b00100000
+		CTRL  		= 0b00000001,
+		SHIFT       = 0b00000010,
+		ALT    		= 0b00000100
 	};
 
 	/**
@@ -250,6 +247,28 @@ public:
 	};
 
 private:
+#if defined(__linux__)
+	static constexpr Key linux_keymap[128] =
+	{// 0x_0 / 0x_8      0x_1 / 0x_9      0x_2 / 0x_A      0x_3 / 0x_B      0x_4 / 0x_C      0x_5 / 0x_D      0x_6 / 0x_E      0x_7 / 0x_F
+/*0x0_*/{ ' ', CTRL },   { 'A', CTRL },   { 'B', CTRL },   { 'C', CTRL },   { 'D', CTRL },   { 'E', CTRL },   { 'F', CTRL },   { 'G', CTRL },
+/*0x0_*/{ '\b', NONE },  { '\t', NONE },  { '\n', NONE },  { 'K', CTRL },   { 'L', CTRL },   { 'M', CTRL },   { 'N', CTRL },   { 'O', CTRL },
+/*0x1_*/{ 'P', CTRL },   { 'Q', CTRL },   { 'R', CTRL },   { 'S', CTRL },   { 'T', CTRL },   { 'U', CTRL },   { 'V', CTRL },   { 'W', CTRL },
+/*0x1_*/{ 'X', CTRL },   { 'Y', CTRL },   { 'Z', CTRL },   { '\e', NONE },  { '\x1c', NONE },{ '\x1d', NONE },{ '\x1e', NONE },{ '\x1f', NONE },
+/*0x2_*/{ ' ', NONE },   { '!', SHIFT },  { '"', SHIFT },  { '#', NONE },   { '$', SHIFT },  { '%', SHIFT },  { '&', SHIFT },  { '\'', NONE },
+/*0x2_*/{ '(', SHIFT },  { ')', SHIFT },  { '*', SHIFT },  { '+', SHIFT },  { ',', NONE },   { '-', NONE },   { '.', NONE },   { '/', NONE },
+/*0x3_*/{ '0', NONE },   { '1', NONE },   { '2', NONE },   { '3', NONE },   { '4', NONE },   { '5', NONE },   { '6', NONE },   { '7', NONE },
+/*0x3_*/{ '8', NONE },   { '9', NONE },   { ':', SHIFT },  { ';', NONE },   { '<', SHIFT },  { '=', NONE },   { '>', SHIFT },  { '?', SHIFT },
+/*0x4_*/{ '@', SHIFT },  { 'A', SHIFT },  { 'B', SHIFT },  { 'C', SHIFT },  { 'D', SHIFT },  { 'E', SHIFT },  { 'F', SHIFT },  { 'G', SHIFT },
+/*0x4_*/{ 'H', SHIFT },  { 'I', SHIFT },  { 'J', SHIFT },  { 'K', SHIFT },  { 'L', SHIFT },  { 'M', SHIFT },  { 'N', SHIFT },  { 'O', SHIFT },
+/*0x5_*/{ 'P', SHIFT },  { 'Q', SHIFT },  { 'R', SHIFT },  { 'S', SHIFT },  { 'T', SHIFT },  { 'U', SHIFT },  { 'V', SHIFT },  { 'W', SHIFT },
+/*0x5_*/{ 'X', SHIFT },  { 'Y', SHIFT },  { 'Z', SHIFT },  { '[', NONE },   { '\\', NONE },  { ']', NONE },   { '^', SHIFT },  { '_', SHIFT },
+/*0x6_*/{ '`', NONE },   { 'a', NONE },   { 'b', NONE },   { 'c', NONE },   { 'd', NONE },   { 'e', NONE },   { 'f', NONE },   { 'g', NONE },
+/*0x6_*/{ 'h', NONE },   { 'i', NONE },   { 'j', NONE },   { 'k', NONE },   { 'l', NONE },   { 'm', NONE },   { 'n', NONE },   { 'o', NONE },
+/*0x7_*/{ 'p', NONE },   { 'q', NONE },   { 'r', NONE },   { 's', NONE },   { 't', NONE },   { 'u', NONE },   { 'v', NONE },   { 'w', NONE },
+/*0x7_*/{ 'x', NONE },   { 'y', NONE },   { 'z', NONE },   { '{', SHIFT },  { '|', SHIFT },  { '}', SHIFT },  { '~', SHIFT },  { '\b', NONE }
+	};
+#endif
+
 	/**
 	 * @brief queries the system's input buffer and fetches all available key events.
 	 * 
@@ -286,30 +305,69 @@ private:
 				if (k.key == '\r') k.key = '\n';
 				k.control_states = ControlKeys::NONE;
 				DWORD control_key = records[i].Event.KeyEvent.dwControlKeyState;
-				if (control_key & 0x01) k.control_states = (ControlKeys)(k.control_states | ControlKeys::RIGHT_ALT);
-				if (control_key & 0x02) k.control_states = (ControlKeys)(k.control_states | ControlKeys::LEFT_ALT);
-				if (control_key & 0x04) k.control_states = (ControlKeys)(k.control_states | ControlKeys::RIGHT_CTRL);
+				if (control_key & 0x01) k.control_states = (ControlKeys)(k.control_states | ControlKeys::ALT);
+				if (control_key & 0x02) k.control_states = (ControlKeys)(k.control_states | ControlKeys::ALT);
+				if (control_key & 0x04) k.control_states = (ControlKeys)(k.control_states | ControlKeys::CTRL);
 				if (control_key & 0x08)
 				{
-					k.control_states = (ControlKeys)(k.control_states | ControlKeys::LEFT_CTRL);
+					k.control_states = (ControlKeys)(k.control_states | ControlKeys::CTRL);
 					k.key += 96;
 				}
 				if (control_key & 0x10) k.control_states = (ControlKeys)(k.control_states | ControlKeys::SHIFT);
 				events.push_back(k);
 			}
 #elif defined(__linux__)
-		struct timeval tv = { 0L, 0L };
-		fd_set fds;
-		FD_ZERO(&fds);
-		FD_SET(0, &fds);
-		int available = select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
-		for (size_t i = 0; i < available; i++)
+		if (kbhit() < 1) return events;
+
+		uint8_t buffer[64];
+		ssize_t bytes_read = read(STDIN_FILENO, buffer, 64);
+		for (ssize_t i = 0; i < bytes_read; i++)
 		{
-			//events.push_back(Key{ (uint16_t)getchar(),ControlKeys::NONE });
-			int c = getchar();
-			cout << "chr: " << bitset<16>(c) << " aka 0x" << std::hex << c << endl;
+			int c = buffer[i];
+			if (c == '\e')
+			{
+				if (i == bytes_read - 1) events.push_back(Key{ '\e', ControlKeys::NONE });
+				else if (buffer[i + 1] != '[')
+				{
+					int c_next = buffer[i + 1];
+					events.push_back(Key{ linux_keymap[c_next].key, ControlKeys::ALT });
+					i++;
+				}
+				else if (i == bytes_read - 2)
+				{
+					events.push_back(Key{ '[', ControlKeys::ALT });
+					i++;
+				}
+				else
+				{
+					int c_next = buffer[i + 2];
+					if (c_next == 0x41) events.push_back(Key{ ArrowKeys::UP, ControlKeys::NONE });
+					else if (c_next == 0x42) events.push_back(Key{ ArrowKeys::DOWN, ControlKeys::NONE });
+					else if (c_next == 0x44) events.push_back(Key{ ArrowKeys::LEFT, ControlKeys::NONE });
+					else if (c_next == 0x43) events.push_back(Key{ ArrowKeys::RIGHT, ControlKeys::NONE });
+					else
+						break;
+					i += 2;
+					// TODO: handle ANSI codes on linux, like "\e[1;2A" etc
+					
+				}
+			}
+			else if (c < 128)
+			{
+				events.push_back(linux_keymap[c]);
+			}
+			else
+			{
+				// TODO: handle utf8 oh dear god
+				break;
+			}
 		}
-		// TODO: linux implementation
+
+		// for (Key k : events)
+		// {
+		// 	cout << "key event: " << (char)k.key << " aka " << std::hex << k.key << ", flags: " << std::hex << k.control_states << endl;
+		// }
+		// cout << endl;
 #endif
 		return events;
 	}
@@ -400,6 +458,14 @@ private:
 	}
 #endif
 	;
+
+	static inline int kbhit()
+	{
+		pollfd pfd;
+		pfd.fd = STDIN_FILENO;
+		pfd.events = POLLIN;
+		return poll(&pfd, 1, 0);
+	}
 };
 
 /**
@@ -629,7 +695,7 @@ protected:
 		{
 			vector<string> lines = wrapText(text, min(max_size.x, buffer_size.x - text_origin.x));
 			
-			size_t row = 0;
+			int row = 0;
 			for (string line : lines)
 			{
 				for (size_t col = 0; col < line.length(); col++)
@@ -642,7 +708,7 @@ protected:
 		}
 		else
 		{
-			for (size_t i = 0; i < text.length(); i++)
+			for (int i = 0; i < static_cast<int>(text.length()); i++)
 			{
 				if (text_origin.x + i < 0) continue;
 				if (text_origin.x + i >= buffer_size.x || i >= max_size.x) break;
@@ -867,21 +933,21 @@ public:
  **/
 class RadioButton : public Component, public Utility
 {
-	size_t highlighted_index = 0;
+	int highlighted_index = 0;
 
 public:
 	vector<string> options;
-	size_t selected_index;
+	int selected_index;
 	bool enabled;
 
-	RadioButton(vector<string> _options, size_t _selected_index, bool _enabled) : options(_options), selected_index(_selected_index), enabled(_enabled) { }
+	RadioButton(vector<string> _options, int _selected_index, bool _enabled) : options(_options), selected_index(_selected_index), enabled(_enabled) { }
 
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
 	{
 		if (size.y < 1) return;
 
-		for (int line = 0; line < options.size(); line++)
+		for (int line = 0; line < static_cast<int>(options.size()); line++)
 		{
 			if (line >= size.y) break;
 			drawText("[ ] " + options[line], false, Coordinate{ 0,line }, Coordinate{ size.x,1 }, output_buffer, size);
@@ -904,7 +970,7 @@ public:
 		if (!focused || !enabled) return false;
 
 		if (input_character == Input::ArrowKeys::UP && highlighted_index > 0) highlighted_index--;
-		if (input_character == Input::ArrowKeys::DOWN && highlighted_index + 1 < options.size()) highlighted_index++;
+		if (input_character == Input::ArrowKeys::DOWN && highlighted_index + 1 < static_cast<int>(options.size())) highlighted_index++;
 		if (input_character == Input::ArrowKeys::LEFT) highlighted_index = 0;
 		if (input_character == Input::ArrowKeys::RIGHT) highlighted_index = max(0, static_cast<int>(options.size()) - 1);
 		if (input_character == ' ' || input_character == '\n') selected_index = highlighted_index;
@@ -920,7 +986,7 @@ public:
  **/
 class ToggleButton : public Component, public Utility
 {
-	size_t highlighted_index = 0;
+	int highlighted_index = 0;
 
 public:
 	vector<pair<string, bool>> options;
@@ -933,7 +999,7 @@ public:
 	{
 		if (size.y < 1) return;
 
-		for (int line = 0; line < options.size(); line++)
+		for (int line = 0; line < static_cast<int>(options.size()); line++)
 		{
 			if (line >= size.y) break;
 			drawText("[ ] " + options[line].first, false, Coordinate{ 0,line }, Coordinate{ size.x,1 }, output_buffer, size);
@@ -956,7 +1022,7 @@ public:
 		if (!focused || !enabled) return false;
 
 		if (input_character == Input::ArrowKeys::UP && highlighted_index > 0) highlighted_index--;
-		if (input_character == Input::ArrowKeys::DOWN && highlighted_index + 1 < options.size()) highlighted_index++;
+		if (input_character == Input::ArrowKeys::DOWN && highlighted_index + 1 < static_cast<int>(options.size())) highlighted_index++;
 		if (input_character == Input::ArrowKeys::LEFT) highlighted_index = 0;
 		if (input_character == Input::ArrowKeys::RIGHT) highlighted_index = max(0, static_cast<int>(options.size()) - 1);
 		if (input_character == ' ' || input_character == '\n') options[highlighted_index].second = !options[highlighted_index].second;
@@ -1441,10 +1507,10 @@ class ListView : public Component, public Utility
 
 public:
 	vector<string> elements;
-	size_t scroll;
-	size_t selected_index = 0;
+	int scroll;
+	int selected_index = 0;
 
-	ListView(vector<string> _elements, size_t _scroll, size_t _selected_index) : elements(_elements), scroll(_scroll), selected_index(_selected_index) { }
+	ListView(vector<string> _elements, int _scroll, int _selected_index) : elements(_elements), scroll(_scroll), selected_index(_selected_index) { }
 
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
@@ -1453,7 +1519,7 @@ public:
 		last_render_height = size.y;
 		int row = -1 - static_cast<int>(scroll);
 		int index = -1;
-		selected_index = min(selected_index, elements.size() - 1);
+		selected_index = min(selected_index, static_cast<int>(elements.size()) - 1);
 		for (string element : elements)
 		{
 			index++;
@@ -1479,16 +1545,16 @@ public:
 	HANDLEINPUT_STUB
 #ifdef STUI_IMPLEMENTATION
 	{
-		if (input_character == Input::ArrowKeys::DOWN && selected_index < elements.size() - 1)
+		if (input_character == Input::ArrowKeys::DOWN && selected_index < static_cast<int>(elements.size()) - 1)
 		{
 			selected_index++;
-			if (static_cast<int>(selected_index) - static_cast<int>(scroll) >= last_render_height)
+			if (selected_index - scroll >= last_render_height)
 				scroll++;
 		}
 		else if (input_character == Input::ArrowKeys::UP && selected_index > 0)
 		{
 			selected_index--;
-			if (static_cast<int>(selected_index) - static_cast<int>(scroll) < 0 && scroll > 0)
+			if (selected_index - scroll < 0 && scroll > 0)
 				scroll--;
 		}
 		else return false;
@@ -1834,12 +1900,16 @@ public:
 		SetConsoleCtrlHandler(windowsControlHandler, true);
 #elif defined(__linux__)
 		signal(SIGINT, linuxControlHandler);
+		signal(SIGQUIT, linuxControlHandler);
+		signal(SIGTSTP, linuxControlHandler);
 		termios new_termios;
 		tcgetattr(STDIN_FILENO, &new_termios);
 		tcgetattr(STDIN_FILENO, &original_termios);
 
-		new_termios.c_lflag &= (~ICANON & ~ECHO);
+		new_termios.c_iflag &= ~(IGNBRK | BRKINT | IXON);
+		new_termios.c_lflag &= ~(ICANON | ECHO);
         new_termios.c_cc[VMIN] = 1;
+		new_termios.c_cc[VSUSP] = 255;
 		tcsetattr(STDIN_FILENO, TCSANOW, &new_termios);
 #endif
 	}
@@ -1868,15 +1938,12 @@ private:
 	static void linuxControlHandler(int control_type)
 #ifdef STUI_IMPLEMENTATION
 	{
-		if (control_type == 2)
-		{
-			tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
+		tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
 
-			setCursorVisible(true);
-			clear();
-			setCursorPosition(Coordinate{ 0,0 });
-			exit(0);
-		}
+		setCursorVisible(true);
+		clear();
+		setCursorPosition(Coordinate{ 0,0 });
+		exit(0);
 	}
 #endif
 	;
@@ -1996,7 +2063,7 @@ public:
 		Tixel::ColourCommand foreground = (Tixel::ColourCommand)0;
 		Tixel::ColourCommand background = (Tixel::ColourCommand)0;
 
-		for (size_t i = 0; i < screen_size.x * screen_size.y; i++)
+		for (size_t i = 0; i < static_cast<size_t>(screen_size.x * screen_size.y); i++)
 		{
 			Tixel::ColourCommand new_foreground = (Tixel::ColourCommand)(root_staging_buffer[i].colour & Tixel::ColourCommand::FG_WHITE);
 			Tixel::ColourCommand new_background = (Tixel::ColourCommand)(root_staging_buffer[i].colour & Tixel::ColourCommand::BG_WHITE);

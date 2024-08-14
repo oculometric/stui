@@ -44,7 +44,9 @@
 
 ## Input
 - [x] simple input tracking library (see planetarium)
-- [ ] input reading on linux
+- [x] input reading on linux
+- [ ] fix the rest of input reading on linux
+- [ ] update windows input reading to match linux
 - [x] ability to add shortcut bindings to callbacks
 - [x] input system for components
 - [x] widget focus system (shift-tabbing between focussable views, moving selection inside focussed view) ?

@@ -1,7 +1,7 @@
 # To-Dos
 
 ## Misc
-- [ ] add a proper license, including to the top of each header
+- [x] add a proper license, including to the top of each header
 - [ ] make some demo files (.layout, .cpp)
 - [x] test under linux (and mac, preferably) - it didnt work `:(`
 - [x] remove boxes around components and convert to its own element BorderedBox
@@ -35,10 +35,9 @@
 - [x] radio button
 - [x] slider
 - [x] check box
-- [ ] 3D object renderer component
 
 ## Comments
-- [ ] add comments inside functions across stui.h
+- [x] add comments inside functions across stui.h
 - [x] add doxy comments to the rest of stui.h
 - [ ] add doxy and detailed comments to stui_external.h
 - [x] doxy comments in Input

@@ -1,4 +1,25 @@
-﻿#pragma once
+﻿/*  
+	A simple header-only library for creating text-based user interfaces
+	inside a terminal window.
+	Copyright (C) 2024  Jacob Costen (oculometric)
+
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+	Contact me here <mailto://jcostenart@gmail.com>
+*/
+
+#pragma once
 
 #include <string>
 #include <iostream>
@@ -89,7 +110,7 @@ static inline void debug(string str)
 	auto seconds = chrono::duration_cast<chrono::seconds>(now - hours - minutes);
 	auto millis = chrono::duration_cast<chrono::milliseconds>(now - hours - minutes - seconds);
 
-	debug_log << '[' << setfill('0') << setw(2) << hours.count() % 24 << ':' << minutes.count() << ':' << seconds.count() << '.' << setw(3) << millis.count() << ']' << ' ' << str << endl;
+	debug_log << '[' << setfill('0') << setw(2) << hours.count() % 24 << ':' << setw(2) << minutes.count() << ':' << setw(2) << seconds.count() << '.' << setw(3) << millis.count() << ']' << ' ' << str << endl;
 	debug_log.flush();
 }
 
@@ -107,12 +128,15 @@ string stripNullsAndMore(string str, const char* others)
     string result = "";
     for (char c : str)
     {
-        if (c < ' ' && c != '\n' && c != '\t') continue;
+		// auto-strip if the character is a non-renderable
+        if (c < ' ' && c != '\n' && c != '\t' && c != '\b') continue;
+		// check if the current char is inside list to remove
 		bool is_valid = true;
 		for (size_t i = 0; others[i] != '\0'; i++)
 			if (c == others[i]) is_valid = false;
 		if (is_valid)
 		{
+			// if not, keep it, swapping tab for some spaces
 			if (c == '\t') result += "    ";
 			else result += c;
 		}
@@ -300,10 +324,12 @@ private:
 	{
 		vector<Key> events;
 #if defined(_WIN32)
+		// find available
 		DWORD events_available;
 		GetNumberOfConsoleInputEvents(GetStdHandle(STD_INPUT_HANDLE), &events_available);
 		if (events_available < 1) return events;
 
+		// grab 32 of them
 		INPUT_RECORD records[32] = { };
 		DWORD records_read;
 
@@ -334,29 +360,37 @@ private:
 				events.push_back(k);
 			}
 #elif defined(__linux__)
+		// check if there are any events to read
 		if (kbhit() < 1) return events;
 
+		// read a queue of 64 events (or as many are available)
 		uint8_t buffer[64] = { 0 };
 		ssize_t bytes_read = read(STDIN_FILENO, buffer, 64);
 		for (ssize_t i = 0; i < bytes_read; i++)
 		{
 			int c = buffer[i];
+			// process escape sequences
 			if (c == '\e')
 			{
+				// unless it's actually just escape
 				if (i == bytes_read - 1) events.push_back(Key{ '\e', ControlKeys::NONE });
 				else if (buffer[i + 1] != '[')
 				{
+					// if there's no bracket then it's an alt-event
 					int c_next = buffer[i + 1];
 					events.push_back(Key{ linux_keymap[c_next].key, ControlKeys::ALT });
+					// skip to the next char so we don't process the same one twice
 					i++;
 				}
 				else if (i == bytes_read - 2)
 				{
+					// it could just be alt-bracket, not an escape sequences
 					events.push_back(Key{ '[', ControlKeys::ALT });
 					i++;
 				}
 				else
 				{
+					// otherwise it's an escape sequence
 					int c_next = buffer[i + 2];
 					if (c_next == 0x41) events.push_back(Key{ ArrowKeys::UP, ControlKeys::NONE });
 					else if (c_next == 0x42) events.push_back(Key{ ArrowKeys::DOWN, ControlKeys::NONE });
@@ -373,6 +407,7 @@ private:
 					}
 					else
 					{
+						// debug if it isnt handled
 						debug("unhandled ANSI code: " + string((char*)buffer + i));
 						break;
 					}
@@ -381,6 +416,7 @@ private:
 			}
 			else if (c < 128)
 			{
+				// normal keypress, use the keymap as a look-up table
 				events.push_back(linux_keymap[c]);
 			}
 			else

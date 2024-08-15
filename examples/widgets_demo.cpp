@@ -95,7 +95,7 @@ int main(int argc, char** argv)
 
         for (size_t i = 0; i < focusables.size(); i++) focusables[i]->focused = (i == focus_index);
 
-        stui::Page::handleInput(focusables[focus_index], { stui::Input::Shortcut{ stui::Input::Key{ '\n', stui::Input::ControlKeys::NONE }, increment_focus } });
+        stui::Page::handleInput(focusables[focus_index], { stui::Input::Shortcut{ stui::Input::Key{ '\t', stui::Input::ControlKeys::NONE }, increment_focus } });
 
         stui::Page::render(&root);
     }

@@ -2,12 +2,14 @@
 
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <chrono>
 #include <thread>
 #include <cstring>
 #include <cmath>
 #include <sstream>
+#include <iomanip>
 
 #if defined(_WIN32)
 	#define WIN32_LEAN_AND_MEAN
@@ -75,6 +77,21 @@ using namespace std;
 
 namespace stui
 {
+
+static ofstream debug_log;
+
+static inline void debug(string str)
+{
+	if (!debug_log.is_open()) return;
+	auto now = chrono::system_clock::now().time_since_epoch();
+	auto hours = chrono::duration_cast<chrono::hours>(now);
+	auto minutes = chrono::duration_cast<chrono::minutes>(now - hours);
+	auto seconds = chrono::duration_cast<chrono::seconds>(now - hours - minutes);
+	auto millis = chrono::duration_cast<chrono::milliseconds>(now - hours - minutes - seconds);
+
+	debug_log << '[' << setfill('0') << setw(2) << hours.count() % 24 << ':' << minutes.count() << ':' << seconds.count() << '.' << setw(3) << millis.count() << ']' << ' ' << str << endl;
+	debug_log.flush();
+}
 
 /**
  * @brief removes any invalid characters from a string, as well as other
@@ -319,7 +336,7 @@ private:
 #elif defined(__linux__)
 		if (kbhit() < 1) return events;
 
-		uint8_t buffer[64];
+		uint8_t buffer[64] = { 0 };
 		ssize_t bytes_read = read(STDIN_FILENO, buffer, 64);
 		for (ssize_t i = 0; i < bytes_read; i++)
 		{
@@ -345,11 +362,21 @@ private:
 					else if (c_next == 0x42) events.push_back(Key{ ArrowKeys::DOWN, ControlKeys::NONE });
 					else if (c_next == 0x44) events.push_back(Key{ ArrowKeys::LEFT, ControlKeys::NONE });
 					else if (c_next == 0x43) events.push_back(Key{ ArrowKeys::RIGHT, ControlKeys::NONE });
+					else if (c_next == '1' && buffer[i + 3] == ';' && buffer[i + 4] == '2')
+					{
+						int c_next_next = buffer[i + 5];
+						if (c_next_next == 0x41) events.push_back(Key{ ArrowKeys::UP, ControlKeys::SHIFT });
+						else if (c_next_next == 0x42) events.push_back(Key{ ArrowKeys::DOWN, ControlKeys::SHIFT });
+						else if (c_next_next == 0x44) events.push_back(Key{ ArrowKeys::LEFT, ControlKeys::SHIFT });
+						else if (c_next_next == 0x43) events.push_back(Key{ ArrowKeys::RIGHT, ControlKeys::SHIFT });
+						i += 3;
+					}
 					else
+					{
+						debug("unhandled ANSI code: " + string((char*)buffer + i));
 						break;
+					}
 					i += 2;
-					// TODO: handle ANSI codes on linux, like "\e[1;2A" etc
-					
 				}
 			}
 			else if (c < 128)
@@ -358,16 +385,11 @@ private:
 			}
 			else
 			{
+				debug("uh oh! unhandled UTF-8");
 				// TODO: handle utf8 oh dear god
 				break;
 			}
 		}
-
-		// for (Key k : events)
-		// {
-		// 	cout << "key event: " << (char)k.key << " aka " << std::hex << k.key << ", flags: " << std::hex << k.control_states << endl;
-		// }
-		// cout << endl;
 #endif
 		return events;
 	}
@@ -1896,6 +1918,8 @@ public:
 	static void configure()
 #ifdef STUI_IMPLEMENTATION
 	{
+		debug_log.open("stui_debug.log");
+		debug("STUI logging started");
 #if defined(_WIN32)
 		SetConsoleCtrlHandler(windowsControlHandler, true);
 #elif defined(__linux__)
@@ -1926,6 +1950,8 @@ private:
 			setCursorVisible(true);
 			clear();
 			setCursorPosition(Coordinate{ 0,0 });
+			debug("STUI logging stopped");
+			debug_log.close();
 			exit(0);
 		}
 
@@ -1943,6 +1969,8 @@ private:
 		setCursorVisible(true);
 		clear();
 		setCursorPosition(Coordinate{ 0,0 });
+		debug("STUI logging stopped");
+		debug_log.close();
 		exit(0);
 	}
 #endif

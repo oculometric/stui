@@ -16,6 +16,7 @@
 - [x] intercept Ctrl C
 - [x] make everything non-inline, switch to #define-d implementation
 - [x] fix right-aligned label
+- [ ] display message when screen too small for UI
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions
@@ -45,7 +46,7 @@
 ## Input
 - [x] simple input tracking library (see planetarium)
 - [x] input reading on linux
-- [ ] fix the rest of input reading on linux
+- [x] fix the rest of input reading on linux
 - [ ] update windows input reading to match linux
 - [x] ability to add shortcut bindings to callbacks
 - [x] input system for components

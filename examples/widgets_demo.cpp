@@ -79,7 +79,7 @@ int main(int argc, char** argv)
     
     while (true)
     {
-        stui::Page::FrameData delta = stui::Page::targetFramerate(24, frame_time);
+        stui::Renderer::FrameData delta = stui::Renderer::targetFramerate(24, frame_time);
         timer += delta.delta_time;
 
         pb.fraction = delta.active_fraction;//fmod(timer, 1.0f);
@@ -97,8 +97,8 @@ int main(int argc, char** argv)
 
         for (size_t i = 0; i < focusables.size(); i++) focusables[i]->focused = (i == focus_index);
 
-        stui::Page::handleInput(focusables[focus_index], { stui::Input::Shortcut{ stui::Input::Key{ '\t', stui::Input::ControlKeys::NONE }, increment_focus } });
+        stui::Renderer::handleInput(focusables[focus_index], { stui::Input::Shortcut{ stui::Input::Key{ '\t', stui::Input::ControlKeys::NONE }, increment_focus } });
 
-        stui::Page::render(&root);
+        stui::Renderer::render(&root);
     }
 }

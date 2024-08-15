@@ -22,6 +22,7 @@
 
 ## Comments
 - [ ] add doxy and detailed comments to stui_external.h
+- [ ] add doxy comments to stui_extensions.h
 
 ## Input
 - [ ] add editable text area

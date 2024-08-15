@@ -19,37 +19,7 @@
 	Contact me here <mailto://jcostenart@gmail.com>
 */
 
-#pragma once
-
-#include <string>
-#include <iostream>
-#include <fstream>
-#include <vector>
-#include <chrono>
-#include <thread>
-#include <cstring>
-#include <cmath>
-#include <sstream>
-#include <iomanip>
-
-#if defined(_WIN32)
-	#define WIN32_LEAN_AND_MEAN
-	#define VC_EXTRALEAN
-	#include <Windows.h>
-#elif defined(__linux__)
-	#include <sys/ioctl.h>
-	#include <signal.h>
-	#include <termios.h>
-	#include <poll.h>
-#endif
-
-using namespace std;
-
-#if defined(_WIN32)
-	using clock_type = chrono::steady_clock;
-#elif defined(__linux__)
-	using clock_type = chrono::system_clock;
-#endif
+#ifndef STUI_ONLY_UNDEFS
 
 #define RENDER_STUB virtual void render(Tixel* output_buffer, Coordinate size) override
 #define GETMINSIZE_STUB virtual inline Coordinate getMinSize() override
@@ -95,6 +65,39 @@ using namespace std;
 #define UNICODE_NOT (uint32_t)0xacc2
 #define UNICODE_CIRCLE_HOLLOW (uint32_t)0xbe8ce2
 #define UNICODE_CIRCLE_FILLED (uint32_t)0x998ae2
+
+#pragma once
+
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <chrono>
+#include <thread>
+#include <cstring>
+#include <cmath>
+#include <sstream>
+#include <iomanip>
+
+using namespace std;
+
+#if defined(_WIN32)
+	using clock_type = chrono::steady_clock;
+#elif defined(__linux__)
+	using clock_type = chrono::system_clock;
+#endif
+
+#if defined(_WIN32)
+	#define WIN32_LEAN_AND_MEAN
+	#define VC_EXTRALEAN
+	#include <Windows.h>
+#elif defined(__linux__)
+	#include <sys/ioctl.h>
+	#include <signal.h>
+	#include <termios.h>
+	#include <poll.h>
+#endif
+
 
 namespace stui
 {
@@ -279,7 +282,7 @@ struct Tixel
  **/
 class Input
 {
-	friend class Page;
+	friend class Renderer;
 
 public:
 	/**
@@ -1985,12 +1988,12 @@ static termios original_termios;
 /**
  * @brief encapsulates some functionality relating to control of the terminal window.
  * 
- * before you start drawing things using `Page`, you should definitely call `configure`,
+ * before you start drawing things using `Renderer`, you should definitely call `configure`,
  * although it's not strictly necessary.
  */
 class Terminal
 {
-	friend class Page;
+	friend class Renderer;
 	friend class Input;
 
 public:
@@ -2137,7 +2140,7 @@ private:
  * to the terminal. a page just consists of a `Component` tree
  * 
  **/
-class Page : public Utility
+class Renderer : public Utility
 {
 public:
 	/**
@@ -2301,6 +2304,8 @@ private:
 };
 
 }
+
+#endif
 
 #ifndef STUI_KEEP_DEFINES
 

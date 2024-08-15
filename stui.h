@@ -698,7 +698,7 @@ protected:
 		{
 			size_t max_end = min(last_index + max_width - 1, text.length() - 1);
 			size_t next_end = max_end;
-			bool trim_whitespace = true;
+			bool trim_whitespace = false;
 			while (text[next_end] != ' ')
 			{
 				if (next_end == text.length() - 1)
@@ -724,57 +724,81 @@ protected:
 	;
 
 	/**
-	 * @brief draws a block of text into a buffer.
+	 * @brief draws a line of text into a buffer.
 	 * 
-	 * supports either single-line drawing (out-of-bounds characters are skipped), or
-	 * multi-line wrapped drawing, where lines are wrapped to fit into the box specified
-	 * by `max_size`. it's up to the caller to ensure `buffer` is allocated to the size
-	 * specified by `buffer_size`. newlines, nulls or other special characters should not be
-	 * passed into this function, as it will fuck up the output stage at the end of rendering.
+	 * supports single-line drawing (out-of-bounds characters are skipped). it's up to the 
+	 * caller to ensure `buffer` is allocated to the size specified by `buffer_size`. 
+	 * newlines, nulls or other special characters should not be passed into this function, 
+	 * as it will fuck up the output stage at the end of rendering.
 	 * 
 	 * @param text text to draw to the buffer
-	 * @param wrap enable line wrapping to fit text horizontally in the box; if disabled,
-	 * single-line mode will be used instead
 	 * @param text_origin position in the output buffer of the top-left-most corner of the
 	 * text
 	 * @param max_size maximum size of the drawn text, measured from the `text_origin`. must 
-	 * be positive in both dimensions. text that runs outside this area is not drawn, and 
-	 * wrapped text will be wrapped to fit inside this horizontally
-	 * @param buffer pointer to a character array ordered left-to-right, top-to-bottom
+	 * be positive in both dimensions. text that runs outside this area is not drawn
+	 * @param buffer pointer to a `Tixel` array ordered left-to-right, top-to-bottom
 	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
 	 **/
-	static void drawText(string text, bool wrap, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size)
+	static void drawText(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size)
 #ifdef STUI_IMPLEMENTATION
 	{
 		if (buffer == nullptr) return;
 		if (buffer_size.x <= 0 || buffer_size.y <= 0) return;
 
-		if (wrap)
+		for (int i = 0; i < static_cast<int>(text.length()); i++)
 		{
-			vector<string> lines = wrapText(text, min(max_size.x, buffer_size.x - text_origin.x));
-			
-			int row = 0;
-			for (string line : lines)
-			{
-				for (size_t col = 0; col < line.length(); col++)
-				{
-					buffer[(text_origin.x + col) + ((text_origin.y + row) * buffer_size.x)] = line[col];
-				}
-				row++;
-				if (row >= max_size.y || row + text_origin.y >= buffer_size.y) break;
-			}
-		}
-		else
-		{
-			for (int i = 0; i < static_cast<int>(text.length()); i++)
-			{
-				if (text_origin.x + i < 0) continue;
-				if (text_origin.x + i >= buffer_size.x || i >= max_size.x) break;
-				if (text_origin.y < 0 || text_origin.y >= buffer_size.y) break;
+			if (text_origin.x + i < 0) continue;
+			if (text_origin.x + i >= buffer_size.x || i >= max_size.x) break;
+			if (text_origin.y < 0 || text_origin.y >= buffer_size.y) break;
+			if (text[i] == '\n') break;
 
-				buffer[(text_origin.x + i) + (text_origin.y * buffer_size.x)] = text[i];
-			}
+			buffer[(text_origin.x + i) + (text_origin.y * buffer_size.x)] = text[i];
 		}
+	}
+#endif
+	;
+
+	/**
+	 * @brief draws a block of text into a buffer.
+	 * 
+	 * supports either multi-line wrapped drawing, where lines are wrapped to fit into the
+	 * box specified by `max_size`. it's up to the caller to ensure `buffer` is allocated 
+	 * to the size specified by `buffer_size`. newlines, nulls or other special characters 
+	 * should not be passed into this function, as it will fuck up the output stage at the
+	 * end of rendering.
+	 * 
+	 * @param text text to draw to the buffer
+	 * @param text_origin position in the output buffer of the top-left-most corner of the
+	 * text
+	 * @param max_size maximum size of the drawn text, measured from the `text_origin`. must 
+	 * be positive in both dimensions. text that runs outside this area will be wrapped to 
+	 * fit inside this horizontally
+	 * @param buffer pointer to a `Tixel` array ordered left-to-right, top-to-bottom
+	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
+	 **/
+	static vector<size_t> drawTextWrapped(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size)
+#ifdef STUI_IMPLEMENTATION
+	{
+		if (buffer == nullptr) return vector<size_t>();
+		if (buffer_size.x <= 0 || buffer_size.y <= 0) return vector<size_t>();
+
+		vector<string> lines = wrapText(text, min(max_size.x, buffer_size.x - text_origin.x));
+		
+		int row = 0;
+		for (string line : lines)
+		{
+			for (size_t col = 0; col < line.length(); col++)
+			{
+				buffer[(text_origin.x + col) + ((text_origin.y + row) * buffer_size.x)] = line[col];
+			}
+			row++;
+			if (row >= max_size.y || row + text_origin.y >= buffer_size.y) break;
+		}
+
+		vector<size_t> line_lengths;
+		for (string l : lines) line_lengths.push_back(l.length());
+
+		return line_lengths;
 	}
 #endif
 	;
@@ -937,7 +961,7 @@ public:
 		else if (alignment > 0)
 			offset.x = static_cast<int>(size.x - text.length());
 
-		drawText(stripNullsAndMore(text, "\n\t"), false, offset, Coordinate{ static_cast<int>(text.length()), 1 }, output_buffer, size);
+		drawText(stripNullsAndMore(text, "\n\t"), offset, Coordinate{ static_cast<int>(text.length()), 1 }, output_buffer, size);
 	}
 #endif
 	;
@@ -963,7 +987,7 @@ public:
 	{
 		if (size.y < 1) return;
 
-		drawText("> " + text + " <", false, Coordinate{ 0,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
+		drawText("> " + text + " <", Coordinate{ 0,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
 		if (focused)
 			fillColour(enabled ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
 	}
@@ -1008,7 +1032,7 @@ public:
 		for (int line = 0; line < static_cast<int>(options.size()); line++)
 		{
 			if (line >= size.y) break;
-			drawText("[ ] " + options[line], false, Coordinate{ 0,line }, Coordinate{ size.x,1 }, output_buffer, size);
+			drawText("[ ] " + options[line], Coordinate{ 0,line }, Coordinate{ size.x,1 }, output_buffer, size);
 			output_buffer[(line * size.x) + 1] = selected_index == line ? '*' : ' ';
 			if (line == highlighted_index && enabled)
 				fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,line }, Coordinate{ size.x,1}, output_buffer, size);
@@ -1060,7 +1084,7 @@ public:
 		for (int line = 0; line < static_cast<int>(options.size()); line++)
 		{
 			if (line >= size.y) break;
-			drawText("[ ] " + options[line].first, false, Coordinate{ 0,line }, Coordinate{ size.x,1 }, output_buffer, size);
+			drawText("[ ] " + options[line].first, Coordinate{ 0,line }, Coordinate{ size.x,1 }, output_buffer, size);
 			output_buffer[(line * size.x) + 1] = options[line].second ? '*' : ' ';
 			if (line == highlighted_index && enabled)
 				fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,line }, Coordinate{ size.x,1}, output_buffer, size);
@@ -1110,7 +1134,7 @@ public:
 		if (size.y < 1) return;
 		last_rendered_width = size.x;
 
-		drawText("> " + text, false, Coordinate{ 0,0 }, Coordinate{ size.x - 3,1 }, output_buffer, size);
+		drawText("> " + text, Coordinate{ 0,0 }, Coordinate{ size.x - 3,1 }, output_buffer, size);
 		if (enabled) output_buffer[cursor_index + 2].colour = focused ? getHighlightedColour() : getUnfocusedColour();
 	}
 #endif
@@ -1160,7 +1184,8 @@ public:
 class TextArea : public Component, public Utility
 {
 	size_t cursor_index = 0;
-	size_t line_index = 0 ;
+	size_t line_index = 0;
+	vector<size_t> last_render_lines;
 public:
 	string text;
 	bool editable;
@@ -1172,7 +1197,17 @@ public:
 	{
 		if (size.y < 2 || size.x < 2) return;
 
-		drawText(stripNullsAndMore(text, ""), true, Coordinate{ 0,0 }, Coordinate{ size.x, size.y }, output_buffer, size);
+		last_render_lines = drawTextWrapped(stripNullsAndMore(text, ""), Coordinate{ 0,0 }, Coordinate{ size.x, size.y }, output_buffer, size);
+		if (last_render_lines.size() == 0)
+		{
+			line_index = 0;
+			cursor_index = 0;
+		}
+		else
+		{
+			if (line_index >= last_render_lines.size()) line_index = last_render_lines.size() - 1;
+			if (cursor_index >= last_render_lines[line_index]) cursor_index = last_render_lines[line_index] - 1;
+		}
 		if (editable)
 			output_buffer[cursor_index + (line_index  * size.x)].colour = focused ? getHighlightedColour() : getUnfocusedColour();
 	}
@@ -1187,11 +1222,67 @@ public:
 	{
 		if (!editable || !focused) return false;
 		// TODO: apply characters in the right place, and move cursor...
-		if (input_character == '\b') text.pop_back();
-		else if (input_character == Input::ArrowKeys::RIGHT) cursor_index++;
-		else if (input_character == Input::ArrowKeys::LEFT && cursor_index > 0) cursor_index--;
+		if (input_character == Input::ArrowKeys::RIGHT)
+		{
+			if (line_index >= last_render_lines.size())
+				cursor_index = 0;
+			else if (cursor_index < last_render_lines[line_index] - 1)
+				cursor_index++;
+			else if (line_index < last_render_lines.size() - 1)
+			{
+				cursor_index = 0;
+				line_index++;
+			}
+		}
+		else if (input_character == Input::ArrowKeys::LEFT)
+		{
+			if (cursor_index > 0)
+				cursor_index--;
+			else if (line_index > 0 && line_index < last_render_lines.size())
+			{
+				line_index--;
+				cursor_index = last_render_lines[line_index] - 1;
+			}
+			else
+			{
+				cursor_index = 0;
+				line_index = 0;
+			}
+		}
+		else if (input_character == '\b')
+		{ if (cursor_index + line_index > 0)
+		{
+			size_t real_cursor_index = cursor_index;
+			for (size_t i = 0; i < line_index; i++) real_cursor_index += last_render_lines[i];
+			for (size_t first = real_cursor_index - 1; first < text.length() - 1; first++)
+				text[first] = text[first + 1];
+			text.pop_back();
+			if (cursor_index > 0)
+				cursor_index--;
+			else if (line_index > 0)
+			{
+				line_index--;
+				cursor_index = last_render_lines[line_index] - 1;
+			}
+		} }
+		else
+		{
+			text.push_back(' ');
+			size_t real_cursor_index = cursor_index;
+			for (size_t i = 0; i < line_index; i++) real_cursor_index += last_render_lines[i];
+
+			for (size_t first = text.length() - 1; first > real_cursor_index; first--)
+				text[first] = text[first - 1];
+			text[real_cursor_index] = input_character;
+			cursor_index++;
+			if (cursor_index >= last_render_lines[line_index])
+			{
+				cursor_index = 0;
+				line_index++;
+			}
+		}
+		// TODO: cursor allowed to be one char off the end
 		// TODO: implement moving the cursor here...
-		else text.push_back(input_character);
 
 		return true;
 	}
@@ -1537,7 +1628,7 @@ public:
 		if (size.x < 3 || size.y < 3) return;
 		drawBox(Coordinate{ 0,0 }, size, output_buffer, size);
 		if (name.size() > 0)
-			drawText(name, false, Coordinate{ 3,0 }, Coordinate{ size.x - 6,1 }, output_buffer, size);
+			drawText(name, Coordinate{ 3,0 }, Coordinate{ size.x - 6,1 }, output_buffer, size);
 		if (child == nullptr) return;
 
 		Coordinate component_size{ size.x - 2, size.y - 2 };
@@ -1585,9 +1676,9 @@ public:
 			if (row < 0) continue;
 			if (row >= size.y) break;
 
-			drawText(stripNullsAndMore(element, "\n\t"), false, Coordinate{ 0, row }, Coordinate{ size.x, 1 }, output_buffer, size);
+			drawText(stripNullsAndMore(element, "\n\t"), Coordinate{ 0, row }, Coordinate{ size.x, 1 }, output_buffer, size);
 			string index_str = " (" + to_string(index) + ")";
-			drawText(index_str, false, Coordinate{ size.x - static_cast<int>(index_str.length()), row }, Coordinate{ size.x, 1 }, output_buffer, size);
+			drawText(index_str, Coordinate{ size.x - static_cast<int>(index_str.length()), row }, Coordinate{ size.x, 1 }, output_buffer, size);
 			if (index == selected_index)
 				fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0, row }, Coordinate{ size.x,1 }, output_buffer, size);
 		}
@@ -1806,10 +1897,10 @@ private:
 
 		if (top >= 0)
 		{
-			drawText((node->expanded ? "  " : "> ") + stripNullsAndMore(node->name, "\n\t"), false, Coordinate{ depth, top }, Coordinate{ buffer_size.x - 2 - depth, 1 }, output_buffer, buffer_size);
+			drawText((node->expanded ? "  " : "> ") + stripNullsAndMore(node->name, "\n\t"), Coordinate{ depth, top }, Coordinate{ buffer_size.x - 2 - depth, 1 }, output_buffer, buffer_size);
 			if (node->expanded) output_buffer[depth + (top * buffer_size.x)] = UNICODE_NOT;
 			string id_desc = " [" + to_string(node->children.size()) + "]";
-			drawText(id_desc, false, Coordinate{ buffer_size.x - (int)id_desc.length(), top }, Coordinate{ (int)id_desc.length(), 1 }, output_buffer, buffer_size);
+			drawText(id_desc, Coordinate{ buffer_size.x - (int)id_desc.length(), top }, Coordinate{ (int)id_desc.length(), 1 }, output_buffer, buffer_size);
 			if (selected_index == node->id)
 				fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,top, }, Coordinate{ buffer_size.x,1 }, output_buffer, buffer_size);
 		}
@@ -1922,7 +2013,7 @@ public:
 		for (size_t i = 0; i < tab_descriptions.size(); i++)
 		{
 			string tab_text = "[" + to_string(i+1) + " - " + tab_descriptions[i] + "]";
-			drawText(tab_text, false, Coordinate{ offset,0 }, Coordinate{ size.x,1 }, output_buffer, size);
+			drawText(tab_text, Coordinate{ offset,0 }, Coordinate{ size.x,1 }, output_buffer, size);
 			if (i == current_tab)
 				fillColour(getUnfocusedColour(), Coordinate{ offset,0 }, Coordinate{ static_cast<int>(tab_text.length()),1 }, output_buffer, size);
 			offset += static_cast<int>(tab_text.length() + 1);
@@ -2243,13 +2334,48 @@ private:
 #ifndef STUI_KEEP_DEFINES
 
 #undef RENDER_STUB
-#undef GETMAXSIZE_STUB
 #undef GETMINSIZE_STUB
+#undef GETMAXSIZE_STUB
+#undef HANDLEINPUT_STUB
+#undef ISFOCUSABLE_STUB
+
 #undef OUTPUT_TARGET
+
 #undef ANSI_ESCAPE
 #undef ANSI_CLEAR_SCREEN
 #undef ANSI_CLEAR_SCROLL
-#undef ANSI_PANDOWN
+#undef ANSI_SET_CURSOR
+#undef ANSI_HIDE_CURSOR
+#undef ANSI_SHOW_CURSOR
 #undef ANSI_PANUP
+#undef ANSI_PANDOWN
+#undef ANSI_SET_COLOUR
+
+#undef UNICODE_BLOCK
+#undef UNICODE_BLOCK_1_8
+#undef UNICODE_BLOCK_3_8
+#undef UNICODE_BLOCK_6_8
+#undef UNICODE_BLOCK_6_8
+#undef UNICODE_LIGHT_SHADE
+#undef UNICODE_MID_SHADE
+#undef UNICODE_DARK_SHADE
+#undef UNICODE_BOX_TOPLEFT
+#undef UNICODE_BOX_HORIZONTAL
+#undef UNICODE_BOX_TOPRIGHT
+#undef UNICODE_BOX_VERTICAL
+#undef UNICODE_BOX_BOTTOMLEFT
+#undef UNICODE_BOX_BOTTOMRIGHT
+#undef UNICODE_QUADRANT_LOWERLEFT
+#undef UNICODE_QUADRANT_TOPLEFT
+#undef UNICODE_QUADRANT_TOPRIGHT
+#undef UNICODE_QUADRANT_LOWERRIGHT
+#undef UNICODE_BOXLIGHT_UP
+#undef UNICODE_BOXLIGHT_UPRIGHT
+#undef UNICODE_BOXLIGHT_UPRIGHTDOWN
+#undef UNICODE_BOXLIGHT_UPRIGHTDOWNLEFT
+#undef UNICODE_MIDDLE_DOT
+#undef UNICODE_NOT
+#undef UNICODE_CIRCLE_HOLLOW
+#undef UNICODE_CIRCLE_FILLED
 
 #endif

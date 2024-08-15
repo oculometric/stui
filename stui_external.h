@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include "stui.h"
+#include <stui.h>
 #include <map>
 
 namespace stui

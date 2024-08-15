@@ -5,7 +5,8 @@
 - [ ] potentially make scrollable views with extra space have a '...' to indicate more content
 - [ ] add handling for delete (not backspace)
 - [ ] update help (do this last probably)
-- [ ] display message when screen too small for UI
+- [ ] display message when screen too small for UI (4)
+- [ ] fix horrendous linux performance (3)
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions
@@ -21,8 +22,10 @@
 - [ ] add doxy and detailed comments to stui_external.h
 
 ## Input
+- [ ] fix input for text area (1)
+    - [ ] text area scrolling (2)
+    - [ ] fix missing spaces on newline in text area
 - [ ] update windows input reading to match linux
-- [ ] fix input for text area
 - [ ] widget focus toolkit
 
 # Completed

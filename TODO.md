@@ -22,9 +22,8 @@
 - [ ] add doxy and detailed comments to stui_external.h
 
 ## Input
-- [ ] fix input for text area (1)
-    - [ ] text area scrolling (2)
-    - [ ] fix missing spaces on newline in text area
+- [ ] add editable text area
+- [ ] horizontal scrolling for input box
 - [ ] update windows input reading to match linux
 - [ ] widget focus toolkit
 

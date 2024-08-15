@@ -1183,12 +1183,9 @@ public:
  **/
 class TextArea : public Component, public Utility
 {
-	size_t cursor_index = 0;
-	size_t line_index = 0;
 	vector<size_t> last_render_lines;
 public:
 	string text;
-	bool editable;
 
 	TextArea(string _text, bool _editable) : text(_text), editable(_editable) { }
 
@@ -1197,99 +1194,13 @@ public:
 	{
 		if (size.y < 2 || size.x < 2) return;
 
-		last_render_lines = drawTextWrapped(stripNullsAndMore(text, ""), Coordinate{ 0,0 }, Coordinate{ size.x, size.y }, output_buffer, size);
-		if (last_render_lines.size() == 0)
-		{
-			line_index = 0;
-			cursor_index = 0;
-		}
-		else
-		{
-			if (line_index >= last_render_lines.size()) line_index = last_render_lines.size() - 1;
-			if (cursor_index >= last_render_lines[line_index]) cursor_index = last_render_lines[line_index] - 1;
-		}
-		if (editable)
-			output_buffer[cursor_index + (line_index  * size.x)].colour = focused ? getHighlightedColour() : getUnfocusedColour();
+		drawTextWrapped(stripNullsAndMore(text, ""), Coordinate{ 0,0 }, Coordinate{ size.x, size.y }, output_buffer, size);
 	}
 #endif
 	;
 
 	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 3, 3 }; }
-
-	HANDLEINPUT_STUB
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (!editable || !focused) return false;
-		// TODO: apply characters in the right place, and move cursor...
-		if (input_character == Input::ArrowKeys::RIGHT)
-		{
-			if (line_index >= last_render_lines.size())
-				cursor_index = 0;
-			else if (cursor_index < last_render_lines[line_index] - 1)
-				cursor_index++;
-			else if (line_index < last_render_lines.size() - 1)
-			{
-				cursor_index = 0;
-				line_index++;
-			}
-		}
-		else if (input_character == Input::ArrowKeys::LEFT)
-		{
-			if (cursor_index > 0)
-				cursor_index--;
-			else if (line_index > 0 && line_index < last_render_lines.size())
-			{
-				line_index--;
-				cursor_index = last_render_lines[line_index] - 1;
-			}
-			else
-			{
-				cursor_index = 0;
-				line_index = 0;
-			}
-		}
-		else if (input_character == '\b')
-		{ if (cursor_index + line_index > 0)
-		{
-			size_t real_cursor_index = cursor_index;
-			for (size_t i = 0; i < line_index; i++) real_cursor_index += last_render_lines[i];
-			for (size_t first = real_cursor_index - 1; first < text.length() - 1; first++)
-				text[first] = text[first + 1];
-			text.pop_back();
-			if (cursor_index > 0)
-				cursor_index--;
-			else if (line_index > 0)
-			{
-				line_index--;
-				cursor_index = last_render_lines[line_index] - 1;
-			}
-		} }
-		else
-		{
-			text.push_back(' ');
-			size_t real_cursor_index = cursor_index;
-			for (size_t i = 0; i < line_index; i++) real_cursor_index += last_render_lines[i];
-
-			for (size_t first = text.length() - 1; first > real_cursor_index; first--)
-				text[first] = text[first - 1];
-			text[real_cursor_index] = input_character;
-			cursor_index++;
-			if (cursor_index >= last_render_lines[line_index])
-			{
-				cursor_index = 0;
-				line_index++;
-			}
-		}
-		// TODO: cursor allowed to be one char off the end
-		// TODO: implement moving the cursor here...
-
-		return true;
-	}
-#endif
-	;
-
-	ISFOCUSABLE_STUB { return editable; }
 };
 
 /**

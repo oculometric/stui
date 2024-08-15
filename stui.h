@@ -99,7 +99,35 @@ using namespace std;
 namespace stui
 {
 
+#ifdef DEBUG
 static ofstream debug_log;
+
+static struct DebugTimingData
+{
+	float d_render;
+	int   i_render;
+
+	float d_progressbar;
+	int   i_progressbar;
+
+	float d_textbox;
+	int   i_textbox;
+
+	float d_treeview;
+	int	  i_treeview;
+
+	float d_drawtext;
+	int   i_drawtext;
+
+	float d_makebuffer;
+	int   i_makebuffer;
+
+	float d_copybuffer;
+	int   i_copybuffer;
+
+	float d_transcoding;
+	int   i_transcoding;
+} debug_timing;
 
 static inline void debug(string str)
 {
@@ -113,6 +141,15 @@ static inline void debug(string str)
 	debug_log << '[' << setfill('0') << setw(2) << hours.count() % 24 << ':' << setw(2) << minutes.count() << ':' << setw(2) << seconds.count() << '.' << setw(3) << millis.count() << ']' << ' ' << str << endl;
 	debug_log.flush();
 }
+
+#define DEBUG_LOG(str) debug(str)
+#define DEBUG_TIMER_S(type) debug_timing.i_##type ++; auto timer_##type##_start = clock_type::now()
+#define DEBUG_TIMER_E(type) debug_timing.d_##type += (chrono::duration<float>(clock_type::now() - timer_##type##_start)).count()
+#else
+#define DEBUG_LOG(str)
+#define DEBUG_TIMER_S(type)
+#define DEBUG_TIMER_E(type)
+#endif
 
 /**
  * @brief removes any invalid characters from a string, as well as other
@@ -164,6 +201,8 @@ struct Coordinate
  * previous pixel (for whichever of FG/BG were not specified for this
  * `Tixel`).
  **/
+#pragma pack(push)
+#pragma pack(1)
 struct Tixel
 {
 	/**
@@ -173,7 +212,7 @@ struct Tixel
 	 * one FG and one BG colour can be or-ed together to set both on
 	 * this `Tixel`
 	 **/
-	enum ColourCommand
+	enum ColourCommand : uint8_t
 	{
 		FG_BLACK 	= 0b00000001,
 		FG_RED   	= 0b00000010,
@@ -231,6 +270,7 @@ struct Tixel
 #endif
 	;
 };
+#pragma pack(pop)
 
 /**
  * @brief class which encapsulates input functionality which is used to receive and handle
@@ -408,7 +448,7 @@ private:
 					else
 					{
 						// debug if it isnt handled
-						debug("unhandled ANSI code: " + string((char*)buffer + i));
+						DEBUG_LOG("unhandled ANSI code: " + string((char*)buffer + i));
 						break;
 					}
 					i += 2;
@@ -421,7 +461,7 @@ private:
 			}
 			else
 			{
-				debug("uh oh! unhandled UTF-8");
+				DEBUG_LOG("uh oh! unhandled UTF-8");
 				// TODO: handle utf8 oh dear god
 				break;
 			}
@@ -823,8 +863,9 @@ protected:
 
 		size_t size = buffer_size.x * buffer_size.y;
 		Tixel* buf = new Tixel[size + 1];
+		Tixel fill{ ' ', getDefaultColour() };
 		for (size_t i = 0; i < size; i++)
-			buf[i] = Tixel{ ' ', getDefaultColour() };
+			memcpy(buf + i, &fill, sizeof(fill));
 		buf[size] = Tixel{ '\0', getDefaultColour() };
 
 		return buf;
@@ -1187,7 +1228,7 @@ class TextArea : public Component, public Utility
 public:
 	string text;
 
-	TextArea(string _text, bool _editable) : text(_text), editable(_editable) { }
+	TextArea(string _text) : text(_text) { }
 
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
@@ -1956,8 +1997,10 @@ public:
 	static void configure()
 #ifdef STUI_IMPLEMENTATION
 	{
+#ifdef DEBUG
 		debug_log.open("stui_debug.log");
-		debug("STUI logging started");
+		DEBUG_LOG("STUI logging started");
+#endif
 #if defined(_WIN32)
 		SetConsoleCtrlHandler(windowsControlHandler, true);
 #elif defined(__linux__)
@@ -1985,12 +2028,7 @@ private:
 	{
 		if (control_type == 0)
 		{
-			setCursorVisible(true);
-			clear();
-			setCursorPosition(Coordinate{ 0,0 });
-			debug("STUI logging stopped");
-			debug_log.close();
-			exit(0);
+			commonExitHandler();
 		}
 
 		return 1;
@@ -2003,18 +2041,31 @@ private:
 #ifdef STUI_IMPLEMENTATION
 	{
 		tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
-
-		setCursorVisible(true);
-		clear();
-		setCursorPosition(Coordinate{ 0,0 });
-		debug("STUI logging stopped");
-		debug_log.close();
-		exit(0);
+		commonExitHandler();
 	}
 #endif
 	;
 
 #endif
+
+	static inline void commonExitHandler()
+	{
+		setCursorVisible(true);
+		clear();
+		setCursorPosition(Coordinate{ 0,0 });
+#ifdef DEBUG
+		DEBUG_LOG("STUI logging stopped");
+		DEBUG_LOG("timing data:\n\trender:\t\t\t" + to_string(debug_timing.d_render) + "\t\t" + to_string(debug_timing.i_render) + "\t\t" + to_string(debug_timing.d_render / debug_timing.i_render)
+		                    + "\n\ttranscoding:\t" + to_string(debug_timing.d_transcoding) + "\t\t" + to_string(debug_timing.i_transcoding) + "\t\t" + to_string(debug_timing.d_transcoding / debug_timing.i_transcoding)
+		                    + "\n\tmakebuffer:\t\t" + to_string(debug_timing.d_makebuffer) + "\t\t" + to_string(debug_timing.i_makebuffer) + "\t\t" + to_string(debug_timing.d_makebuffer / debug_timing.i_makebuffer)
+		                    + "\n\tcopybuffer:\t\t" + to_string(debug_timing.d_copybuffer) + "\t\t" + to_string(debug_timing.i_copybuffer) + "\t\t" + to_string(debug_timing.d_copybuffer / debug_timing.i_copybuffer)
+		                    + "\n\tdrawtext:\t\t" + to_string(debug_timing.d_drawtext) + "\t\t" + to_string(debug_timing.i_drawtext) + "\t\t" + to_string(debug_timing.d_drawtext / debug_timing.i_drawtext)
+				);
+		
+		debug_log.close();
+#endif
+		exit(0);
+	}
 
 	/**
 	 * @brief clear the entire terminal, including scrollback and onscreen buffers
@@ -2037,7 +2088,7 @@ private:
 		return Coordinate{ info.dwSize.X, info.dwSize.Y };
 #elif defined(__linux__)
 		struct winsize size;
-		ioctl(fileno(stdout), TIOCGWINSZ, &size);
+		ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
 		return Coordinate{ (int)size.ws_col, (int)size.ws_row };
 #endif
 	}
@@ -2101,6 +2152,7 @@ public:
 	static void render(Component* root_component)
 #ifdef STUI_IMPLEMENTATION
 	{
+		DEBUG_TIMER_S(render);
 		Terminal::setCursorVisible(false);
 		Terminal::enableUTF8();
 
@@ -2122,14 +2174,17 @@ public:
 		OUTPUT_TARGET << ANSI_SET_COLOUR(Tixel::toANSI(Tixel::ColourCommand::FG_WHITE));
 		OUTPUT_TARGET << ANSI_SET_COLOUR(Tixel::toANSI(Tixel::ColourCommand::BG_BLACK));
 		Terminal::setCursorPosition(Coordinate{ 0,0 });
+		DEBUG_TIMER_E(render);
 
+		DEBUG_TIMER_S(transcoding);
 		string output;
 		output.reserve(4 * screen_size.x * screen_size.y);
 
 		Tixel::ColourCommand foreground = (Tixel::ColourCommand)0;
 		Tixel::ColourCommand background = (Tixel::ColourCommand)0;
 
-		for (size_t i = 0; i < static_cast<size_t>(screen_size.x * screen_size.y); i++)
+		size_t length = static_cast<size_t>(screen_size.x * screen_size.y);
+		for (size_t i = 0; i < length; i++)
 		{
 			Tixel::ColourCommand new_foreground = (Tixel::ColourCommand)(root_staging_buffer[i].colour & Tixel::ColourCommand::FG_WHITE);
 			Tixel::ColourCommand new_background = (Tixel::ColourCommand)(root_staging_buffer[i].colour & Tixel::ColourCommand::BG_WHITE);
@@ -2154,6 +2209,7 @@ public:
 		OUTPUT_TARGET << output;
 
 		delete[] root_staging_buffer;
+		DEBUG_TIMER_E(transcoding);
 	}
 #endif
 	;
@@ -2165,16 +2221,19 @@ public:
 	 * @param focused_component component to send input to
 	 * @param shortcut_bindings list of shortcuts to check for
 	 **/
-	static void handleInput(Component* focused_component, vector<Input::Shortcut> shortcut_bindings)
+	static bool handleInput(Component* focused_component, vector<Input::Shortcut> shortcut_bindings)
 #ifdef STUI_IMPLEMENTATION
 	{
 		auto keys = Input::getQueuedKeyEvents();
+		bool has_input = keys.size() > 0;
 		Input::processShortcuts(shortcut_bindings, keys);
 		auto text_keys = stui::Input::getTextCharacters(keys);
 
-		if (focused_component == nullptr) return;
+		if (focused_component == nullptr) return has_input;
 		for (pair<uint8_t, Input::ControlKeys> k : text_keys)
 			focused_component->handleInput(k.first, k.second);
+
+		return has_input;
 	}
 #endif
 	;
@@ -2205,15 +2264,16 @@ public:
 	static FrameData targetFramerate(int fps, clock_type::time_point& last_frame_time)
 #ifdef STUI_IMPLEMENTATION
 	{
-		chrono::duration<float> active_frame_duration = chrono::high_resolution_clock::now() - last_frame_time;
+		auto now = clock_type::now();
+		chrono::duration<double> active_frame_duration = now - last_frame_time;
+		double frame_duration = 1.0f / static_cast<double>(fps);
+		this_thread::sleep_for(chrono::duration<float>(frame_duration - chrono::duration_cast<chrono::seconds>(active_frame_duration).count()));
 
-		auto next_frame_time = last_frame_time + chrono::duration<float>(1.0f / (float)fps);
-		this_thread::sleep_until(next_frame_time);
+		now = clock_type::now();
+		chrono::duration<double> total_frame_duration = now - last_frame_time;
+		last_frame_time = now;
 
-		chrono::duration<float> total_frame_duration = chrono::high_resolution_clock::now() - last_frame_time;
-		last_frame_time = chrono::high_resolution_clock::now();
-
-		return FrameData{ total_frame_duration.count(), active_frame_duration.count() / total_frame_duration.count() };
+		return FrameData{ (float)total_frame_duration.count(), (float)(active_frame_duration.count() / total_frame_duration.count()) };
 	}
 #endif
 	;

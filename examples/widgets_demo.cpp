@@ -1,4 +1,5 @@
 #define STUI_IMPLEMENTATION
+#define DEBUG
 #include <stui.h>
 
 size_t focus_index = 1;
@@ -45,7 +46,7 @@ int main(int argc, char** argv)
     stui::ImageView image_view(image, stui::Coordinate{ 12,12 });
 
     string demo_text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec viverra nisi non metus feugiat, ut tempus massa sodales. Quisque efficitur finibus nibh, vel vulputate purus facilisis ac. Duis pharetra orci ac tincidunt suscipit. Nam hendrerit fringilla orci, ac commodo leo viverra vel. Donec vel vestibulum quam, in consectetur libero. Nunc pulvinar ligula et diam mollis porta. Etiam ac lobortis justo. Nunc scelerisque velit quis lectus dictum, et fermentum dui congue. Praesent semper luctus nisi ac tincidunt. Proin semper turpis vel quam mattis ultricies. Aenean varius quis neque eget feugiat. Etiam est odio, auctor eu enim a, convallis viverra leo. Suspendisse potenti. Nunc sit amet tellus sit amet magna imperdiet dictum id ut nisl.\n\nEtiam maximus pharetra elementum. Proin a tempus ante. Aenean ut arcu eu tellus gravida laoreet et rhoncus dolor. Nullam elementum, ante vel gravida congue, tellus dui vehicula lectus, a posuere leo nisi nec leo. Integer vel lobortis sem. Maecenas luctus semper magna non vehicula. Cras maximus lorem urna, ut malesuada enim varius eu. Fusce tristique tincidunt eros, at semper nunc tincidunt ut. Phasellus sagittis lectus ac pretium mattis. Vestibulum dictum elementum pellentesque. In eget eros nunc.Etiam nisl metus, feugiat a purus et, viverra pellentesque ante. Phasellus malesuada cursus risus ac semper. Suspendisse molestie purus ac augue aliquam, sit amet dapibus odio auctor. Donec vitae odio elit. Phasellus et ligula ac nunc dictum suscipit non pretium turpis.";
-    stui::TextArea ta("i am a multline text area. \nlook, type in me...", true);
+    stui::TextArea ta(demo_text);
     stui::BorderedBox box1(&ta, "demo text");
     stui::RadioButton rb({"option 1", "option 2", "option 3", "option 4"}, 0, true);
     stui::HorizontalBox box4({ &box1, &rb });
@@ -71,17 +72,18 @@ int main(int argc, char** argv)
 
     stui::VerticalBox root({ &top_box, &pb, &box0, &vs, &lower_box });
 
-    auto frame_time = chrono::high_resolution_clock::now();
+    auto frame_time = clock_type::now();
     float timer = 0.0f;
 
-    vector<stui::Component*> focusables = { &rb, &tib, &list, &tree, &ta };
-
+    vector<stui::Component*> focusables = { &rb, &tib, &list, &tree };
+    
     while (true)
     {
-        stui::Page::FrameData delta = stui::Page::targetFramerate(12, frame_time);
+        stui::Page::FrameData delta = stui::Page::targetFramerate(24, frame_time);
         timer += delta.delta_time;
 
         pb.fraction = delta.active_fraction;//fmod(timer, 1.0f);
+        t1.text = "fps: " + to_string(1.0f / delta.delta_time);
         s1.state = (timer * 8);
         s2.state = s1.state;
         s3.state = s1.state;

@@ -6,7 +6,9 @@
 - [ ] add handling for delete (not backspace)
 - [ ] update help (do this last probably)
 - [ ] display message when screen too small for UI (4)
-- [ ] fix horrendous linux performance (3)
+- [x] fix horrendous linux performance (3)
+- [ ] fix framerate targeting
+- [x] make handleInput return true for input detected
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions

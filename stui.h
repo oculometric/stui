@@ -2142,6 +2142,7 @@ private:
 #if defined(__linux__)
 #ifdef STUI_IMPLEMENTATION
 static termios original_termios;
+static bool linux_resized_triggered;
 #endif
 #endif
 
@@ -2164,6 +2165,7 @@ public:
 	static void configure(string banner_text = "", float banner_duration_seconds = 3.0f)
 #ifdef STUI_IMPLEMENTATION
 	{
+		ios_base::sync_with_stdio(false);
 		isTerminalResized();
 #ifdef DEBUG
 		debug_log.open("stui_debug.log");
@@ -2175,6 +2177,7 @@ public:
 		signal(SIGINT, linuxControlHandler);
 		signal(SIGQUIT, linuxControlHandler);
 		signal(SIGTSTP, linuxControlHandler);
+		signal(SIGWINCH, linuxResizeHandler);
 		termios new_termios;
 		tcgetattr(STDIN_FILENO, &new_termios);
 		tcgetattr(STDIN_FILENO, &original_termios);
@@ -2196,6 +2199,7 @@ public:
 	static bool isTerminalResized()
 #ifdef STUI_IMPLEMENTATION
 	{
+#if defined(_WIN32)
 		static Coordinate last_checked_screen_size;
 		Coordinate new_screen_size = getScreenSize();
 		if (new_screen_size.x == last_checked_screen_size.x && new_screen_size.y == last_checked_screen_size.y)
@@ -2203,6 +2207,11 @@ public:
 
 		last_checked_screen_size = new_screen_size;
 		return true;
+#elif defined(__linux__)
+		bool resized = linux_resized_triggered;
+		linux_resized_triggered = false;
+		return resized;
+#endif
 	}
 #endif
 	;
@@ -2228,6 +2237,15 @@ private:
 	{
 		tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
 		commonExitHandler();
+	}
+#endif
+	;
+
+	static void linuxResizeHandler(int s)
+#ifdef STUI_IMPLEMENTATION
+	{
+		DEBUG_LOG("screen resized");
+		linux_resized_triggered = true;
 	}
 #endif
 	;
@@ -2345,29 +2363,27 @@ void Renderer::render(Component* root_component)
 		OUTPUT_TARGET << ANSI_SET_COLOUR(Tixel::toANSI(Tixel::ColourCommand::FG_WHITE));
 		OUTPUT_TARGET << ANSI_SET_COLOUR(Tixel::toANSI(Tixel::ColourCommand::BG_BLACK));
 		Terminal::setCursorPosition(Coordinate{ 0,0 });
-		DEBUG_TIMER_E(render);
 	}
+	DEBUG_TIMER_E(render);
 
 	DEBUG_TIMER_S(transcoding);
 	string output;
-	output.reserve(4 * screen_size.x * screen_size.y);
+	output.reserve(2 * screen_size.x * screen_size.y);
 
 	Tixel::ColourCommand foreground = (Tixel::ColourCommand)0;
 	Tixel::ColourCommand background = (Tixel::ColourCommand)0;
 
 	size_t length = static_cast<size_t>(screen_size.x * screen_size.y);
-	stringstream s;
+
 	for (size_t i = 0; i < length; i++)
 	{
 		Tixel::ColourCommand new_foreground = (Tixel::ColourCommand)(root_staging_buffer[i].colour & Tixel::ColourCommand::FG_WHITE);
 		Tixel::ColourCommand new_background = (Tixel::ColourCommand)(root_staging_buffer[i].colour & Tixel::ColourCommand::BG_WHITE);
-		s.clear();
 		if (foreground != new_foreground)
-			s << ANSI_SET_COLOUR(Tixel::toANSI(new_foreground));
+			output += "\033[" + to_string(Tixel::toANSI(new_foreground)) + 'm';
 
 		if (background != new_background)
-			s << ANSI_SET_COLOUR(Tixel::toANSI(new_background));
-		output += s.str();
+			output += "\033[" + to_string(Tixel::toANSI(new_background)) + 'm';
 			
 		foreground = new_foreground;
 		background = new_background;
@@ -2378,11 +2394,11 @@ void Renderer::render(Component* root_component)
 		if (chr & 0x8000) output.push_back((char)((chr >> 16) & 0xFF));
 		if (chr & 0x800000) output.push_back((char)((chr >> 24) & 0xFF));
 	}
+	DEBUG_TIMER_E(transcoding);
 
 	OUTPUT_TARGET << output;
 
 	delete[] root_staging_buffer;
-	DEBUG_TIMER_E(transcoding);
 }
 
 bool Renderer::handleInput(Component* focused_component, vector<Input::Shortcut> shortcut_bindings)
@@ -2402,15 +2418,16 @@ bool Renderer::handleInput(Component* focused_component, vector<Input::Shortcut>
 Renderer::FrameData Renderer::targetFramerate(int fps, clock_type::time_point& last_frame_time)
 {
 	auto now = clock_type::now();
-	chrono::duration<float> active_frame_duration = now - last_frame_time;
+	float active_frame_duration = chrono::duration<float>(now - last_frame_time).count();
 	float frame_duration = 1.0f / static_cast<float>(fps);
-	this_thread::sleep_for(chrono::duration<float>(frame_duration - chrono::duration_cast<chrono::seconds>(active_frame_duration).count()));
+	float frame_sleep = max(0.0f, frame_duration - active_frame_duration - 0.0004f);
+	this_thread::sleep_for(chrono::duration<float>(frame_sleep));
 
 	now = clock_type::now();
 	chrono::duration<float> total_frame_duration = now - last_frame_time;
 	last_frame_time = now;
 
-	return FrameData{ (float)total_frame_duration.count(), (float)(active_frame_duration.count() / total_frame_duration.count()) };
+	return FrameData{ total_frame_duration.count(), (float)(active_frame_duration / total_frame_duration.count()) };
 }
 
 inline int Renderer::getConstrainedSize(int available, int _max, int _min)

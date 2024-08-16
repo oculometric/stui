@@ -868,15 +868,17 @@ protected:
 
 		vector<string> lines = wrapText(text, min(max_size.x, buffer_size.x - text_origin.x));
 		
-		int row = 0;
+		int row = -1;
 		for (string line : lines)
 		{
+			row++;
+			if (row >= max_size.y || row + text_origin.y >= buffer_size.y) break;
+			if (row + text_origin.y < 0) continue;
+
 			for (size_t col = 0; col < line.length(); col++)
 			{
 				buffer[(text_origin.x + col) + ((text_origin.y + row) * buffer_size.x)] = line[col];
 			}
-			row++;
-			if (row >= max_size.y || row + text_origin.y >= buffer_size.y) break;
 		}
 
 		vector<size_t> line_lengths;
@@ -1265,28 +1267,53 @@ public:
 };
 
 /**
- * @brief multi-line wrapping text area.
+ * @brief multi-line wrapping text area. scrollable
  **/
 class TextArea : public Component, public Utility
 {
-	vector<size_t> last_render_lines;
+	int last_rendered_height = 0;
+	int last_lines_of_text = 0;
 public:
 	string text;
+	int scroll;
 
-	TextArea(string _text) : text(_text) { }
+	TextArea(string _text, int _scroll) : text(_text), scroll(_scroll) { }
 
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
 	{
 		if (size.y < 2 || size.x < 2) return;
 
-		drawTextWrapped(stripNullsAndMore(text, ""), Coordinate{ 0,0 }, Coordinate{ size.x, size.y }, output_buffer, size);
+		last_rendered_height = size.y;
+		last_lines_of_text = (drawTextWrapped(stripNullsAndMore(text, ""), Coordinate{ 0, -scroll }, Coordinate{ size.x - 1, size.y + scroll }, output_buffer, size)).size();
+		scroll = max(0, min(scroll, max(0, last_lines_of_text - last_rendered_height)));
+		
+		output_buffer[(max(0, (int)(((float)scroll / (float)max(0, last_lines_of_text - last_rendered_height)) * (float)(last_rendered_height - 1))) * size.x) + size.x - 1] = Tixel{ '|', focused ? getHighlightedColour() : getUnfocusedColour() };
 	}
 #endif
 	;
 
 	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 3, 3 }; }
+
+	ISFOCUSABLE_STUB { return true; }
+
+	HANDLEINPUT_STUB
+	{
+		if (!focused) return false;
+
+		if (input_character == Input::ArrowKeys::UP)
+		{
+			if (scroll > 0) scroll--;
+		}
+		else if (input_character == Input::ArrowKeys::DOWN)
+		{
+			if (scroll < last_lines_of_text - last_rendered_height) scroll++;
+		}
+		else return false;
+
+		return true;
+	}
 };
 
 /**

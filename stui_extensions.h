@@ -92,7 +92,6 @@ public:
 	void ensureIntegrity()
 #ifdef STUI_IMPLEMENTATION
     {
-        
         // TODO: search the tree, register unregistered, unregister and delete unreferenced
     }
 #endif
@@ -152,7 +151,11 @@ private:
         {
             current_page->focused_component_index++;
             current_page->focused_component_index %= current_page->focusable_component_sequence.size();
-            if (current_page->focusable_component_sequence[current_page->focused_component_index]->isFocusable()) was_any_focusable = true;
+            if (current_page->focusable_component_sequence[current_page->focused_component_index]->isFocusable())
+            {
+                was_any_focusable = true;
+                break;
+            }
         }
         while (current_page->focused_component_index != old_focus);
 

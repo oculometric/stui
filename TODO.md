@@ -10,6 +10,8 @@
 - [ ] fix framerate targeting
 - [x] make handleInput return true for input detected
 - [ ] make spinner an activity toggleable thing
+- [x] make a function which checks for the terminal being resized
+- [ ] make the multi-line text area scrollable when focused
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions

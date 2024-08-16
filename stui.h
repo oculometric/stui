@@ -103,7 +103,7 @@ namespace stui
 {
 
 #ifdef DEBUG
-static ofstream debug_log;
+ofstream debug_log;
 
 static struct DebugTimingData
 {
@@ -132,7 +132,7 @@ static struct DebugTimingData
 	int   i_transcoding;
 } debug_timing;
 
-static inline void debug(string str)
+inline void debug(string str)
 {
 	if (!debug_log.is_open()) return;
 	auto now = chrono::system_clock::now().time_since_epoch();
@@ -712,6 +712,34 @@ protected:
 	;
 
 	/**
+	 * @brief split a string at a delimiter character.
+	 * 
+	 * @param text string to split
+	 * @param delim character to split at. this will be removed from the resulting array of strings
+	 * 
+	 * @returns array of strings
+	 */
+	static vector<string> splitString(string text, char delim)
+	{
+		vector<string> result;
+		string current;
+
+		for (char c : text)
+		{
+			if (c == delim)
+			{
+				result.push_back(current);
+				current = "";
+			}
+			else
+				current += c;
+		}
+		result.push_back(current);
+
+		return result;
+	}
+
+	/**
 	 * @brief converts a single string into an array of lines of a given maximum length.
 	 * 
 	 * respects line breaks, uses word-wrapping where possible, or forcibly breaks words 
@@ -1044,9 +1072,10 @@ public:
 	{
 		if (size.y < 1) return;
 
-		drawText("> " + text + " <", Coordinate{ (size.x - static_cast<int>(text.length()) - 4) / 2,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
+		int offset = (size.x - static_cast<int>(text.length()) - 4) / 2;
+		drawText("> " + text + " <", Coordinate{ offset,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
 		if (focused)
-			fillColour(enabled ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
+			fillColour(enabled ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ offset,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
 	}
 #endif
 	;
@@ -1057,7 +1086,7 @@ public:
 	HANDLEINPUT_STUB
 #ifdef STUI_IMPLEMENTATION
 	{
-		if (input_character == '\n' && callback != nullptr && focused && enabled) { callback(); return true; }
+		if ((input_character == '\n' || input_character == ' ') && callback != nullptr && focused && enabled) { callback(); return true; }
 		return false;
 	}
 #endif
@@ -1563,12 +1592,12 @@ public:
 class VerticalSpacer : public Component
 {
 public:
-	size_t height;
+	int height;
 	
-	VerticalSpacer(size_t _size) : height(_size) { }
+	VerticalSpacer(int _height) : height(_height) { }
 
-	GETMAXSIZE_STUB { return Coordinate{ 1, static_cast<int>(height) }; }
-	GETMINSIZE_STUB { return Coordinate{ 1, static_cast<int>(height) }; }
+	GETMAXSIZE_STUB { return Coordinate{ 1, height }; }
+	GETMINSIZE_STUB { return Coordinate{ 1, max(height, 0) }; }
 };
 
 /**
@@ -1577,12 +1606,12 @@ public:
 class HorizontalSpacer : public Component
 {
 public:
-	size_t width;
+	int width;
 	
-	HorizontalSpacer(size_t _size) : width(_size) { }
+	HorizontalSpacer(int _width) : width(_width) { }
 
-	GETMAXSIZE_STUB { return Coordinate{ static_cast<int>(width), 1 }; }
-	GETMINSIZE_STUB { return Coordinate{ static_cast<int>(width), 1 }; }
+	GETMAXSIZE_STUB { return Coordinate{ width, 1 }; }
+	GETMINSIZE_STUB { return Coordinate{ max(width, 0), 1 }; }
 };
 
 /**
@@ -1647,9 +1676,9 @@ public:
 	{
 		if (size.x < 2 || size.y < 2) return;
 		last_render_height = size.y;
-		int row = -1 - static_cast<int>(scroll);
+		int row = -1 - scroll;
 		int index = -1;
-		selected_index = min(selected_index, static_cast<int>(elements.size()) - 1);
+		selected_index = max(min(selected_index, static_cast<int>(elements.size()) - 1), 0);
 		for (string element : elements)
 		{
 			index++;
@@ -1660,9 +1689,9 @@ public:
 			drawText(stripNullsAndMore(element, "\n\t"), Coordinate{ 0, row }, Coordinate{ size.x, 1 }, output_buffer, size);
 			string index_str = " (" + to_string(index) + ")";
 			drawText(index_str, Coordinate{ size.x - static_cast<int>(index_str.length()), row }, Coordinate{ size.x, 1 }, output_buffer, size);
-			if (index == selected_index)
-				fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0, row }, Coordinate{ size.x,1 }, output_buffer, size);
 		}
+		
+		fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0, selected_index - scroll }, Coordinate{ size.x,1 }, output_buffer, size);
 	}
 #endif
 	;
@@ -1727,7 +1756,11 @@ public:
 	{
 		if (size.x < 2 || size.y < 2) return;
 		last_render_height = size.y;
-		if (root == nullptr) return;
+		if (root == nullptr)
+		{
+			fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,0, }, Coordinate{ size.x,1 }, output_buffer, size);
+			return;
+		}
 		int top = 0 - static_cast<int>(scroll);
 		printNode(root, 0, top, output_buffer, size);
 	}
@@ -1943,7 +1976,7 @@ public:
 };
 
 /**
- * @brief container which limits the maximum size of the child component
+ * @brief container which limits the maximum size of the child component.
  * 
  * the specified `max_size` should probably be at least as large as the minimum
  * size of the `child`
@@ -2007,11 +2040,112 @@ public:
 	GETMINSIZE_STUB { return Coordinate{ 10,1 }; }
 };
 
+/**
+ * @brief displays a block of text in the center of it's area.
+ * 
+ * does not wrap text, but does respect line breaks using \n.
+ **/
+class Banner : public Component, public Utility
+{
+public:
+	string text;
+
+	Banner(string _text) : text(_text) { }
+
+	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
+	{
+		vector<string> lines = splitString(text, '\n');
+
+		int y_offset = (size.y - static_cast<int>(lines.size())) / 2;
+		for (string line : lines)
+		{
+			int x_offset = (size.x - static_cast<int>(line.length())) / 2;
+
+			drawText(line, Coordinate{ x_offset, y_offset }, Coordinate{ size.x, 1 }, output_buffer, size);
+
+			y_offset++;
+		}
+	}
+#endif
+	;
+
+	GETMAXSIZE_STUB { return Coordinate{ -1,-1 }; }
+	GETMINSIZE_STUB { return Coordinate{ 4, 1 }; }
+};
+
+/**
+ * @brief purely static class which encapsulates code for rendering a page
+ * to the terminal. a page just consists of a `Component` tree
+ *
+ **/
+class Renderer : public Utility
+{
+public:
+	/**
+	 * @brief draws a `Component` into the terminal via `std::cout`.
+	 *
+	 * if the `Component` has children, their drawing will be handled automatically
+	 * by the `Component` itself. the root `Component` is always drawn to fill the
+	 * terminal, which is completely cleared to prevent scrolling jank.
+	 *
+	 * @param root_component element to draw into the terminal
+	 **/
+	static void render(Component* root_component);
+
+	/**
+	 * @brief check for queued input, handle shortcut triggers, and send remaining
+	 * input to the specified component. order of input event is preserved.
+	 *
+	 * @param focused_component component to send input to
+	 * @param shortcut_bindings list of shortcuts to check for
+	 **/
+	static bool handleInput(Component* focused_component, vector<Input::Shortcut> shortcut_bindings);
+
+	/**
+	 * @brief stores information about a frame-wait which just happened
+	 *
+	 **/
+	struct FrameData
+	{
+		float delta_time;		// time since the last time `targetFramerate` was called
+		float active_fraction;	// fraction of the delta_time which was taken up by rendering
+	};
+
+	/**
+	 * @brief maintains the desired framerate by waiting for the remainder of the frame's
+	 * duration.
+	 *
+	 * requires a variable in which to store the last time the function was called in order
+	 * to work correctly.
+	 *
+	 * @param fps desired framerate in frames per second
+	 * @param last_frame_time persistent storage for the time the function was last called
+	 * @return information about the frame: the delta time since the previous call, and
+	 * the fraction of the delta time which was taken up by the time between calls (the
+	 * remaining fraction being occupied by the `targetFramerate` function idling)
+	 **/
+	static FrameData targetFramerate(int fps, clock_type::time_point& last_frame_time);
+
+private:
+	/**
+	 * @brief calculate an appropriate size for a `Component` (or, one dimension of it)
+	 *
+	 * @param available amount of space available to use
+	 * @param max maximum desired size of the subject
+	 * @param min minimum desired size of the subject
+	 * @return resulting constrained size
+	 **/
+	static inline int getConstrainedSize(int available, int _max, int _min);
+};
+
 #if defined(__linux__)
 #ifdef STUI_IMPLEMENTATION
 static termios original_termios;
 #endif
 #endif
+
+static string default_banner = string("Simple Text UI  Copyright (C) 2024  Jacob Costen\nThis program comes with ABSOLUTELY NO WARRANTY.\nThis is free software, and you are welcome to redistribute it\nunder certain conditions; see the license for details.");
 
 /**
  * @brief encapsulates some functionality relating to control of the terminal window.
@@ -2024,10 +2158,13 @@ class Terminal
 	friend class Renderer;
 	friend class Input;
 
+private:
+
 public:
-	static void configure()
+	static void configure(string banner_text = "", float banner_duration_seconds = 3.0f)
 #ifdef STUI_IMPLEMENTATION
 	{
+		isTerminalResized();
 #ifdef DEBUG
 		debug_log.open("stui_debug.log");
 		DEBUG_LOG("STUI logging started");
@@ -2048,6 +2185,24 @@ public:
 		new_termios.c_cc[VSUSP] = 255;
 		tcsetattr(STDIN_FILENO, TCSANOW, &new_termios);
 #endif
+		Banner b(banner_text + "\n\nusing\n" + default_banner);
+		BorderedBox bb(&b, "");
+		Renderer::render(&bb);
+		this_thread::sleep_for(chrono::duration<float>(banner_duration_seconds));
+	}
+#endif
+	;
+
+	static bool isTerminalResized()
+#ifdef STUI_IMPLEMENTATION
+	{
+		static Coordinate last_checked_screen_size;
+		Coordinate new_screen_size = getScreenSize();
+		if (new_screen_size.x == last_checked_screen_size.x && new_screen_size.y == last_checked_screen_size.y)
+			return false;
+
+		last_checked_screen_size = new_screen_size;
+		return true;
 	}
 #endif
 	;
@@ -2163,176 +2318,111 @@ private:
 	}
 };
 
-/**
- * @brief purely static class which encapsulates code for rendering a page
- * to the terminal. a page just consists of a `Component` tree
- * 
- **/
-class Renderer : public Utility
+#ifdef STUI_IMPLEMENTATION
+void Renderer::render(Component* root_component)
 {
-public:
-	/**
-	 * @brief draws a `Component` into the terminal via `std::cout`.
-	 * 
-	 * if the `Component` has children, their drawing will be handled automatically
-	 * by the `Component` itself. the root `Component` is always drawn to fill the
-	 * terminal, which is completely cleared to prevent scrolling jank.
-	 * 
-	 * @param root_component element to draw into the terminal
-	 **/
-	static void render(Component* root_component)
-#ifdef STUI_IMPLEMENTATION
+	DEBUG_TIMER_S(render);
+	Terminal::setCursorVisible(false);
+	Terminal::enableUTF8();
+
+	Coordinate screen_size = Terminal::getScreenSize();
+
+	Tixel* root_staging_buffer = makeBuffer(screen_size);
+
+	if (root_component != nullptr)
 	{
-		DEBUG_TIMER_S(render);
-		Terminal::setCursorVisible(false);
-		Terminal::enableUTF8();
-
-		Coordinate screen_size = Terminal::getScreenSize();
-
-		Tixel* root_staging_buffer = makeBuffer(screen_size);
-
-		if (root_component != nullptr)
+		Coordinate root_component_size
 		{
-			Coordinate root_component_size
-			{
-				getConstrainedSize(screen_size.x, root_component->getMaxSize().x, root_component->getMinSize().x),
-				getConstrainedSize(screen_size.y, root_component->getMaxSize().y, root_component->getMinSize().y)
-			};
-			Tixel* root_component_buffer = makeBuffer(root_component_size);
-			root_component->render(root_component_buffer, root_component_size);
-			copyBox(root_component_buffer, root_component_size, Coordinate{ 0,0 }, root_component_size, root_staging_buffer, screen_size, Coordinate{ 0,0 });
-			delete[] root_component_buffer;
+			getConstrainedSize(screen_size.x, root_component->getMaxSize().x, root_component->getMinSize().x),
+			getConstrainedSize(screen_size.y, root_component->getMaxSize().y, root_component->getMinSize().y)
+		};
+		Tixel* root_component_buffer = makeBuffer(root_component_size);
+		root_component->render(root_component_buffer, root_component_size);
+		copyBox(root_component_buffer, root_component_size, Coordinate{ 0,0 }, root_component_size, root_staging_buffer, screen_size, Coordinate{ 0,0 });
+		delete[] root_component_buffer;
 
-			OUTPUT_TARGET << ANSI_CLEAR_SCROLL;
-			OUTPUT_TARGET << ANSI_SET_COLOUR(Tixel::toANSI(Tixel::ColourCommand::FG_WHITE));
-			OUTPUT_TARGET << ANSI_SET_COLOUR(Tixel::toANSI(Tixel::ColourCommand::BG_BLACK));
-			Terminal::setCursorPosition(Coordinate{ 0,0 });
-			DEBUG_TIMER_E(render);
-		}
+		OUTPUT_TARGET << ANSI_CLEAR_SCROLL;
+		OUTPUT_TARGET << ANSI_SET_COLOUR(Tixel::toANSI(Tixel::ColourCommand::FG_WHITE));
+		OUTPUT_TARGET << ANSI_SET_COLOUR(Tixel::toANSI(Tixel::ColourCommand::BG_BLACK));
+		Terminal::setCursorPosition(Coordinate{ 0,0 });
+		DEBUG_TIMER_E(render);
+	}
 
-		DEBUG_TIMER_S(transcoding);
-		string output;
-		output.reserve(4 * screen_size.x * screen_size.y);
+	DEBUG_TIMER_S(transcoding);
+	string output;
+	output.reserve(4 * screen_size.x * screen_size.y);
 
-		Tixel::ColourCommand foreground = (Tixel::ColourCommand)0;
-		Tixel::ColourCommand background = (Tixel::ColourCommand)0;
+	Tixel::ColourCommand foreground = (Tixel::ColourCommand)0;
+	Tixel::ColourCommand background = (Tixel::ColourCommand)0;
 
-		size_t length = static_cast<size_t>(screen_size.x * screen_size.y);
-		for (size_t i = 0; i < length; i++)
-		{
-			Tixel::ColourCommand new_foreground = (Tixel::ColourCommand)(root_staging_buffer[i].colour & Tixel::ColourCommand::FG_WHITE);
-			Tixel::ColourCommand new_background = (Tixel::ColourCommand)(root_staging_buffer[i].colour & Tixel::ColourCommand::BG_WHITE);
-			stringstream s;
-			if (foreground != new_foreground)
-				s << ANSI_SET_COLOUR(Tixel::toANSI(new_foreground));
+	size_t length = static_cast<size_t>(screen_size.x * screen_size.y);
+	stringstream s;
+	for (size_t i = 0; i < length; i++)
+	{
+		Tixel::ColourCommand new_foreground = (Tixel::ColourCommand)(root_staging_buffer[i].colour & Tixel::ColourCommand::FG_WHITE);
+		Tixel::ColourCommand new_background = (Tixel::ColourCommand)(root_staging_buffer[i].colour & Tixel::ColourCommand::BG_WHITE);
+		s.clear();
+		if (foreground != new_foreground)
+			s << ANSI_SET_COLOUR(Tixel::toANSI(new_foreground));
 
-			if (background != new_background)
-				s << ANSI_SET_COLOUR(Tixel::toANSI(new_background));
-			output += s.str();
+		if (background != new_background)
+			s << ANSI_SET_COLOUR(Tixel::toANSI(new_background));
+		output += s.str();
 			
-			foreground = new_foreground;
-			background = new_background;
+		foreground = new_foreground;
+		background = new_background;
 
-			uint32_t chr = root_staging_buffer[i].character;
-			output.push_back((char)(chr & 0xFF));
-			if (chr & 0x80) output.push_back((char)((chr >> 8) & 0xFF));
-			if (chr & 0x8000) output.push_back((char)((chr >> 16) & 0xFF));
-			if (chr & 0x800000) output.push_back((char)((chr >> 24) & 0xFF));
-		}
-
-		OUTPUT_TARGET << output;
-
-		delete[] root_staging_buffer;
-		DEBUG_TIMER_E(transcoding);
+		uint32_t chr = root_staging_buffer[i].character;
+		output.push_back((char)(chr & 0xFF));
+		if (chr & 0x80) output.push_back((char)((chr >> 8) & 0xFF));
+		if (chr & 0x8000) output.push_back((char)((chr >> 16) & 0xFF));
+		if (chr & 0x800000) output.push_back((char)((chr >> 24) & 0xFF));
 	}
+
+	OUTPUT_TARGET << output;
+
+	delete[] root_staging_buffer;
+	DEBUG_TIMER_E(transcoding);
+}
+
+bool Renderer::handleInput(Component* focused_component, vector<Input::Shortcut> shortcut_bindings)
+{
+	auto keys = Input::getQueuedKeyEvents();
+	bool has_input = keys.size() > 0;
+	Input::processShortcuts(shortcut_bindings, keys);
+	auto text_keys = stui::Input::getTextCharacters(keys);
+
+	if (focused_component == nullptr) return has_input;
+	for (pair<uint8_t, Input::ControlKeys> k : text_keys)
+		focused_component->handleInput(k.first, k.second);
+
+	return has_input;
+}
+
+Renderer::FrameData Renderer::targetFramerate(int fps, clock_type::time_point& last_frame_time)
+{
+	auto now = clock_type::now();
+	chrono::duration<float> active_frame_duration = now - last_frame_time;
+	float frame_duration = 1.0f / static_cast<float>(fps);
+	this_thread::sleep_for(chrono::duration<float>(frame_duration - chrono::duration_cast<chrono::seconds>(active_frame_duration).count()));
+
+	now = clock_type::now();
+	chrono::duration<float> total_frame_duration = now - last_frame_time;
+	last_frame_time = now;
+
+	return FrameData{ (float)total_frame_duration.count(), (float)(active_frame_duration.count() / total_frame_duration.count()) };
+}
+
+inline int Renderer::getConstrainedSize(int available, int _max, int _min)
+{
+	int size = 0;
+	if (_max == -1) size = available;
+	else size = min(available, _max);
+
+	if (size < _min) return -1;
+	else return max(size, _min);
+}
 #endif
-	;
-
-	/**
-	 * @brief check for queued input, handle shortcut triggers, and send remaining
-	 * input to the specified component. order of input event is preserved.
-	 * 
-	 * @param focused_component component to send input to
-	 * @param shortcut_bindings list of shortcuts to check for
-	 **/
-	static bool handleInput(Component* focused_component, vector<Input::Shortcut> shortcut_bindings)
-#ifdef STUI_IMPLEMENTATION
-	{
-		auto keys = Input::getQueuedKeyEvents();
-		bool has_input = keys.size() > 0;
-		Input::processShortcuts(shortcut_bindings, keys);
-		auto text_keys = stui::Input::getTextCharacters(keys);
-
-		if (focused_component == nullptr) return has_input;
-		for (pair<uint8_t, Input::ControlKeys> k : text_keys)
-			focused_component->handleInput(k.first, k.second);
-
-		return has_input;
-	}
-#endif
-	;
-
-	/**
-	 * @brief stores information about a frame-wait which just happened
-	 * 
-	 **/
-	struct FrameData
-	{
-		float delta_time;		// time since the last time `targetFramerate` was called
-		float active_fraction;	// fraction of the delta_time which was taken up by rendering
-	};
-
-	/**
-	 * @brief maintains the desired framerate by waiting for the remainder of the frame's 
-	 * duration.
-	 * 
-	 * requires a variable in which to store the last time the function was called in order
-	 * to work correctly.
-	 * 
-	 * @param fps desired framerate in frames per second
-	 * @param last_frame_time persistent storage for the time the function was last called
-	 * @return information about the frame: the delta time since the previous call, and
-	 * the fraction of the delta time which was taken up by the time between calls (the
-	 * remaining fraction being occupied by the `targetFramerate` function idling)
-	 **/
-	static FrameData targetFramerate(int fps, clock_type::time_point& last_frame_time)
-#ifdef STUI_IMPLEMENTATION
-	{
-		auto now = clock_type::now();
-		chrono::duration<float> active_frame_duration = now - last_frame_time;
-		float frame_duration = 1.0f / static_cast<float>(fps);
-		this_thread::sleep_for(chrono::duration<float>(frame_duration - chrono::duration_cast<chrono::seconds>(active_frame_duration).count()));
-
-		now = clock_type::now();
-		chrono::duration<float> total_frame_duration = now - last_frame_time;
-		last_frame_time = now;
-
-		return FrameData{ (float)total_frame_duration.count(), (float)(active_frame_duration.count() / total_frame_duration.count()) };
-	}
-#endif
-	;
-
-private:
-	/**
-	 * @brief calculate an appropriate size for a `Component` (or, one dimension of it)
-	 * 
-	 * @param available amount of space available to use
-	 * @param max maximum desired size of the subject
-	 * @param min minimum desired size of the subject
-	 * @return resulting constrained size
-	 **/
-	static inline int getConstrainedSize(int available, int _max, int _min)
-	{
-		int size = 0;
-		if (_max == -1) size = available;
-		else size = min(available, _max);
-
-		if (size < _min) return -1;
-		else return max(size, _min);
-	}
-
-	
-};
 
 }
 

@@ -1,37 +1,31 @@
 # To-Dos
 
 ## Misc
-- [ ] make some demo files (.layout, .cpp)
-- [ ] potentially make scrollable views with extra space have a '...' to indicate more content
-- [ ] add handling for delete (not backspace)
-- [ ] update help (do this last probably)
-- [ ] display message when screen too small for UI (4)
-- [x] fix horrendous linux performance (3)
-- [ ] fix framerate targeting
-- [x] make handleInput return true for input detected
-- [ ] make spinner an activity toggleable thing
-- [x] make a function which checks for the terminal being resized
-- [ ] make the multi-line text area scrollable when focused
+- [ ] make some demo files (.layout, .cpp)                                                                                  (v0.2) <- 6
+- [ ] figure out some update-loop system to integrate with page?                                                            (v0.4)
+- [ ] potentially make scrollable views with extra space have a '...' to indicate more content                              (v0.3)
+- [ ] add handling for delete (not backspace)                                                                               (v0.2) <- 3
+- [ ] update help (do this last probably)                                                                                   (v0.2) <- 7
+- [ ] fix framerate targeting                                                                                               (v0.2) <- 1
+- [ ] make the multi-line text area scrollable when focused                                                                 (v0.2) <- 2
 
 ## LayoutScript
-- [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions
-- [x] implement all the various functions for the PageManager
-- [ ] complete ability to read UI from file
-- [ ] implement ensureIntegrity
-- [x] change from .stui to .layout
-- [ ] have errors displayed with a line number and an offset along the line (only show the line number)
+- [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions        (v0.4)
+- [ ] complete ability to read UI from file                                                                                 (v0.4)
+- [ ] implement ensureIntegrity                                                                                             (v0.2) <- 4
+- [ ] have errors displayed with a line number and an offset along the line (only show the line number)                     (v0.4)
+- [ ] migrate away from PageManager                                                                                         (v0.4)
 
 ## New Components
+- [ ] add editable text area                                                                                                (v0.3)
 
 ## Comments
-- [ ] add doxy and detailed comments to stui_external.h
-- [ ] add doxy comments to stui_extensions.h
+- [ ] add doxy and detailed comments to stui_external.h                                                                     (v0.4)
+- [ ] add doxy comments to stui_extensions.h                                                                                (v0.2) <- 5
 
 ## Input
-- [ ] add editable text area
-- [ ] horizontal scrolling for input box
-- [ ] update windows input reading to match linux
-- [ ] widget focus toolkit
+- [ ] horizontal scrolling for input box                                                                                    (v0.3)
+- [ ] update windows input reading to match linux                                                                           (v0.3)
 
 # Completed
 - [x] list view
@@ -73,3 +67,10 @@
 - [x] add doxy comments to the rest of stui.h
 - [x] add a proper license, including to the top of each header
 - [x] doxy comments in Input
+- [x] make a function which checks for the terminal being resized
+- [x] make handleInput return true for input detected
+- [x] fix horrendous linux performance (3)
+- [x] display message when screen too small for UI (4)
+- [x] change from .stui to .layout
+- [x] implement all the various functions for the PageManager
+- [x] widget focus toolkit

@@ -291,7 +291,7 @@ public:
 	 * left and right shift are treated as the same on Windows, so for cross-platform-ness i'll
 	 * settle for that.
 	 **/
-	enum ControlKeys
+	enum ControlKeys : uint16_t
 	{
 		NONE        = 0b00000000,
 		CTRL  		= 0b00000001,
@@ -324,11 +324,15 @@ public:
 	 * @brief describes a shortcut linking a desired key-bind to a function that should
 	 * be called when the binding is triggered.
 	 **/
+
+	#pragma pack(push)
+	#pragma pack(4)
 	struct Shortcut
 	{
 		Input::Key binding;
 		void (*callback)();
 	};
+	#pragma pack(pop)
 
 private:
 #if defined(__linux__)
@@ -383,7 +387,7 @@ private:
 			if (records[i].EventType == KEY_EVENT && records[i].Event.KeyEvent.bKeyDown)
 			{
 				Key k{ };
-				k.key = records[i].Event.KeyEvent.uChar.AsciiChar;
+				k.key = (uint8_t)records[i].Event.KeyEvent.uChar.AsciiChar;
 				if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_UP) k.key = ArrowKeys::UP;
 				else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_DOWN) k.key = ArrowKeys::DOWN;
 				else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_LEFT) k.key = ArrowKeys::LEFT;
@@ -560,6 +564,7 @@ private:
 #endif
 	;
 
+#if defined(__linux__)
 	static inline int kbhit()
 	{
 		pollfd pfd;
@@ -567,6 +572,7 @@ private:
 		pfd.events = POLLIN;
 		return poll(&pfd, 1, 0);
 	}
+#endif
 };
 
 /**
@@ -575,6 +581,8 @@ private:
  * all `Component` subclasses must override the `render`, `getMaxSize`, and 
  * `getMinSize` methods (ideally using the relevant macros).
  **/
+#pragma pack(push)
+#pragma pack(8)
 class Component
 {
 public:
@@ -635,7 +643,10 @@ public:
 	 * @returns true if the component is focusable
 	 **/
 	virtual inline bool isFocusable() { return false; }
+
+	virtual ~Component() { }
 };
+#pragma pack(pop)
 
 /**
  * @brief class which encapsulates the utility functions that many of `Component`s reuse but
@@ -714,6 +725,8 @@ protected:
 	static vector<string> wrapText(string text, size_t max_width)
 #ifdef STUI_IMPLEMENTATION
 	{
+		if (text.length() < 1)
+			return vector<string>({""});
 		vector<string> result;
 		size_t start = 0;
 		while (start != string::npos)
@@ -1031,7 +1044,7 @@ public:
 	{
 		if (size.y < 1) return;
 
-		drawText("> " + text + " <", Coordinate{ 0,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
+		drawText("> " + text + " <", Coordinate{ (size.x - static_cast<int>(text.length()) - 4) / 2,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
 		if (focused)
 			fillColour(enabled ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,0 }, Coordinate{ static_cast<int>(text.length()) + 4,1 }, output_buffer, size);
 	}
@@ -1384,7 +1397,13 @@ public:
 		}
 
 		int budget = size.y - total_height;
-		if (budget < 0) return;
+		if (budget < 0)
+		{
+			string error_text = "[...]";
+			if (size.y > 0)
+				drawText(error_text, Coordinate{ static_cast<int>(size.x - error_text.size()) / 2, static_cast<int>(size.y) / 2 }, Coordinate{ size.x, 1 }, output_buffer, size);
+			return;
+		}
 
 		while (budget > 0)
 		{
@@ -1595,7 +1614,14 @@ public:
 #endif
 	;
 
-	GETMAXSIZE_STUB { return (child == nullptr) ? Coordinate{ -1,-1 } : child->getMaxSize(); }
+	GETMAXSIZE_STUB
+	{
+		if (child == nullptr) return Coordinate{ 2,2 };
+		Coordinate max_size = child->getMaxSize();
+		if (max_size.x != -1) max_size.x += 2;
+		if (max_size.y != -1) max_size.y += 2;
+		return max_size;
+	}
 	GETMINSIZE_STUB { return (child == nullptr) ? Coordinate{ 2,2 } : Coordinate{ child->getMinSize().x + 2, child->getMinSize().y + 2 }; }
 };
 
@@ -1981,8 +2007,10 @@ public:
 	GETMINSIZE_STUB { return Coordinate{ 10,1 }; }
 };
 
+#if defined(__linux__)
 #ifdef STUI_IMPLEMENTATION
 static termios original_termios;
+#endif
 #endif
 
 /**
@@ -2026,7 +2054,7 @@ public:
 
 private:
 #if defined(_WIN32)
-	static int WINAPI windowsControlHandler(DWORD control_type)
+	static int WINAPI windowsControlHandler(DWORD control_type) noexcept
 #ifdef STUI_IMPLEMENTATION
 	{
 		if (control_type == 0)
@@ -2163,21 +2191,24 @@ public:
 
 		Tixel* root_staging_buffer = makeBuffer(screen_size);
 
-		Coordinate root_component_size
+		if (root_component != nullptr)
 		{
-			getConstrainedSize(screen_size.x, root_component->getMaxSize().x, root_component->getMinSize().x),
-			getConstrainedSize(screen_size.y, root_component->getMaxSize().y, root_component->getMinSize().y)
-		};
-		Tixel* root_component_buffer = makeBuffer(root_component_size);
-		root_component->render(root_component_buffer, root_component_size);
-		copyBox(root_component_buffer, root_component_size, Coordinate{ 0,0 }, root_component_size, root_staging_buffer, screen_size, Coordinate{ 0,0 });
-		delete[] root_component_buffer;
+			Coordinate root_component_size
+			{
+				getConstrainedSize(screen_size.x, root_component->getMaxSize().x, root_component->getMinSize().x),
+				getConstrainedSize(screen_size.y, root_component->getMaxSize().y, root_component->getMinSize().y)
+			};
+			Tixel* root_component_buffer = makeBuffer(root_component_size);
+			root_component->render(root_component_buffer, root_component_size);
+			copyBox(root_component_buffer, root_component_size, Coordinate{ 0,0 }, root_component_size, root_staging_buffer, screen_size, Coordinate{ 0,0 });
+			delete[] root_component_buffer;
 
-		OUTPUT_TARGET << ANSI_CLEAR_SCROLL;
-		OUTPUT_TARGET << ANSI_SET_COLOUR(Tixel::toANSI(Tixel::ColourCommand::FG_WHITE));
-		OUTPUT_TARGET << ANSI_SET_COLOUR(Tixel::toANSI(Tixel::ColourCommand::BG_BLACK));
-		Terminal::setCursorPosition(Coordinate{ 0,0 });
-		DEBUG_TIMER_E(render);
+			OUTPUT_TARGET << ANSI_CLEAR_SCROLL;
+			OUTPUT_TARGET << ANSI_SET_COLOUR(Tixel::toANSI(Tixel::ColourCommand::FG_WHITE));
+			OUTPUT_TARGET << ANSI_SET_COLOUR(Tixel::toANSI(Tixel::ColourCommand::BG_BLACK));
+			Terminal::setCursorPosition(Coordinate{ 0,0 });
+			DEBUG_TIMER_E(render);
+		}
 
 		DEBUG_TIMER_S(transcoding);
 		string output;
@@ -2203,10 +2234,10 @@ public:
 			background = new_background;
 
 			uint32_t chr = root_staging_buffer[i].character;
-			output.push_back(chr & 0xFF);
-			if (chr & 0x80) output.push_back((chr >> 8) & 0xFF);
-			if (chr & 0x8000) output.push_back((chr >> 16) & 0xFF);
-			if (chr & 0x800000) output.push_back((chr >> 24) & 0xFF);
+			output.push_back((char)(chr & 0xFF));
+			if (chr & 0x80) output.push_back((char)((chr >> 8) & 0xFF));
+			if (chr & 0x8000) output.push_back((char)((chr >> 16) & 0xFF));
+			if (chr & 0x800000) output.push_back((char)((chr >> 24) & 0xFF));
 		}
 
 		OUTPUT_TARGET << output;
@@ -2268,12 +2299,12 @@ public:
 #ifdef STUI_IMPLEMENTATION
 	{
 		auto now = clock_type::now();
-		chrono::duration<double> active_frame_duration = now - last_frame_time;
-		double frame_duration = 1.0f / static_cast<double>(fps);
+		chrono::duration<float> active_frame_duration = now - last_frame_time;
+		float frame_duration = 1.0f / static_cast<float>(fps);
 		this_thread::sleep_for(chrono::duration<float>(frame_duration - chrono::duration_cast<chrono::seconds>(active_frame_duration).count()));
 
 		now = clock_type::now();
-		chrono::duration<double> total_frame_duration = now - last_frame_time;
+		chrono::duration<float> total_frame_duration = now - last_frame_time;
 		last_frame_time = now;
 
 		return FrameData{ (float)total_frame_duration.count(), (float)(active_frame_duration.count() / total_frame_duration.count()) };

@@ -44,6 +44,7 @@ private:
 	map<string, Component*> components;
     Component* root = nullptr;
     size_t focused_component_index = 0;
+    clock_type::time_point last_frame;
 
 public:
     Page() { }
@@ -51,12 +52,10 @@ public:
     bool checkInput()
 #ifdef STUI_IMPLEMENTATION
     {
-        if (root == nullptr) return;
-
         current_page = this;
 
         Component* focused_component = nullptr;
-        if (focused_component_index < focusable_component_sequence.size()) focused_component = focusable_component_sequence[focused_component_index];
+        if (focused_component_index < focusable_component_sequence.size() && root != nullptr) focused_component = focusable_component_sequence[focused_component_index];
 
         vector<Input::Shortcut> shortcuts_tmp = shortcuts;
         shortcuts_tmp.push_back(Input::Shortcut
@@ -73,17 +72,31 @@ public:
     void render()
 #ifdef STUI_IMPLEMENTATION
     {
-        if (root == nullptr) return;
-
         current_page = this;
+
+        if (root == nullptr) return;
+        updateFocus();
         Renderer::render(root);
     }
 #endif
     ;
 
-    // TODO: auto-rendering? with delta-time? at least keep track of the time for the developer
+    Renderer::FrameData framerate(int fps_target)
+#ifdef STUI_IMPLEMENTATION
+    {
+        return Renderer::targetFramerate(fps_target, last_frame);
+    }
+#endif
+    ;
 
-	bool ensureIntegrity(); // TODO: search the tree, register unregistered, unregister and delete unreferenced 
+	void ensureIntegrity()
+#ifdef STUI_IMPLEMENTATION
+    {
+        
+        // TODO: search the tree, register unregistered, unregister and delete unreferenced
+    }
+#endif
+    ;
 	
     inline Component* operator[](string identifier) { return components[identifier]; }
 
@@ -103,7 +116,7 @@ public:
 	void unregisterComponent(string identifier)
 #ifdef STUI_IMPLEMENTATION
 	{
-		if (components.contains(identifier)) { delete components[identifier]; components.erase(identifier); }
+		if (components.count(identifier) != 0) { delete components[identifier]; components.erase(identifier); }
 		else throw runtime_error("no component registered with that name");
 	}
 #endif
@@ -118,6 +131,12 @@ public:
     }
 
 private:
+    inline void updateFocus()
+    {
+        for (size_t i = 0; i < current_page->focusable_component_sequence.size(); i++)
+            current_page->focusable_component_sequence[i]->focused = (i == current_page->focused_component_index);
+    }
+
     static void advanceFocus()
 #ifdef STUI_IMPLEMENTATION
     {
@@ -137,10 +156,9 @@ private:
         }
         while (current_page->focused_component_index != old_focus);
 
-        if (!was_any_focusable) current_page->focused_component_index = -1;
+        if (!was_any_focusable) current_page->focused_component_index = (size_t)-1;
 
-        for (size_t i = 0; i < current_page->focusable_component_sequence.size(); i++)
-            current_page->focusable_component_sequence[i]->focused = (i == current_page->focused_component_index);
+        current_page->updateFocus();
     }
 #endif
     ;
@@ -149,14 +167,14 @@ private:
 	{
 		if (name.length() < 1) return false;
 
-		return !components.contains(name);
+		return components.count(name) == 0;
 	}
 
 	inline string getUniqueName()
 	{
 		size_t i = 0;
 
-		while (components.contains("__component_" + to_string(i)))
+		while (components.count("__component_" + to_string(i)) != 0)
 			i++;
 		
 		return "__component_" + to_string(i);

@@ -9,6 +9,7 @@
 - [x] fix horrendous linux performance (3)
 - [ ] fix framerate targeting
 - [x] make handleInput return true for input detected
+- [ ] make spinner an activity toggleable thing
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions

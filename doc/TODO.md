@@ -1,11 +1,11 @@
 # To-Dos
 
 ## Misc
-- [ ] make some demo files (.layout, .cpp)                                                                                  (v0.2) <- 1
+- [ ] make some demo files (.layout, .cpp)                                                                                  (v0.2) <- 3
 - [ ] figure out some update-loop system to integrate with page?                                                            (v0.4)
 - [ ] potentially make scrollable views with extra space have a '...' to indicate more content                              (v0.3)
 - [ ] update help (do this last probably)                                                                                   (v0.2) <- 2
-- [ ] organise project structure better                                                                                     (v0.2) <- 3
+- [ ] organise project structure better                                                                                     (v0.2) <- 1
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions        (v0.4)

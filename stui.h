@@ -404,6 +404,11 @@ private:
 					k.key += 96;
 				}
 				if (control_key & 0x10) k.control_states = (ControlKeys)(k.control_states | ControlKeys::SHIFT);
+				if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_DELETE)
+				{
+					k.key = 127;
+					k.control_states = ControlKeys::NONE;
+				}
 				events.push_back(k);
 			}
 #elif defined(__linux__)
@@ -439,18 +444,39 @@ private:
 				{
 					// otherwise it's an escape sequence
 					int c_next = buffer[i + 2];
-					if (c_next == 0x41) events.push_back(Key{ ArrowKeys::UP, ControlKeys::NONE });
-					else if (c_next == 0x42) events.push_back(Key{ ArrowKeys::DOWN, ControlKeys::NONE });
-					else if (c_next == 0x44) events.push_back(Key{ ArrowKeys::LEFT, ControlKeys::NONE });
-					else if (c_next == 0x43) events.push_back(Key{ ArrowKeys::RIGHT, ControlKeys::NONE });
-					else if (c_next == '1' && buffer[i + 3] == ';' && buffer[i + 4] == '2')
+					if (c_next == 0x41)
+					{
+						events.push_back(Key{ ArrowKeys::UP, ControlKeys::NONE });
+						i += 2;
+					}
+					else if (c_next == 0x42)
+					{
+						events.push_back(Key{ ArrowKeys::DOWN, ControlKeys::NONE });
+						i += 2;
+					}
+					else if (c_next == 0x44)
+					{
+						events.push_back(Key{ ArrowKeys::LEFT, ControlKeys::NONE });
+						i += 2;
+					}
+					else if (c_next == 0x43)
+					{
+						events.push_back(Key{ ArrowKeys::RIGHT, ControlKeys::NONE });
+						i += 2;
+					}
+					else if (i <= bytes_read - 5 && c_next == '1' && buffer[i + 3] == ';' && buffer[i + 4] == '2')
 					{
 						int c_next_next = buffer[i + 5];
 						if (c_next_next == 0x41) events.push_back(Key{ ArrowKeys::UP, ControlKeys::SHIFT });
 						else if (c_next_next == 0x42) events.push_back(Key{ ArrowKeys::DOWN, ControlKeys::SHIFT });
 						else if (c_next_next == 0x44) events.push_back(Key{ ArrowKeys::LEFT, ControlKeys::SHIFT });
 						else if (c_next_next == 0x43) events.push_back(Key{ ArrowKeys::RIGHT, ControlKeys::SHIFT });
-						i += 3;
+						i += 5;
+					}
+					else if (i <= bytes_read - 4 && c_next == '3' && buffer[i + 3] == '~')
+					{
+						events.push_back(Key{ 127, ControlKeys::NONE });
+						i += 4;
 					}
 					else
 					{
@@ -458,7 +484,6 @@ private:
 						DEBUG_LOG("unhandled ANSI code: " + string((char*)buffer + i));
 						break;
 					}
-					i += 2;
 				}
 			}
 			else if (c < 128)
@@ -544,6 +569,7 @@ private:
 				|| k.key == '\n' 
 				|| k.key == '\t' 
 				|| k.key == '\b'
+				|| k.key == 127
 				|| k.key == ArrowKeys::UP
 				|| k.key == ArrowKeys::DOWN
 				|| k.key == ArrowKeys::LEFT
@@ -1240,13 +1266,13 @@ public:
 		else if (input_character == Input::ArrowKeys::RIGHT) { if (cursor_index < text.length()) cursor_index++; }
 		else if (input_character == Input::ArrowKeys::UP) cursor_index = 0;
 		else if (input_character == Input::ArrowKeys::DOWN) cursor_index = text.length();
-		else if (input_character == '\b')
-		{ if (cursor_index > 0)
+		else if (input_character == '\b' || input_character == 127)
+		{ if ((input_character == '\b') ? cursor_index > 0 : (text.length() > 0 && cursor_index < text.length()))
 		{
-			for (size_t first = cursor_index - 1; first < text.length() - 1; first++)
+			for (size_t first = (input_character == '\b') ? (cursor_index - 1) : cursor_index; first < text.length() - 1; first++)
 				text[first] = text[first + 1];
 			text.pop_back();
-			cursor_index--;
+			if (input_character == '\b') cursor_index--;
 		} }
 		else if (input_character == '\t') return false;
 		else if (cursor_index < last_rendered_width - 3)

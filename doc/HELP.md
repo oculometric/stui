@@ -4,31 +4,65 @@
 
 Simple Text User Interface gives you a lightweight toolkit to build interactive interfaces inside the terminal window.
 
-it's header only, so project setup simply involves adding the [stui.h](stui.h) file to your project directory and `#include`-ing it (though actually you should probably add the whole project as a git submodule or something). there is also the optional [stui_external.h](stui_external.h) which allows you to manage interface components and pages in a nicer way as well giving you the ability to define interface layouts externally using LayoutScript files and load them at runtime.
+it's header only, so project setup simply involves adding the [stui.h](stui.h) file to your project somehow and `#include`-ing it (though actually you should probably add the whole project as a git submodule or something). the option [stui_extensions](stui_extensions.h) file gives you a useful class for managing an entire interface page in one class. there is also the optional [stui_script.h](stui_script.h) file which provides support for reading LayoutScript files into a functional UI tree.
 
-to use the library, you simply create a `Component`. interface layouts can then be built up from a combination of elements. then you just tell the `Page` class to render root element.
+the most basic use of the library simply invovles creating a `Component` and calling `Renderer::render` on it. interface layouts can then be built up from a combination of nested elements, and you just call `Renderer::render` on the root element. **however, you must call `Terminal::configure` first for the terminal window to behave correctly.**
 
-this will replace the entire content of the terminal window with the rendered interface. you probably want to wrap this render call into a `while (true)` loop.
+this will replace the entire content of the terminal window with the rendered interface.
 
-there is also functionality for maintaining a consistent framerate, and receiving input via callbacks from certain Components (buttons, etc) and shortcut bindings which you can configure.
+the next step is to wrap this render call into a `while (true)` loop. you probably want to limit the framerate so you aren't just burning CPU time, which you can do with a call to `Renderer::targetFramerate`.
 
-## Getting Set Up
+the final step is receiving input from the user, which you can do using `Renderer::handleInput`. this function takes a `Component` which the input should be applied to, and a list of shortcut bindings.
+
+if you want to use the library *properly* then you should read the rest of this document.
+
+## Something's Not Working!
+
+if you're having problems, the best way to resolve it is to follow these steps, ideally in this order:
+1) re-read your code very slowly, including the compiler error if you're getting one
+2) write `#define DEBUG` before your `#include <stui.h>` line, and use the `DEBUG_LOG` macro to log stuff to a file
+3) read the rest of this document, and/or the relevant documentation comments in `stui.h`/`stui_extensions.h`/`stui_script.h`
+4) check the open issues on the repository [here](https://github.com/oculometric/stui) to see if this is a known issue
+5) if you're really sure you're experiencing a bug and not making a mistake, please submit an issue on the Github page for the repository (see above). this includes if you find something that isn't adequately documented
+
+## Walkthrough
+
+### Getting Set Up
+
+the best way to set up your project to use STUI is to add the repository as a submodule using
+```
+git submodule add https://github.com/oculometric/stui
+```
+then depending on your project setup, add the `stui/inc` directory as an include path. for instance with `gcc`, just add `-I stui/inc` to your compile command, or with Visual Studio, add the `inc` directory in project settings.
+
+### Basic Component Usage
+
+// TODO: from here onwards...
 
 setup is pretty simple, you simply start creating the `Component`s you want, and then render them using the `Page` class:
 ```
-#include "stui.h"
+#define STUI_IMPLEMENTATION
+#include <stui.h>
+
+// we'll be writing `stui::` a lot otherwise
+using namespace stui;
 
 int main()
 {
-    // construct a text widget with the text "Hello, World!", and using with center alignment
-    stui::Text text_widget("Hello, World!", -1);
+    // configure the terminal window
+    Terminal::configure();
+
+    // construct a text widget with the text "Hello, World!", and using with left alignment
+    Label text_widget("Hello, World!", -1);
 
     // display loop
     while (true)
     {
-        // actually display the Component on the screen
-        stui::Page::render(&text_widget);
+        // display the Component on the screen
+        Renderer::render(&text_widget);
     }
+
+    return 0;
 }
 ```
 when compiled, this should produce output looking something like this, depending on your terminal size:

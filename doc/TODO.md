@@ -1,11 +1,10 @@
 # To-Dos
 
 ## Misc
-- [ ] make some demo files (.layout, .cpp)                                                                                  (v0.2) <- 3
+- [ ] make some demo files (.layout, .cpp)                                                                                  (v0.2) <- 2
 - [ ] figure out some update-loop system to integrate with page?                                                            (v0.4)
 - [ ] potentially make scrollable views with extra space have a '...' to indicate more content                              (v0.3)
-- [ ] update help (do this last probably)                                                                                   (v0.2) <- 2
-- [ ] organise project structure better                                                                                     (v0.2) <- 1
+- [ ] update help (do this last probably)                                                                                   (v0.2) <- 1
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions        (v0.4)
@@ -29,6 +28,7 @@
 - [x] add handling for delete (not backspace)                                                                               (v0.2)
 - [x] implement ensureIntegrity                                                                                             (v0.2)
 - [x] add doxy comments to stui_extensions.h                                                                                (v0.2)
+- [x] organise project structure better                                                                                     (v0.2)
 
 # Completed
 - [x] list view

@@ -22,7 +22,7 @@
 #pragma once
 
 #define STUI_KEEP_DEFINES
-#include <stui.h>
+#include "stui.h"
 #undef STUI_KEEP_DEFINES
 
 #include <map>
@@ -367,5 +367,5 @@ private:
 }
 
 #define STUI_ONLY_UNDEFS
-#include <stui.h>
+#include "stui.h"
 #undef STUI_ONLY_UNDEFS

@@ -21,7 +21,10 @@
 
 #pragma once
 
-#include <stui.h>
+#define STUI_KEEP_DEFINES
+#include "stui.h"
+#undef STUI_KEEP_DEFINES
+
 #include <map>
 
 namespace stui
@@ -301,11 +304,11 @@ private:
 		return str;
 	}
 
-	static inline int decodeIntArg(string s, string input, size_t offset)
+	static inline long long int decodeIntArg(string s, string input, size_t offset)
 	{
 		try
 		{
-			int i = stoi(s);
+			long long int i = stoll(s);
 			return i;
 		}
 		catch (exception e)
@@ -350,7 +353,7 @@ private:
 		}
 	}
 
-	static inline vector<int> decodeIntArrArg(string s, string input, size_t offset)
+	static inline vector<long long int> decodeIntArrArg(string s, string input, size_t offset)
 	{
 		size_t closing_brace = findMatchingClosingBrace(s, 0);
 		// TODO: ... here
@@ -435,10 +438,10 @@ private:
 			// TODO: implement functions for decoding argument types
 			case INT: arguments[i].value.int_val = decodeIntArg(split_params[i].second, input, split_params[i].first); break;
 			case STRING: arguments[i].value.string_val = decodeStringArg(split_params[i].second, input, split_params[i].first); break;
-			case COORDINATE: arguments[i].value.coordinate_val = decodeCoordArg(split_params[i].second); break;
+			case COORDINATE: arguments[i].value.coordinate_val = decodeCoordArg(split_params[i].second, input, split_params[i].first); break;
 			case FLOAT: arguments[i].value.float_val = decodeFloatArg(split_params[i].second, input, split_params[i].first); break;
 			case COMPONENT: arguments[i].value.component_val = decodeComponentString(split_params[i].second); break;
-			case INT_ARRAY: arguments[i].value.int_arr = decodeIntArrArg(split_params[i].second); break;
+			case INT_ARRAY: arguments[i].value.int_arr = decodeIntArrArg(split_params[i].second, input, split_params[i].first); break;
 			case STRING_ARRAY: arguments[i].value.string_arr = decodeStringArrArg(split_params[i].second); break;
 			case COORDINATE_ARRAY: arguments[i].coordinate_arr = decodeCoordArrArg(split_params[i].second); break;
 			case FLOAT_ARRAY: arguments[i].value.float_arr = decodeFloatArrArg(split_params[i].second); break;
@@ -454,3 +457,7 @@ private:
 };
 
 }
+
+#define STUI_ONLY_UNDEFS
+#include "stui.h"
+#undef STUI_ONLY_UNDEFS

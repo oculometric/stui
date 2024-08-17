@@ -26,6 +26,8 @@
 #define GETMAXSIZE_STUB virtual inline Coordinate getMaxSize() override
 #define HANDLEINPUT_STUB virtual bool handleInput(uint8_t input_character, Input::ControlKeys modifiers) override
 #define	ISFOCUSABLE_STUB virtual inline bool isFocusable() override
+#define GETTYPENAME_STUB(n) virtual inline string getTypeName() override { return n; }
+#define GETALLCHILDREN_STUB virtual inline vector<Component*> getAllChildren() override
 
 #define OUTPUT_TARGET cout
 
@@ -670,6 +672,22 @@ public:
 	 **/
 	virtual inline bool isFocusable() { return false; }
 
+	/**
+	 * @brief get the string description of this component type. should be
+	 * overridden by subclasses and return a string that matches the class name.
+	 * 
+	 * @returns string name of the class/component type
+	 */
+	virtual inline string getTypeName() { return ""; }
+
+	/**
+	 * @brief return a list of any children this component has. subclasses
+	 * which allow child components should return them here.
+	 * 
+	 * @returns list of contained children
+	 */
+	virtual inline vector<Component*> getAllChildren() { return { }; }
+
 	virtual ~Component() { }
 };
 #pragma pack(pop)
@@ -1061,6 +1079,8 @@ public:
 	
 	Label(string _text, int _alignment) : text(_text), alignment(_alignment) { }
 
+	GETTYPENAME_STUB("Label");
+
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
 	{
@@ -1094,6 +1114,8 @@ public:
 	bool enabled;
 
 	Button(string _text, void (*_callback)(), bool _enabled) : text(_text), callback(_callback), enabled(_enabled) { }
+
+	GETTYPENAME_STUB("Button");
 
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
@@ -1137,6 +1159,8 @@ public:
 	bool enabled;
 
 	RadioButton(vector<string> _options, int _selected_index, bool _enabled) : options(_options), selected_index(_selected_index), enabled(_enabled) { }
+
+	GETTYPENAME_STUB("RadioButton");
 
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
@@ -1190,6 +1214,8 @@ public:
 
 	ToggleButton(vector<pair<string, bool>> _options, bool _enabled) : options(_options), enabled(_enabled) { }
 
+	GETTYPENAME_STUB("ToggleButton");
+
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
 	{
@@ -1242,6 +1268,8 @@ public:
 
 	TextInputBox(string _text, void (*_callback)(), bool _enabled) : text(_text), callback(_callback), enabled(_enabled) { }
 
+	GETTYPENAME_STUB("TextInputBox");
+
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
 	{
@@ -1275,7 +1303,7 @@ public:
 			if (input_character == '\b') cursor_index--;
 		} }
 		else if (input_character == '\t') return false;
-		else if (cursor_index < last_rendered_width - 3)
+		else if (static_cast<int>(cursor_index) < last_rendered_width - 3)
 		{
 			text.push_back(' ');
 			for (size_t first = text.length() - 1; first > cursor_index; first--)
@@ -1304,6 +1332,8 @@ public:
 	int scroll;
 
 	TextArea(string _text, int _scroll) : text(_text), scroll(_scroll) { }
+
+	GETTYPENAME_STUB("TextArea");
 
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
@@ -1354,6 +1384,8 @@ public:
 	
 	ProgressBar(float _fraction) : fraction(_fraction) { }
 
+	GETTYPENAME_STUB("ProgressBar");
+
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
 	{
@@ -1380,6 +1412,8 @@ public:
 	float value;
 
 	Slider(float _value) : value(_value) { }
+
+	GETTYPENAME_STUB("Slider");
 
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
@@ -1437,6 +1471,8 @@ public:
 
 	Spinner(size_t _state, int _type) : state(_state), type(_type) { }
 
+	GETTYPENAME_STUB("Spinner");
+
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
 	{
@@ -1463,6 +1499,8 @@ public:
 	
 	VerticalBox(vector<Component*> _children) : children(_children) { }
 	
+	GETTYPENAME_STUB("VerticalBox");
+
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
 	{	
@@ -1545,6 +1583,8 @@ public:
 
 		return min_size;
 	}
+
+	GETALLCHILDREN_STUB { return children; }
 };
 
 /**
@@ -1560,6 +1600,8 @@ public:
 	vector<Component*> children;
 	
 	HorizontalBox(vector<Component*> _children) : children(_children) { }
+
+	GETTYPENAME_STUB("HorizontalBox");
 
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
@@ -1637,6 +1679,8 @@ public:
 
 		return min_size;
 	}
+
+	GETALLCHILDREN_STUB { return children; }
 };
 
 /**
@@ -1648,6 +1692,8 @@ public:
 	int height;
 	
 	VerticalSpacer(int _height) : height(_height) { }
+
+	GETTYPENAME_STUB("VerticalSpacer");
 
 	GETMAXSIZE_STUB { return Coordinate{ 1, height }; }
 	GETMINSIZE_STUB { return Coordinate{ 1, max(height, 0) }; }
@@ -1663,6 +1709,8 @@ public:
 	
 	HorizontalSpacer(int _width) : width(_width) { }
 
+	GETTYPENAME_STUB("HorizontalSpacer");
+
 	GETMAXSIZE_STUB { return Coordinate{ width, 1 }; }
 	GETMINSIZE_STUB { return Coordinate{ max(width, 0), 1 }; }
 };
@@ -1677,6 +1725,8 @@ public:
 	string name;
 
 	BorderedBox(Component* _child, string _name) : child(_child), name(_name) { }
+
+	GETTYPENAME_STUB("BorderedBox");
 
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
@@ -1705,6 +1755,8 @@ public:
 		return max_size;
 	}
 	GETMINSIZE_STUB { return (child == nullptr) ? Coordinate{ 2,2 } : Coordinate{ child->getMinSize().x + 2, child->getMinSize().y + 2 }; }
+
+	GETALLCHILDREN_STUB { return { child }; }
 };
 
 /**
@@ -1723,6 +1775,8 @@ public:
 	int selected_index = 0;
 
 	ListView(vector<string> _elements, int _scroll, int _selected_index) : elements(_elements), scroll(_scroll), selected_index(_selected_index) { }
+
+	GETTYPENAME_STUB("ListView");
 
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
@@ -1803,6 +1857,8 @@ public:
 	size_t selected_index = 0;
 
 	TreeView(Node* _root, size_t _scroll, size_t _selected_index) : root(_root), scroll(_scroll), selected_index(_selected_index) { }
+
+	GETTYPENAME_STUB("TreeView");
 
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
@@ -2000,6 +2056,8 @@ public:
 	
 	ImageView(uint8_t* _grayscale_image, Coordinate _image_size) : grayscale_image(_grayscale_image), image_size(_image_size) { }
 	
+	GETTYPENAME_STUB("ImageView");
+
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
 	{
@@ -2041,6 +2099,8 @@ public:
 	Coordinate max_size;
 	
 	SizeLimiter(Component* _child, Coordinate _max_size) : child(_child), max_size(_max_size) { }
+
+	GETTYPENAME_STUB("SizeLimiter");
 	
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
@@ -2058,6 +2118,8 @@ public:
 		if (child == nullptr) return Coordinate{ 0,0 };
 		return child->getMinSize();
 	}
+
+	GETALLCHILDREN_STUB { return { child }; }
 };
 
 /**
@@ -2071,6 +2133,8 @@ public:
 	size_t current_tab;
 
 	TabDisplay(vector<string> _tab_descriptions, size_t _current_tab) : tab_descriptions(_tab_descriptions), current_tab(_current_tab) { }
+
+	GETTYPENAME_STUB("TabDisplay");
 
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
@@ -2104,6 +2168,8 @@ public:
 	string text;
 
 	Banner(string _text) : text(_text) { }
+
+	GETTYPENAME_STUB("Banner");
 
 	RENDER_STUB
 #ifdef STUI_IMPLEMENTATION
@@ -2505,6 +2571,8 @@ inline int Renderer::getConstrainedSize(int available, int _max, int _min)
 #undef GETMAXSIZE_STUB
 #undef HANDLEINPUT_STUB
 #undef ISFOCUSABLE_STUB
+#undef GETTYPENAME_STUB
+#undef GETALLCHILDREN_STUB
 
 #undef OUTPUT_TARGET
 

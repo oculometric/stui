@@ -1,16 +1,15 @@
 # To-Dos
 
 ## Misc
-- [ ] make some demo files (.layout, .cpp)                                                                                  (v0.2) <- 3
+- [ ] make some demo files (.layout, .cpp)                                                                                  (v0.2) <- 1
 - [ ] figure out some update-loop system to integrate with page?                                                            (v0.4)
 - [ ] potentially make scrollable views with extra space have a '...' to indicate more content                              (v0.3)
-- [ ] update help (do this last probably)                                                                                   (v0.2) <- 4
-- [ ] organise project structure better                                                                                     (v0.2) <- 5
+- [ ] update help (do this last probably)                                                                                   (v0.2) <- 2
+- [ ] organise project structure better                                                                                     (v0.2) <- 3
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions        (v0.4)
 - [ ] complete ability to read UI from file                                                                                 (v0.4)
-- [ ] implement ensureIntegrity                                                                                             (v0.2) <- 1
 - [ ] have errors displayed with a line number and an offset along the line (only show the line number)                     (v0.4)
 - [ ] migrate away from PageManager                                                                                         (v0.4)
 
@@ -19,7 +18,6 @@
 
 ## Comments
 - [ ] add doxy and detailed comments to stui_external.h                                                                     (v0.4)
-- [ ] add doxy comments to stui_extensions.h                                                                                (v0.2) <- 2
 
 ## Input
 - [ ] horizontal scrolling for input box                                                                                    (v0.3)
@@ -29,6 +27,8 @@
 - [x] fix framerate targeting                                                                                               (v0.2)
 - [x] make the multi-line text area scrollable when focused                                                                 (v0.2)
 - [x] add handling for delete (not backspace)                                                                               (v0.2)
+- [x] implement ensureIntegrity                                                                                             (v0.2)
+- [x] add doxy comments to stui_extensions.h                                                                                (v0.2)
 
 # Completed
 - [x] list view

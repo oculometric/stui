@@ -26,6 +26,7 @@
 #undef STUI_KEEP_DEFINES
 
 #include <map>
+#include <queue>
 
 namespace stui
 {
@@ -34,6 +35,17 @@ class Page;
 
 static Page* current_page = nullptr;
 
+/**
+ * @brief encapsulates most of the behaviour necessary for managing a page of user interface
+ * components.
+ * 
+ * this class manages component focus for you, and also keeps track of components with unique 
+ * names, making it easy to pass an entire block of UI from one place to another in your code.
+ * 
+ * leaves you with enough control to hopefully not interfere with your own program architecture.
+ * 
+ * see HELP.md for more information on how to best make use of this.
+ */
 class Page
 {
 public:
@@ -49,6 +61,14 @@ private:
 public:
     Page() { }
 
+    Page(Page& other) = delete;
+    Page operator=(Page& other) = delete;
+
+    /**
+     * @brief checks for user input and sends it to the currently focused component.
+     * 
+     * @returns true if some input was detected, false if none
+     */
     bool checkInput()
 #ifdef STUI_IMPLEMENTATION
     {
@@ -69,6 +89,13 @@ public:
 #endif
     ;
 
+    /**
+     * @brief redraws the entire UI tree pointed to by `root` into the terminal.
+     * 
+     * you only actually need to do this if something has changed: for instance,
+     * you changed the text of a component, or some input was received from the
+     * user, or the terminal window was resized.
+     */
     void render()
 #ifdef STUI_IMPLEMENTATION
     {
@@ -81,6 +108,20 @@ public:
 #endif
     ;
 
+    /**
+     * @brief attempts to maintain the framerate specified, by waiting for
+     * whatever time is left in the current frame.
+     * 
+     * you don't necessarily have to re-draw the screen this many times
+     * per second, you can simply use this function for limiting the
+     * rate of any random loop (or for instance, your input checking loop).
+     * 
+     * @param fps_target target number of frames/function calls to be
+     * possible per second
+     * 
+     * @returns information about the duration and active fraction of
+     * the last frame
+     */
     Renderer::FrameData framerate(int fps_target)
 #ifdef STUI_IMPLEMENTATION
     {
@@ -89,38 +130,150 @@ public:
 #endif
     ;
 
+    /**
+     * @brief checks that all components in the UI tree are registered with
+     * the page.
+     * 
+     * any components which exist in the tree but not in the registry will
+     * be automatically added to the registry with a procedurally generated
+     * unique name.
+     * 
+     * any components which don't exist in the tree but are present in the
+     * registry will be automatically removed from the registry.
+     * 
+     * other components will be left alone.
+     * 
+     * if `root` is null when this is called, the entire registry will be
+     * cleared.
+     */
 	void ensureIntegrity()
 #ifdef STUI_IMPLEMENTATION
     {
-        // TODO: search the tree, register unregistered, unregister and delete unreferenced
+        if (root == nullptr)
+        {
+            for (auto p : components) unregisterComponent(p);
+            DEBUG_LOG("ensure integrity called, root was null so the registry was cleared");
+        }
+
+        map<Component*, int> discovered_nodes;
+        queue<Component*> to_check;
+        to_check.push(root);
+        while (!to_check.empty())
+        {
+            Component* comp = to_check.front();
+            to_check.pop();
+            discovered_nodes.insert_or_assign(comp, 0);
+            
+            vector<Component*> children = comp->getAllChildren();
+            for (Component* c : children) to_check.push(c);
+        }
+
+        map<Component*, string> known_nodes;
+        vector<Component*> new_nodes;
+        size_t ignored_nodes = 0;
+        for (auto p : components) known_nodes.insert(pair<Component*, string>(p.second, p.first));
+
+        for (auto p : discovered_nodes)
+        {
+            Component* c = p.first;
+            if (known_nodes.contains(c)) { known_nodes.erase(c); ignored_nodes++; }
+            else new_nodes.push_back(c);
+        }
+
+        for (auto p : known_nodes) unregisterComponent(p.second);
+        for (auto c : new_nodes) registerComponent(c, "");
+
+#ifdef DEBUG
+        DEBUG_LOG("ensure integrity called, registered " + to_string(new_nodes.size()) + " new nodes, ignored " + to_string(ignored_nodes) + " existing nodes, unregistered " + to_string(known_nodes.size()) + " no-longer-referenced nodes.");
+        string dbg = "component registry now looks like this:";
+        for (auto p : components)
+            dbg += "\n\t" + p.first + " : " + to_string((uint32_t)p.second);
+        DEBUG_LOG(dbg);
+#endif
     }
 #endif
     ;
 	
+    /**
+     * @brief get the component from the registry with the specified name.
+     * 
+     * throws if there is no component present with the specified name.
+     * 
+     * @param identifier name of the component to fetch
+     * 
+     * @returns component with the given name in the registry
+     */
     inline Component* operator[](string identifier) { return components[identifier]; }
 
-    inline void setRoot(Component* component) { registerComponent(component, ""); root = component; }
+    /**
+     * @brief assign a new root component. automatically calls `ensureIntegrity`.
+     * 
+     * @param component component to make the new root
+     */
+    inline void setRoot(Component* component) { registerComponent(component, ""); root = component; ensureIntegrity(); }
+
+    /**
+     * @brief get the current root of the UI tree.
+     * 
+     * @returns root component
+     */
     inline Component* getRoot() { return root; }
 
-    void registerComponent(Component* component, string identifier)
+    /**
+     * @brief add a component to the registry, with a specified name.
+     * 
+     * if the specified name is not unique, or is an empty string, a
+     * new unique one will be generated. does not check for the
+     * component already being in the registry.
+     * 
+     * @param component new component to add to the registry
+     * @param identifier name for the new component, optional if you
+     * don't care about accessing the component by name later
+     * 
+     * @returns the identifier assigned to the component in the registry
+     */
+    string registerComponent(Component* component, string identifier = "")
 #ifdef STUI_IMPLEMENTATION
 	{
-        if (isComponentRegistered(component)) return;
-		if (isNameUnique(identifier)) components.insert(pair<string, Component*>(identifier, component));
-		else components.insert(pair<string, Component*>(getUniqueName(), component));
+        string name = identifier;
+		if (isNameUnique(name)) components.insert(pair<string, Component*>(name, component));
+		else
+        {
+            name = getUniqueName(component->getTypeName());
+            components.insert(pair<string, Component*>(name, component));
+        }
+        return name;
 	}
 #endif
     ;
 
+    /**
+     * @brief remove a component from the registry.
+     * 
+     * throws a runtime error if the component does not exist in
+     * the registry.
+     * 
+     * @param identifier name of the component to remove
+     */
 	void unregisterComponent(string identifier)
 #ifdef STUI_IMPLEMENTATION
 	{
-		if (components.count(identifier) != 0) { delete components[identifier]; components.erase(identifier); }
+		if (components.count(identifier) != 0) { components.erase(identifier); }
 		else throw runtime_error("no component registered with that name");
 	}
 #endif
     ;
 
+    /**
+     * @brief checks if a component exists in the registry.
+     * 
+     * potentially slow for large pages.
+     * 
+     * @param component component to check for
+     * 
+     * @returns true if the component is already registered, false
+     * if not
+     */
     inline bool isComponentRegistered(Component* component)
     {
         for (pair<string, Component*> p : components)
@@ -130,12 +283,23 @@ public:
     }
 
 private:
+    /**
+     * @brief ensures that only one component is focused. specifically the 
+     * one indexed by `focused_component_index`.
+     */
     inline void updateFocus()
     {
-        for (size_t i = 0; i < current_page->focusable_component_sequence.size(); i++)
-            current_page->focusable_component_sequence[i]->focused = (i == current_page->focused_component_index);
+        for (size_t i = 0; i < focusable_component_sequence.size(); i++)
+            focusable_component_sequence[i]->focused = (i == focused_component_index);
     }
 
+    /**
+     * @brief callback for when the shortcut for advancing to the next focusable
+     * component is triggered, usually pressing tab. 
+     * 
+     * acts on the currently active page, which is set automatically by whichever 
+     * page is currently consuming input/rendering.
+     */
     static void advanceFocus()
 #ifdef STUI_IMPLEMENTATION
     {
@@ -166,6 +330,14 @@ private:
 #endif
     ;
 
+    /**
+     * @brief check if a name already exsists in the registry or not.
+     * 
+     * @param name name to search for
+     * 
+     * @returns true if the name was not found in the registry (and therefore)
+     * is unique, false if the name already exists
+     */
     inline bool isNameUnique(string name)
 	{
 		if (name.length() < 1) return false;
@@ -173,14 +345,22 @@ private:
 		return components.count(name) == 0;
 	}
 
-	inline string getUniqueName()
+    /**
+     * @brief generate a unique name for a given component type.
+     * 
+     * @param type type name of the component this identifier will be 
+     * used for
+     * 
+     * @returns a unique identifier
+     */
+	inline string getUniqueName(string type)
 	{
 		size_t i = 0;
 
-		while (components.count("__component_" + to_string(i)) != 0)
+		while (components.count("__component_" + type + '_' + to_string(i)) != 0)
 			i++;
 		
-		return "__component_" + to_string(i);
+		return "__component_" + type + '_' + to_string(i);
 	}
 };
 

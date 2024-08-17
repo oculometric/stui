@@ -1,8 +1,8 @@
-[08:45:39.840] STUI logging started
-[08:46:00.312] STUI logging stopped
-[08:46:00.312] timing data:
-	render:			0.056603		421		0.000134
-	transcoding:	0.014896		421		0.000035
+[10:08:42.027] STUI logging started
+[10:08:49.567] STUI logging stopped
+[10:08:49.568] timing data:
+	render:			0.013914		110		0.000126
+	transcoding:	0.003645		110		0.000033
 	makebuffer:		0.000000		0		-nan
 	copybuffer:		0.000000		0		-nan
 	drawtext:		0.000000		0		-nan

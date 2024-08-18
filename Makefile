@@ -9,6 +9,14 @@ widgets_demo: $(BIN)
 	@g++ -o $(BIN)/widgets_demo $(CC_FLAGS) examples/widgets_demo.cpp
 	@$(BIN)/widgets_demo
 
+basic_usage: $(BIN)
+	@g++ -o $(BIN)/basic_usage $(CC_FLAGS) examples/basic_usage.cpp
+	@$(BIN)/basic_usage
+
+page_usage: $(BIN)
+	@g++ -o $(BIN)/page_usage $(CC_FLAGS) examples/page_usage.cpp
+	@$(BIN)/page_usage
+
 doxygen:
 	@echo "generate the doxygen docs!"
 

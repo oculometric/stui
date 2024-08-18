@@ -151,7 +151,7 @@ public:
     {
         if (root == nullptr)
         {
-            for (auto p : components) unregisterComponent(p);
+            for (auto p : components) unregisterComponent(p.first);
             DEBUG_LOG("ensure integrity called, root was null so the registry was cleared");
         }
 
@@ -176,7 +176,7 @@ public:
         for (auto p : discovered_nodes)
         {
             Component* c = p.first;
-            if (known_nodes.contains(c)) { known_nodes.erase(c); ignored_nodes++; }
+            if (known_nodes.count(c) != 0) { known_nodes.erase(c); ignored_nodes++; }
             else new_nodes.push_back(c);
         }
 
@@ -255,11 +255,17 @@ public:
      * 
      * @param identifier name of the component to remove
      */
-	void unregisterComponent(string identifier)
+	Component* unregisterComponent(string identifier)
 #ifdef STUI_IMPLEMENTATION
 	{
-		if (components.count(identifier) != 0) { components.erase(identifier); }
+		if (components.count(identifier) != 0)
+        {
+            Component* c = components[identifier];
+            components.erase(identifier);
+            return c;
+        }
 		else throw runtime_error("no component registered with that name");
+        return nullptr;
 	}
 #endif
     ;

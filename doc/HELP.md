@@ -229,6 +229,8 @@ int main()
 
 you may also notice the change to the `handleInput` call, where i've added a `Shortcut` which links CTRL+S to a callback function. shortcuts always consume the input that meets their requirements (so if you hit CTRL+S, you won't see an S appear in the text box). as you'll see when you test this program, you can either enter the password correctly, enter some random gibberish, or hit CTRL+S to uhhh... bypass the guard i guess.
 
+**important note regarding shortcuts** - since we're working inside the terminal, there are a few limitations we have to consider. while ALT shortcuts work for *most* keys, they are not present for all of them. CTRL shortcuts are only present for A-Z, space, and forward slash (for whatever reason), excluding CTRL+H, CTRL+I, and CTRL+J which generate control codes which overlap with other characters. SHIFT shortcuts are present for most keys, though not space, and some which involve SHIFT+number key may not work properly on all keyboards. CTRL, SHIFT, and ALT are all mutually exclusive, you cannot mix-and-match them. special keys like DEL and ESC are mostly handled correctly. terminal-based input has a lot of limitations, especially on Linux terminals without Windows' surprisingly helpful API. i can only apologise for this. if you discover an issue with this or the input system in general, feel free to submit a Github issue.
+
 ### Another Efficiency Improvement
 
 as it stands, we don't actually need to redraw the screen 12 times per second. in fact, we really only need to redraw it if some input was detected. to do that we can just use the return value of `handleInput` to decide whether or not anything has actually happened. let's do that now:

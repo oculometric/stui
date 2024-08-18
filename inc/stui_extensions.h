@@ -19,7 +19,8 @@
 	Contact me here <mailto://jcostenart@gmail.com>
 */
 
-#pragma once
+#ifndef STUI_EXTENSIONS_H
+#define STUI_EXTENSIONS_H
 
 #define STUI_KEEP_DEFINES
 #include "stui.h"
@@ -187,7 +188,7 @@ public:
         DEBUG_LOG("ensure integrity called, registered " + to_string(new_nodes.size()) + " new nodes, ignored " + to_string(ignored_nodes) + " existing nodes, unregistered " + to_string(known_nodes.size()) + " no-longer-referenced nodes.");
         string dbg = "component registry now looks like this:";
         for (auto p : components)
-            dbg += "\n\t" + p.first + " : " + to_string((uint32_t)p.second);
+            dbg += "\n\t" + p.first + " : " + to_string((size_t)p.second);
         DEBUG_LOG(dbg);
 #endif
     }
@@ -370,8 +371,55 @@ private:
 	}
 };
 
+/**
+ * @brief renders a QR code inside the terminal
+ */
+class QRCodeView : public Component
+{
+public:
+    enum QRVersion
+    {
+        VER_1 = 21,      // 21x21 pixels
+        VER_2 = 24,      // 25x25 pixels
+        VER_3 = 29,      // 29x29 pixels
+        VER_4 = 33,      // 33x33 pixels
+        VER_10 = 57,     // 57x57 pixels
+    };
+
+    uint8_t* data;
+    QRVersion version;
+
+    QRCodeView(uint8_t* _data, QRVersion _version) : data(_data), version(_version) { }
+
+    RENDER_STUB
+    {
+        // TODO: document this properly
+        // treat each char as a block of 8x1 characters horizontally
+        // each new row must by byte-aligned
+        int qr_size = (version + 1) / 2;
+        if (size.x < qr_size || size.y <  qr_size) return;
+
+        for (int y = 0; y < qr_size; y++;)
+        {
+            for (int x = 0; x < qr_size; x++;)
+            {
+                int top_left_coordinate = ((x * 2) + ((y * 2) * qr_size));
+                int bottom_left_coordinate = top_left_coordinate + qr_size;
+                uint8_t top_byte = data[top_left_coordinate / 8];
+                uint8_t bottom_byte = data[bottom_left_coordinate / 8];
+                bool top_left = top_left_coordinate & 
+            }
+        }
+    }
+
+    GETMAXSIZE_STUB { return Coordinate{ (version + 1) / 2, (version + 1) / 2 }; }
+    GETMINSIZE_STUB { return Coordinate{ (version + 1) / 2, (version + 1) / 2 }; }
+};
+
 }
 
 #define STUI_ONLY_UNDEFS
 #include "stui.h"
 #undef STUI_ONLY_UNDEFS
+
+#endif

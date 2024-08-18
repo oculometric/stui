@@ -259,7 +259,7 @@ you might have your own functionality you want to add here, such as always redra
 
 while the process described above is fine for a simple UI, if you're building a more complex application, things may get complicated. for instance, with many focusable UI elements, you likely need to come up with a mechanism for navigating between them. this is further compounded if you want to have multiple separate 'tabs' or pages within your interface.
 
-i encountered this frustration during development, so i built the [stui_extensions.h](stui_extensions.h) module to help with that.
+i encountered this frustration during development, so i built the [stui_extensions.h](stui_extensions.h) module to help with that. this module also adds a bunch of extra non-essential `Component`s too.
 
 from this file we get the `Page` class, which allows us to easily manage all of the `Components`, `Shortcuts`, and focus state for a whole page of UI.
 

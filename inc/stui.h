@@ -70,7 +70,8 @@
 #define UNICODE_ELLIPSIS_HORIZONTAL (uint32_t)0xa680e2
 #define UNICODE_ELLIPSIS_VERTICAL (uint32_t)0xae8be2
 
-#pragma once
+#ifndef STUI_H
+#define STUI_H
 
 #include <string>
 #include <iostream>
@@ -399,15 +400,15 @@ private:
 				if (k.key == '\r') k.key = '\n';
 				k.control_states = ControlKeys::NONE;
 				DWORD control_key = records[i].Event.KeyEvent.dwControlKeyState;
-				if (control_key & 0x01) k.control_states = (ControlKeys)(k.control_states | ControlKeys::ALT);
-				if (control_key & 0x02) k.control_states = (ControlKeys)(k.control_states | ControlKeys::ALT);
-				if (control_key & 0x04) k.control_states = (ControlKeys)(k.control_states | ControlKeys::CTRL);
-				if (control_key & 0x08)
+				if (control_key & 0x04) k.control_states = ControlKeys::CTRL;
+				else if (control_key & 0x08)
 				{
-					k.control_states = (ControlKeys)(k.control_states | ControlKeys::CTRL);
+					k.control_states = ControlKeys::CTRL;
 					k.key += 96;
 				}
-				if (control_key & 0x10) k.control_states = (ControlKeys)(k.control_states | ControlKeys::SHIFT);
+				else if (control_key & 0x10) k.control_states = ControlKeys::SHIFT;
+				else if (control_key & 0x01) k.control_states = ControlKeys::ALT;
+				else if (control_key & 0x02) k.control_states = ControlKeys::ALT;
 				if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_DELETE)
 				{
 					k.key = 127;
@@ -517,7 +518,7 @@ private:
 	 **/
 	static inline bool compare(Key a, Key b)
 	{
-		return a.key == b.key && a.control_states == b.control_states;
+		return (a.control_states == b.control_states) && ((a.key == b.key) || (a.control_states != ControlKeys::NONE && toupper(a.key) == toupper(b.key)));
 	}
 	
 	/**
@@ -533,6 +534,15 @@ private:
 	static void processShortcuts(vector<Shortcut> shortcuts, vector<Key>& key_events)
 #ifdef STUI_IMPLEMENTATION
 	{
+#ifdef DEBUG
+		for (Shortcut s : shortcuts)
+			if (s.binding.control_states != ControlKeys::ALT
+			 && s.binding.control_states != ControlKeys::SHIFT
+			 && s.binding.control_states != ControlKeys::CTRL
+			 && s.binding.control_states != ControlKeys::NONE)
+			DEBUG_LOG("never bind a shortcut to multiple ControlKeys at once! this shortcut will never be called. key: " + string(1, (char)s.binding.key) + " control_states: " + to_string(s.binding.control_states));
+#endif
+
 		vector<Key> non_processed;
 		for (size_t i = 0; i < key_events.size(); i++)
 		{
@@ -2343,12 +2353,20 @@ public:
 #endif
 	;
 
-	static void unConfigure()
+	static void unConfigure(bool clear_terminal)
 #ifdef STUI_IMPLEMENTATION
 	{
 		setCursorVisible(true);
-		clear();
-		setCursorPosition(Coordinate{ 0,0 });
+#if defined(__linux__)
+		tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
+#endif
+		if (clear_terminal)
+		{
+			clear();
+			setCursorPosition(Coordinate{ 0,0 });
+		}
+		else
+			setCursorPosition(Coordinate{ 0,getScreenSize().y + 1 });
 #ifdef DEBUG
 		DEBUG_LOG("STUI logging stopped");
 		DEBUG_LOG("timing data:\n\trender:\t\t\t" + to_string(debug_timing.d_render) + "\t\t" + to_string(debug_timing.i_render) + "\t\t" + to_string(debug_timing.d_render / debug_timing.i_render)
@@ -2403,7 +2421,6 @@ private:
 	static void linuxControlHandler(int control_type)
 #ifdef STUI_IMPLEMENTATION
 	{
-		tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
 		commonExitHandler();
 	}
 #endif
@@ -2423,7 +2440,7 @@ private:
 	static void commonExitHandler()
 #ifdef STUI_IMPLEMENTATION
 	{
-		unConfigure();
+		unConfigure(true);
 		if (exit_callback != nullptr)
 			exit_callback();
 		exit(0);
@@ -2602,6 +2619,8 @@ inline int Renderer::getConstrainedSize(int available, int _max, int _min)
 #endif
 
 }
+
+#endif
 
 #endif
 

@@ -379,41 +379,61 @@ class QRCodeView : public Component
 public:
     enum QRVersion
     {
-        VER_1 = 21,      // 21x21 pixels
-        VER_2 = 24,      // 25x25 pixels
-        VER_3 = 29,      // 29x29 pixels
-        VER_4 = 33,      // 33x33 pixels
-        VER_10 = 57,     // 57x57 pixels
+        VER_1 = 11,      // 21x21 pixels
+        VER_2 = 13,      // 25x25 pixels
+        VER_3 = 15,      // 29x29 pixels
+        VER_4 = 17,      // 33x33 pixels
+        VER_10 = 29,     // 57x57 pixels
     };
 
-    uint8_t* data;
+    bool* data;
     QRVersion version;
 
-    QRCodeView(uint8_t* _data, QRVersion _version) : data(_data), version(_version) { }
+    QRCodeView(bool* _data, QRVersion _version) : data(_data), version(_version) { }
 
     RENDER_STUB
     {
-        // TODO: document this properly
-        // treat each char as a block of 8x1 characters horizontally
-        // each new row must by byte-aligned
-        int qr_size = (version + 1) / 2;
-        if (size.x < qr_size || size.y <  qr_size) return;
-
-        for (int y = 0; y < qr_size; y++;)
+        const uint32_t chars[16] =
         {
-            for (int x = 0; x < qr_size; x++;)
+            ' ',
+            UNICODE_QUADRANT_TOPLEFT,
+            UNICODE_QUADRANT_TOPRIGHT,
+            UNICODE_QUADRANT_TOP,
+            UNICODE_QUADRANT_LOWERLEFT,
+            UNICODE_QUADRANT_LEFT,
+            UNICODE_QUADRANT_TRAILING,
+            UNICODE_QUADRANT_LOWERRIGHT_INV,
+            UNICODE_QUADRANT_LOWERRIGHT,
+            UNICODE_QUADRANT_LEADING,
+            UNICODE_QUADRANT_RIGHT,
+            UNICODE_QUADRANT_LOWERLEFT_INV,
+            UNICODE_QUADRANT_LOWER,
+            UNICODE_QUADRANT_TOPRIGHT_INV,
+            UNICODE_QUADRANT_TOPLEFT_INV,
+            UNICODE_BLOCK
+        };
+
+        if (size.x < (version * 2) - 1 || size.y < version) return;
+
+        int bytes_length = (version * 2) - 1;
+
+        for (int y = 0; y < version; y++)
+        {
+            for (int x = 0; x < (version * 2) - 1; x++)
             {
-                int top_left_coordinate = ((x * 2) + ((y * 2) * qr_size));
-                int bottom_left_coordinate = top_left_coordinate + qr_size;
-                uint8_t top_byte = data[top_left_coordinate / 8];
-                uint8_t bottom_byte = data[bottom_left_coordinate / 8];
-                bool top_left = top_left_coordinate & 
+                bool top_left       =                                        data[((x + 0) * 2) + ((y + 0) * 2 * bytes_length)];
+                bool top_right      =                    (x < version - 1) ? data[((x + 1) * 2) + ((y + 0) * 2 * bytes_length)] : false;
+                bool bottom_left    =                    (y < version - 1) ? data[((x + 0) * 2) + ((y + 1) * 2 * bytes_length)] : false;
+                bool bottom_right   = (x < version - 1 && y < version - 1) ? data[((x + 1) * 2) + ((y + 1) * 2 * bytes_length)] : false;
+
+                uint8_t index = (bottom_right << 3) | (bottom_left << 2) | (top_right << 1)  | (top_left << 0);
+                output_buffer[x + (y * version)] = chars[index];
             }
         }
     }
 
-    GETMAXSIZE_STUB { return Coordinate{ (version + 1) / 2, (version + 1) / 2 }; }
-    GETMINSIZE_STUB { return Coordinate{ (version + 1) / 2, (version + 1) / 2 }; }
+    GETMAXSIZE_STUB { return Coordinate{ (version * 2) - 1, version }; }
+    GETMINSIZE_STUB { return Coordinate{ (version * 2) - 1, version }; }
 };
 
 }

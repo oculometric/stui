@@ -67,6 +67,8 @@
 #define UNICODE_NOT (uint32_t)0xacc2
 #define UNICODE_CIRCLE_HOLLOW (uint32_t)0xbe8ce2
 #define UNICODE_CIRCLE_FILLED (uint32_t)0x998ae2
+#define UNICODE_ELLIPSIS_HORIZONTAL (uint32_t)0xa680e2
+#define UNICODE_ELLIPSIS_VERTICAL (uint32_t)0xae8be2
 
 #pragma once
 
@@ -1260,7 +1262,7 @@ public:
 class TextInputBox : public Component, public Utility
 {
 	size_t cursor_index = 0;
-	int last_rendered_width = 0;
+	int horizontal_scroll = 0;
 public:
 	string text;
 	void (*callback)();
@@ -1274,10 +1276,11 @@ public:
 #ifdef STUI_IMPLEMENTATION
 	{
 		if (size.y < 1) return;
-		last_rendered_width = size.x;
 
-		drawText("> " + text, Coordinate{ 0,0 }, Coordinate{ size.x - 3,1 }, output_buffer, size);
-		if (enabled) output_buffer[cursor_index + 2].colour = focused ? getHighlightedColour() : getUnfocusedColour();
+		horizontal_scroll = max(0, (static_cast<int>(cursor_index) - size.x) + 3);
+
+		drawText("> " + text, Coordinate{ -horizontal_scroll,0 }, Coordinate{ static_cast<int>(text.length()) + 2,1 }, output_buffer, size);
+		if (enabled) output_buffer[(cursor_index - horizontal_scroll) + 2].colour = focused ? getHighlightedColour() : getUnfocusedColour();
 	}
 #endif
 	;
@@ -1303,7 +1306,7 @@ public:
 			if (input_character == '\b') cursor_index--;
 		} }
 		else if (input_character == '\t') return false;
-		else if (static_cast<int>(cursor_index) < last_rendered_width - 3)
+		else
 		{
 			text.push_back(' ');
 			for (size_t first = text.length() - 1; first > cursor_index; first--)
@@ -1772,7 +1775,7 @@ class ListView : public Component, public Utility
 public:
 	vector<string> elements;
 	int scroll;
-	int selected_index = 0;
+	int selected_index;
 
 	ListView(vector<string> _elements, int _scroll, int _selected_index) : elements(_elements), scroll(_scroll), selected_index(_selected_index) { }
 
@@ -1793,9 +1796,14 @@ public:
 			if (row < 0) continue;
 			if (row >= size.y) break;
 
-			drawText(stripNullsAndMore(element, "\n\t"), Coordinate{ 0, row }, Coordinate{ size.x, 1 }, output_buffer, size);
-			string index_str = " (" + to_string(index) + ")";
-			drawText(index_str, Coordinate{ size.x - static_cast<int>(index_str.length()), row }, Coordinate{ size.x, 1 }, output_buffer, size);
+			if ((row == 0 && index != 0) || (row == size.y - 1 && index != static_cast<int>(elements.size()) - 1))
+				output_buffer[row * size.x] = UNICODE_ELLIPSIS_VERTICAL;
+			else
+			{
+				drawText(stripNullsAndMore(element, "\n\t"), Coordinate{ 0, row }, Coordinate{ size.x, 1 }, output_buffer, size);
+				string index_str = " (" + to_string(index) + ")";
+				drawText(index_str, Coordinate{ size.x - static_cast<int>(index_str.length()), row }, Coordinate{ size.x, 1 }, output_buffer, size);
+			}
 		}
 		
 		fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0, selected_index - scroll }, Coordinate{ size.x,1 }, output_buffer, size);
@@ -1814,13 +1822,13 @@ public:
 		if (input_character == Input::ArrowKeys::DOWN && selected_index < static_cast<int>(elements.size()) - 1)
 		{
 			selected_index++;
-			if (selected_index - scroll >= last_render_height)
+			if (selected_index - scroll >= last_render_height - 1 && (static_cast<int>(elements.size()) - scroll > last_render_height))
 				scroll++;
 		}
 		else if (input_character == Input::ArrowKeys::UP && selected_index > 0)
 		{
 			selected_index--;
-			if (selected_index - scroll < 0 && scroll > 0)
+			if (selected_index - scroll < 1 && scroll > 0)
 				scroll--;
 		}
 		else return false;
@@ -1871,7 +1879,7 @@ public:
 			return;
 		}
 		int top = 0 - static_cast<int>(scroll);
-		printNode(root, 0, top, output_buffer, size);
+		printNode(root, 0, top, output_buffer, size, false);
 	}
 #endif
 	;
@@ -2013,26 +2021,34 @@ private:
 		return current_node;
 	}
 
-	void printNode(Node* node, int depth, int& top, Tixel* output_buffer, Coordinate buffer_size)
+	void printNode(Node* node, int depth, int& top, Tixel* output_buffer, Coordinate buffer_size, bool more_to_draw_after)
 #ifdef STUI_IMPLEMENTATION
 	{
 		if (top >= buffer_size.y) return;
 
 		if (top >= 0)
 		{
-			drawText((node->expanded ? "  " : "> ") + stripNullsAndMore(node->name, "\n\t"), Coordinate{ depth, top }, Coordinate{ buffer_size.x - 2 - depth, 1 }, output_buffer, buffer_size);
-			if (node->expanded) output_buffer[depth + (top * buffer_size.x)] = UNICODE_NOT;
-			string id_desc = " [" + to_string(node->children.size()) + "]";
-			drawText(id_desc, Coordinate{ buffer_size.x - (int)id_desc.length(), top }, Coordinate{ (int)id_desc.length(), 1 }, output_buffer, buffer_size);
+			if (top == buffer_size.y - 1 && more_to_draw_after)
+			{
+				output_buffer[top * buffer_size.x] = UNICODE_ELLIPSIS_VERTICAL;
+			}
+			else
+			{
+				drawText((node->expanded ? "  " : "> ") + stripNullsAndMore(node->name, "\n\t"), Coordinate{ depth, top }, Coordinate{ buffer_size.x - 2 - depth, 1 }, output_buffer, buffer_size);
+				for (int i = 0; i < depth; i++) output_buffer[i + (top * buffer_size.x)] = '|';
+				if (node->expanded) output_buffer[depth + (top * buffer_size.x)] = UNICODE_NOT;
+				string id_desc = " [" + to_string(node->children.size()) + "]";
+				drawText(id_desc, Coordinate{ buffer_size.x - (int)id_desc.length(), top }, Coordinate{ (int)id_desc.length(), 1 }, output_buffer, buffer_size);
+			}
 			if (selected_index == node->id)
 				fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,top, }, Coordinate{ buffer_size.x,1 }, output_buffer, buffer_size);
 		}
 		if (node->expanded)
 		{
-			for (Node* child : node->children)
+			for (size_t i = 0; i < node->children.size(); i++)
 			{
 				top++;
-				printNode(child, depth + 1, top, output_buffer, buffer_size);
+				printNode(node->children[i], depth + 1, top, output_buffer, buffer_size, more_to_draw_after || (i != node->children.size() - 1));
 			}
 		}
 	}
@@ -2261,8 +2277,12 @@ private:
 #if defined(__linux__)
 #ifdef STUI_IMPLEMENTATION
 static termios original_termios;
-static bool linux_resized_triggered;
+static bool linux_resized_triggered = true;
 #endif
+#endif
+
+#ifdef STUI_IMPLEMENTATION
+static void (*exit_callback)() = nullptr;
 #endif
 
 static string default_banner = string("Simple Text UI  Copyright (C) 2024  Jacob Costen\nThis program comes with ABSOLUTELY NO WARRANTY.\nThis is free software, and you are welcome to redistribute it\nunder certain conditions; see the license for details.");
@@ -2311,6 +2331,35 @@ public:
 		BorderedBox bb(&b, "");
 		Renderer::render(&bb);
 		this_thread::sleep_for(chrono::duration<float>(banner_duration_seconds));
+	}
+#endif
+	;
+
+	static void registerExitCallback(void (*callback)())
+#ifdef STUI_IMPLEMENTATION
+	{
+		exit_callback = callback;
+	}
+#endif
+	;
+
+	static void unConfigure()
+#ifdef STUI_IMPLEMENTATION
+	{
+		setCursorVisible(true);
+		clear();
+		setCursorPosition(Coordinate{ 0,0 });
+#ifdef DEBUG
+		DEBUG_LOG("STUI logging stopped");
+		DEBUG_LOG("timing data:\n\trender:\t\t\t" + to_string(debug_timing.d_render) + "\t\t" + to_string(debug_timing.i_render) + "\t\t" + to_string(debug_timing.d_render / debug_timing.i_render)
+		                    + "\n\ttranscoding:\t" + to_string(debug_timing.d_transcoding) + "\t\t" + to_string(debug_timing.i_transcoding) + "\t\t" + to_string(debug_timing.d_transcoding / debug_timing.i_transcoding)
+		                    + "\n\tmakebuffer:\t\t" + to_string(debug_timing.d_makebuffer) + "\t\t" + to_string(debug_timing.i_makebuffer) + "\t\t" + to_string(debug_timing.d_makebuffer / debug_timing.i_makebuffer)
+		                    + "\n\tcopybuffer:\t\t" + to_string(debug_timing.d_copybuffer) + "\t\t" + to_string(debug_timing.i_copybuffer) + "\t\t" + to_string(debug_timing.d_copybuffer / debug_timing.i_copybuffer)
+		                    + "\n\tdrawtext:\t\t" + to_string(debug_timing.d_drawtext) + "\t\t" + to_string(debug_timing.i_drawtext) + "\t\t" + to_string(debug_timing.d_drawtext / debug_timing.i_drawtext)
+				);
+		
+		debug_log.close();
+#endif
 	}
 #endif
 	;
@@ -2371,24 +2420,16 @@ private:
 
 #endif
 
-	static inline void commonExitHandler()
+	static void commonExitHandler()
+#ifdef STUI_IMPLEMENTATION
 	{
-		setCursorVisible(true);
-		clear();
-		setCursorPosition(Coordinate{ 0,0 });
-#ifdef DEBUG
-		DEBUG_LOG("STUI logging stopped");
-		DEBUG_LOG("timing data:\n\trender:\t\t\t" + to_string(debug_timing.d_render) + "\t\t" + to_string(debug_timing.i_render) + "\t\t" + to_string(debug_timing.d_render / debug_timing.i_render)
-		                    + "\n\ttranscoding:\t" + to_string(debug_timing.d_transcoding) + "\t\t" + to_string(debug_timing.i_transcoding) + "\t\t" + to_string(debug_timing.d_transcoding / debug_timing.i_transcoding)
-		                    + "\n\tmakebuffer:\t\t" + to_string(debug_timing.d_makebuffer) + "\t\t" + to_string(debug_timing.i_makebuffer) + "\t\t" + to_string(debug_timing.d_makebuffer / debug_timing.i_makebuffer)
-		                    + "\n\tcopybuffer:\t\t" + to_string(debug_timing.d_copybuffer) + "\t\t" + to_string(debug_timing.i_copybuffer) + "\t\t" + to_string(debug_timing.d_copybuffer / debug_timing.i_copybuffer)
-		                    + "\n\tdrawtext:\t\t" + to_string(debug_timing.d_drawtext) + "\t\t" + to_string(debug_timing.i_drawtext) + "\t\t" + to_string(debug_timing.d_drawtext / debug_timing.i_drawtext)
-				);
-		
-		debug_log.close();
-#endif
+		unConfigure();
+		if (exit_callback != nullptr)
+			exit_callback();
 		exit(0);
 	}
+#endif
+	;
 
 	/**
 	 * @brief clear the entire terminal, including scrollback and onscreen buffers
@@ -2612,5 +2653,7 @@ inline int Renderer::getConstrainedSize(int available, int _max, int _min)
 #undef UNICODE_NOT
 #undef UNICODE_CIRCLE_HOLLOW
 #undef UNICODE_CIRCLE_FILLED
+#undef UNICODE_ELLIPSIS_HORIZONTAL
+#undef UNICODE_ELLIPSIS_VERTICAL
 
 #endif

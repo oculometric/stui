@@ -2,9 +2,6 @@
 
 ## Misc
 - [ ] figure out some update-loop system to integrate with page?                                                            (v0.4)
-- [ ] potentially make scrollable views with extra space have a '...' to indicate more content                              (v0.3)
-- [ ] make it possible to un-configure the terminal                                                                         (v0.3)
-- [ ] allow the user to configure callbacks for program exit                                                                (v0.3)
 
 ## LayoutScript
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions        (v0.4)
@@ -13,14 +10,19 @@
 - [ ] migrate away from PageManager                                                                                         (v0.4)
 
 ## New Components
-- [ ] add editable text area                                                                                                (v0.3)
+- [ ] add editable text area                                                                                                (v0.3) < 4
 
 ## Comments
-- [ ] add doxy and detailed comments to stui_external.h                                                                     (v0.4)
+- [ ] add doxy and detailed comments to stui_script.h                                                                       (v0.4)
 
 ## Input
-- [ ] horizontal scrolling for input box                                                                                    (v0.3)
-- [ ] update windows input reading to match linux                                                                           (v0.3)
+- [ ] update windows input reading to match linux                                                                           (v0.3) < 2
+
+# Completed v0.3
+- [x] allow the user to configure callbacks for program exit                                                                (v0.3)
+- [x] make it possible to un-configure the terminal                                                                         (v0.3)
+- [x] potentially make scrollable views with extra space have a '...' to indicate more content                              (v0.3)
+- [x] horizontal scrolling for input box                                                                                    (v0.3)
 
 # Completed v0.2
 - [x] fix framerate targeting                                                                                               (v0.2)

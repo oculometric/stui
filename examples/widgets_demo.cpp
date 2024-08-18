@@ -58,11 +58,36 @@ int main(int argc, char** argv)
     for (int i = 0; i < argc; i++)
         args.push_back(argv[i]);
     args.push_back("and heres the last");
+    args.push_back("item a");
+    args.push_back("item b");
+    args.push_back("item c");
+    args.push_back("item d");
+    args.push_back("item e");
+    args.push_back("item f");
+    args.push_back("item g");
     stui::ListView list(args, 0, 0);
     stui::BorderedBox box2(&list, "program args");
 
-    // TODO: build the tree demo
-    stui::TreeView tree(nullptr, 0, 0);
+    stui::TreeView::Node root_node
+    {
+        "root",
+        { 
+            new stui::TreeView::Node{ "a", { }, 1, false },
+            new stui::TreeView::Node{ "b", { }, 2, false },
+            new stui::TreeView::Node{ "c", 
+            {
+                new stui::TreeView::Node{ "0", { }, 11, false },
+                new stui::TreeView::Node{ "1", { }, 12, false },
+                new stui::TreeView::Node{ "2", { }, 13, false },
+                new stui::TreeView::Node{ "3", { }, 14, false }
+            }, 5, false },
+            new stui::TreeView::Node{ "d", { }, 3, false },
+            new stui::TreeView::Node{ "e", { }, 4, false }
+        },
+        0,
+        false
+    };
+    stui::TreeView tree(&root_node, 0, 0);
     stui::BorderedBox box3(&tree, "tree demo");
 
     stui::VerticalBox left_box({ &box2, &box3 });
@@ -92,7 +117,6 @@ int main(int argc, char** argv)
         if (timer > 2.0f)
         {
             timer -= 2.0f;
-            tree.scroll++;
         }
 
         for (size_t i = 0; i < focusables.size(); i++) focusables[i]->focused = (i == focus_index);

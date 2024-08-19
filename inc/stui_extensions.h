@@ -372,7 +372,8 @@ private:
 };
 
 /**
- * @brief renders a QR code inside the terminal
+ * @brief renders a QR code inside the terminal. data buffer must be an array
+ * of booleans, sized to provide enough data for the QR code version selected.
  */
 class QRCodeView : public Component
 {
@@ -393,23 +394,11 @@ public:
 
     RENDER_STUB
     {
-        const uint32_t chars[16] =
+        const uint32_t chars[4] =
         {
             ' ',
-            UNICODE_QUADRANT_TOPLEFT,
-            UNICODE_QUADRANT_TOPRIGHT,
             UNICODE_QUADRANT_TOP,
-            UNICODE_QUADRANT_LOWERLEFT,
-            UNICODE_QUADRANT_LEFT,
-            UNICODE_QUADRANT_TRAILING,
-            UNICODE_QUADRANT_LOWERRIGHT_INV,
-            UNICODE_QUADRANT_LOWERRIGHT,
-            UNICODE_QUADRANT_LEADING,
-            UNICODE_QUADRANT_RIGHT,
-            UNICODE_QUADRANT_LOWERLEFT_INV,
             UNICODE_QUADRANT_LOWER,
-            UNICODE_QUADRANT_TOPRIGHT_INV,
-            UNICODE_QUADRANT_TOPLEFT_INV,
             UNICODE_BLOCK
         };
 
@@ -421,13 +410,11 @@ public:
         {
             for (int x = 0; x < (version * 2) - 1; x++)
             {
-                bool top_left       =                                        data[((x + 0) * 2) + ((y + 0) * 2 * bytes_length)];
-                bool top_right      =                    (x < version - 1) ? data[((x + 1) * 2) + ((y + 0) * 2 * bytes_length)] : false;
-                bool bottom_left    =                    (y < version - 1) ? data[((x + 0) * 2) + ((y + 1) * 2 * bytes_length)] : false;
-                bool bottom_right   = (x < version - 1 && y < version - 1) ? data[((x + 1) * 2) + ((y + 1) * 2 * bytes_length)] : false;
+                bool top       =                     data[x + (((y * 2) + 0) * bytes_length)];
+                bool bottom    = (y < version - 1) ? data[x + (((y * 2) + 1) * bytes_length)] : false;
 
-                uint8_t index = (bottom_right << 3) | (bottom_left << 2) | (top_right << 1)  | (top_left << 0);
-                output_buffer[x + (y * version)] = chars[index];
+                uint8_t index = (bottom << 1) | (top << 0);
+                output_buffer[x + (y * ((version * 2) - 1))] = chars[index];
             }
         }
     }

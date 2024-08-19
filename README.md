@@ -37,3 +37,5 @@ if there is a bug that needs fixing, or something missing, please submit an issu
 ## Installation and Usage
 
 see the [HELP.md](help.md) file for a proper explanation, but all you need to do is `git submodule add` this project (or just clone it separately and keep the `inc` directory somewhere handy) and add the `inc` directory as an include path for your compiler. then you're good to go with creating UI elements and drawing them in the terminal. _happy widgeting!_
+
+Copyright (C) 2024  Jacob Costen

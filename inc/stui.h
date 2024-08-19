@@ -2196,7 +2196,7 @@ public:
 /**
  * @brief displays a block of text in the center of it's area.
  * 
- * does not wrap text, but does respect line breaks using \n.
+ * does not wrap text, but does respect line breaks using `\n`.
  **/
 class Banner : public Component, public Utility
 {

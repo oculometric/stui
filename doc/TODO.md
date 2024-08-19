@@ -1,20 +1,6 @@
 # To-Dos
 
-## Misc
-
-## LayoutScript
-- [ ] complete implementation of LayoutScript reading                                                                       (v0.4)
-- [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions        (v0.4)
-- [ ] have errors displayed with a line number and an offset along the line (only show the line number)                     (v0.4)
-- [ ] migrate away from PageManager                                                                                         (v0.4)
-
-## New Components
-- [ ] add editable text area                                                                                                (v0.5)
-
-## Comments
-- [ ] add doxy and detailed comments to stui_script.h                                                                       (v0.4)
-
-## Input
+- [ ] add editable text area component
 
 # Completed v0.3
 - [x] allow the user to configure callbacks for program exit                                                                (v0.3)

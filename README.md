@@ -13,7 +13,6 @@ i sorta just summarised them above didn't i but here you go again:
 - **header-only** - no extra compiler options, no extra DLLs you need to ship, it all just builds into a single executable
 - **supports Unicode glyphs** - assuming your terminal can display them, `Component`s can draw Unicode characters (e.g. for boxes, spinners, etc)
 - **modular** - manage you UI behaviour manually, or use the `Page` extension to handle `Component` management and focus for you
-- **scriptable** - (WIP) build you UI in a simple structured language, making building complex UI pages much easier and more human-readable
 
 ## Purpose
 

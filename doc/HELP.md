@@ -4,7 +4,7 @@
 
 Simple Text User Interface gives you a lightweight toolkit to build interactive interfaces inside the terminal window.
 
-it's header only, so project setup simply involves adding the [stui.h](stui.h) file to your project somehow and `#include`-ing it (though actually you should probably add the whole project as a git submodule or something). the option [stui_extensions](stui_extensions.h) file gives you a useful class for managing an entire interface page in one class. there is also the optional [stui_script.h](stui_script.h) file which provides support for reading LayoutScript files into a functional UI tree.
+it's header only, so project setup simply involves adding the [stui.h](stui.h) file to your project somehow and `#include`-ing it (though actually you should probably add the whole project as a git submodule or something). the option [stui_extensions](stui_extensions.h) file gives you a useful class for managing an entire interface page in one class.
 
 the most basic use of the library simply invovles creating a `Component` and calling `Renderer::render` on it. interface layouts can then be built up from a combination of nested elements, and you just call `Renderer::render` on the root element. **however, you must call `Terminal::configure` first for the terminal window to behave correctly.**
 
@@ -147,9 +147,9 @@ let's add a component that's capable of receiving user input, a `TextInputBox`. 
 after this you should have a terminal which looks something like this:
 ```
 Hello, World!                                       
-┏━━input widget━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃> type something                                                                                        ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ 
+┏━━input widget━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃> type something                                                               ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ 
 
 
 
@@ -353,20 +353,20 @@ Terminal::configure("My Performance Monitoring Tool", 1.5f);
 ```
 
 ```
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃                                                                                                        ┃
-┃                                                                                                        ┃
-┃                                       My Performance Monitoring Tool                                   ┃
-┃                                                                                                        ┃
-┃                                                   using                                                ┃
-┃                               Simple Text UI  Copyright (C) 2024  Jacob Costen                         ┃
-┃                                This program comes with ABSOLUTELY NO WARRANTY.                         ┃
-┃                            This is free software, and you are welcome to redistribute it               ┃
-┃                               under certain conditions; see the license for details.                   ┃
-┃                                                                                                        ┃
-┃                                                                                                        ┃
-┃                                                                                                        ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                                                                           ┃
+┃                                                                           ┃
+┃                  My Performance Monitoring Tool                           ┃
+┃                                                                           ┃
+┃                              using                                        ┃
+┃          Simple Text UI  Copyright (C) 2024  Jacob Costen                 ┃
+┃           This program comes with ABSOLUTELY NO WARRANTY.                 ┃
+┃       This is free software, and you are welcome to redistribute it       ┃
+┃          under certain conditions; see the license for details.           ┃
+┃                                                                           ┃
+┃                                                                           ┃
+┃                                                                           ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
 ### Interface Design Guidance
@@ -459,101 +459,4 @@ if you want to know how to use each `Component` class, look in [stui.h](stui.h).
 
 ## LayoutScript Reference
 
-**WARNING: LayoutScript support is currently totally non-functional. don't even bother trying to `#include` the script module, it has compile errors. the documentation below is subject to change and is incomplete. i procrastinated it `:(`**
-
-LayoutScript is a simple, structured language for defining the layout of a user interface page, based vaguely on C syntax. it consists of a tree of `Component` definitions. it is loaded by the `PageManager` class which also manages all the resources of the Page for you.
-
-### LayoutScript Syntax Summary
-
-`Component`s are defined as follows:
-```
-Text : "text_widget" ("Hello, World!, -1)
-```
-easy right? here's a breakdown:
-
-`Text` - class name of the `Component` type being defined
-
-`"text_widget"` - string identifier for the `Component`s
-
-`("Hello, World!, -1)` - initialiser parameter list, consisting of a string and an integer
-
-in this case, we're creating a Text `Component`, with the identifier _text_widget_, and initialising it with the text "Hello, World!", and alignment of -1 (i.e. left-aligned).
-
-some `Component`s take other `Component`s as initialisation arguments, in which case we can do something like:
-```
-SizeLimiter 
-(
-    Text : "text_widget" ("Hello, Again!, -1),
-    [ 5, 1 ]
-)
-```
-as you can see, we can nest component definitions, and the inner `Component`s will be handled recursively.
-
-another thing you may notice here is that the `SizeLimiter` does not have an identifier. this is perfectly legal, as the loader will generate a unique name for it at load time, but it will make it hard to get access to from the C++ side if we don't know its name.
-
-we've also used another argument type here: a `Coordinate`, as specified by the `[ x, y ]` syntax.
-
-some `Component`s require arrays for initialisation. we can do that too!
-```
-VerticalBox
-({
-    SizeLimiter 
-    (
-        Text : "text_widget" ("Hello, Again!, -1),
-        [ 5, 1 ]
-    ),
-    ProgressBar : "progress_bar" (0.3)
-})
-```
-as you can see, arrays are denoted using `{...}`. arrays must always contain a single type of element, but can be formed of any of the other fundamental types. **you cannot form arrays of arrays.**
-
-in this example we've also discovered another fundamental type: floating point numbers. unlike C++, these should not have an 'f' at the end. as long as it is formatted as `a.bcd` (or however many decimals you require) it will be interpreted as a float instead of an integer.
-
-**note that all whitespacing is optional in LayoutScript.** you're free to format your code in whatever abomination of a scheme you prefer (or no scheme at all). all whitespace outside strings is stripped during parsing.
-
-### Component Identifiers
-
-indentifiers make it easy to reference elements defined in your layout file from within your C++ code. for instance, you might want to access our `"text_widget"` `Component` to change its text later.
-
-for some `Component`s these are very important, as something like an `ImageView` can't be properly initialised in the layout file.
-
-however, identifiers are optional, and for `Component`s that you don't care about changing later (e.g. if you have a `HorizontalBox` which will always hold a text box and an image and will never have new `Component`s added or removed, then it doesn't necessarily need an identifier). the loader will automatically assign unique identifiers to every `Component` that doesn't have one specified, in the format `"__component_n"` where `n` is the next number after the previous identifier.
-
-the loader will also automatically resolve naming collisions: if you have two `Component`s with the same identifier, one will have its identifier replaced with a unique identifier in the format above.
-
-### Fundamental Types
-
-| type        | example     | notes                                                          |
-|------       |---------    |-------                                                         |
-|string       |`"hello"`    |                                                                |
-|int          |`-4`         |signed                                                          |
-|float        |`-0.1`       |does not need an 'f' signifier at the end                       |
-|Component    |`Text(...)`  |see above for more detailed syntax                              |
-|Coordinate   |`[ 3,-1 ]`   |both components must be present and must be ints                |
-|array        |`{...}`      |must consist of a single type of item, which cannot be another array |
-
-### Comments
-
-the loader supports comments, both whole-line comments of this format
-```
-SizeLimiter 
-( // everything after the double-slash will be removed, up until a newline
-    Text : "text_widget" ("Hello, World!, -1),
-    [ 5, 1 ]
-    // same for this
-)
-```
-and mid-line comments of this format
-```
-Text : /* things between these symbols will be removed */ "text_widget" ("Hello, World!" /* even this */, -1)
-```
-
-### Error Reporting
-
-the loader reports fairly descriptive errors if it encounters invalid syntax while parsing. however, more detailed explanations of errors and how to remedy them are below.
-
-// TODO: error reporting documentation
-
-### Integrating with C++
-
-the `PageManager` keeps track of your entire UI tree for you, how great is that! the `PageManager` handles loading LayoutScript files for you. actually nevermind, i haven't actually written this bit of code yet so i won't document it yet either // TODO: ls/c++ integration documentation
+LayoutScript is being developed in another branch. look there for the documentation for now.

@@ -20,10 +20,6 @@ page_usage: $(BIN)
 qr_demo: $(BIN)
 	@g++ -o $(BIN)/qr_demo $(CC_FLAGS) examples/qr_demo.cpp
 	@$(BIN)/qr_demo
-
-doxygen:
-	@echo "generate the doxygen docs!"
-
 clean:
 	rm widgets_demo
 

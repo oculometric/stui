@@ -4,7 +4,8 @@ a lightweight, easy-to-use, header-only, semi-immediate-mode TUI framework for b
 
 ## Key Features
 
-[the project i developed this library for, my FBX file debug tool](doc/fbx_debug_tool.png)
+![](doc/fbx_debug_tool.png)
+_the project i developed this library for, my FBX file debug tool_
 
 i sorta just summarised them above didn't i but here you go again:
 - **cross-platform** - tested on Windows and Linux (including WSL)
@@ -16,7 +17,8 @@ i sorta just summarised them above didn't i but here you go again:
 - **supports Unicode glyphs** - assuming your terminal can display them, `Component`s can draw Unicode characters (e.g. for boxes, spinners, etc)
 - **modular** - manage you UI behaviour manually, or use the `Page` extension to handle `Component` management and focus for you
 
-[showing off most of the available widgets. see widgets_demo.cpp](doc/widgets_demo.png)
+![](doc/widgets_demo.png)
+_showing off most of the available widgets. see widgets_demo.cpp_
 
 ## Purpose
 

@@ -95,7 +95,9 @@ int main(int argc, char** argv)
 
     stui::HorizontalBox lower_box({ &left_limiter, &right_box });
 
-    stui::VerticalBox root({ &top_box, &pb, &box0, &vs, &lower_box });
+    stui::HorizontalDivider hd;
+
+    stui::VerticalBox root({ &top_box, &hd, &pb, &box0, &vs, &lower_box });
 
     auto frame_time = clock_type::now();
     float timer = 0.0f;

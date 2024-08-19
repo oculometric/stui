@@ -73,6 +73,8 @@
 #define UNICODE_BOXLIGHT_UPRIGHT (uint32_t)0x9494e2
 #define UNICODE_BOXLIGHT_UPRIGHTDOWN (uint32_t)0x9c94e2
 #define UNICODE_BOXLIGHT_UPRIGHTDOWNLEFT (uint32_t)0xbc94e2
+#define UNICODE_BOXLIGHT_VERTICAL (uint32_t)0x8294e2
+#define UNICODE_BOXLIGHT_HORIZONTAL (uint32_t)0x8094e2
 #define UNICODE_MIDDLE_DOT (uint32_t)0xb7c2
 #define UNICODE_NOT (uint32_t)0xacc2
 #define UNICODE_CIRCLE_HOLLOW (uint32_t)0xbe8ce2
@@ -2227,6 +2229,58 @@ public:
 
 	GETMAXSIZE_STUB { return Coordinate{ -1,-1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 4, 1 }; }
+};
+
+/**
+ * @brief provides a vertical line which can be placed between two components
+ * arranged next to one another horizontally to separate them visually.
+ */
+class VerticalDivider : public Component
+{
+public:
+	VerticalDivider() { };
+
+	GETTYPENAME_STUB("VerticalDivider");
+
+	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
+	{
+		if (size.x < 1) return;
+
+		for (int i = 0; i < size.y; i++)
+			output_buffer[i * size.x] = UNICODE_BOXLIGHT_VERTICAL;
+	}
+#endif
+	;
+
+	GETMAXSIZE_STUB { return Coordinate{ 1,-1 }; }
+	GETMINSIZE_STUB { return Coordinate{ 1, 1 }; }
+};
+
+/**
+ * @brief provides a horizontal line which can be placed between two components
+ * arranged next to one another vertically to separate them visually.
+ */
+class HorizontalDivider : public Component
+{
+public:
+	HorizontalDivider() { };
+
+	GETTYPENAME_STUB("HorizontalDivider");
+
+	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
+	{
+		if (size.y < 1) return;
+
+		for (int i = 0; i < size.x; i++)
+			output_buffer[i] = UNICODE_BOXLIGHT_HORIZONTAL;
+	}
+#endif
+	;
+
+	GETMAXSIZE_STUB { return Coordinate{ -1,1 }; }
+	GETMINSIZE_STUB { return Coordinate{ 1, 1 }; }
 };
 
 /**

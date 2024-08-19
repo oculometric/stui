@@ -4,7 +4,8 @@ a lightweight, easy-to-use, header-only, semi-immediate-mode TUI framework for b
 
 ## Key Features
 
-[the project i developed this library for, my FBX file debug tool](doc/fbx_debug_tool.png)
+![](doc/fbx_debug_tool.png)
+_the project i developed this library for, my FBX file debug tool_
 
 i sorta just summarised them above didn't i but here you go again:
 - **cross-platform** - tested on Windows and Linux (including WSL)
@@ -16,7 +17,8 @@ i sorta just summarised them above didn't i but here you go again:
 - **supports Unicode glyphs** - assuming your terminal can display them, `Component`s can draw Unicode characters (e.g. for boxes, spinners, etc)
 - **modular** - manage you UI behaviour manually, or use the `Page` extension to handle `Component` management and focus for you
 
-[showing off most of the available widgets. see widgets_demo.cpp](doc/widgets_demo.png)
+![](doc/widgets_demo.png)
+_showing off most of the available widgets. see widgets_demo.cpp_
 
 ## Purpose
 
@@ -35,3 +37,5 @@ if there is a bug that needs fixing, or something missing, please submit an issu
 ## Installation and Usage
 
 see the [HELP.md](help.md) file for a proper explanation, but all you need to do is `git submodule add` this project (or just clone it separately and keep the `inc` directory somewhere handy) and add the `inc` directory as an include path for your compiler. then you're good to go with creating UI elements and drawing them in the terminal. _happy widgeting!_
+
+Copyright (C) 2024  Jacob Costen

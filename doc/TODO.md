@@ -1,17 +1,15 @@
 # To-Dos
 
 ## Misc
-- [ ] figure out some update-loop system to integrate with page?                                                            (v0.4)
 
 ## LayoutScript
+- [ ] complete implementation of LayoutScript reading                                                                       (v0.4)
 - [ ] implement quotation escape sequence for strip, extract, matching closing brace, and split comma list functions        (v0.4)
-- [ ] complete ability to read UI from file                                                                                 (v0.4)
 - [ ] have errors displayed with a line number and an offset along the line (only show the line number)                     (v0.4)
 - [ ] migrate away from PageManager                                                                                         (v0.4)
 
 ## New Components
 - [ ] add editable text area                                                                                                (v0.5)
-- [ ] QR code renderer                                                                                                      (v0.3)
 
 ## Comments
 - [ ] add doxy and detailed comments to stui_script.h                                                                       (v0.4)
@@ -24,6 +22,7 @@
 - [x] potentially make scrollable views with extra space have a '...' to indicate more content                              (v0.3)
 - [x] horizontal scrolling for input box                                                                                    (v0.3)
 - [x] update windows input reading to match linux                                                                           (v0.3)
+- [x] QR code renderer                                                                                                      (v0.3)
 
 # Completed v0.2
 - [x] fix framerate targeting                                                                                               (v0.2)
@@ -35,7 +34,7 @@
 - [x] update help (do this last probably)                                                                                   (v0.2)
 - [x] make some demo files (.layout, .cpp)                                                                                  (v0.2)
 
-# Completed
+# Completed v0.1
 - [x] list view
 - [x] bordered box
 - [x] tab menu to switch between pages (accessed via number keys)

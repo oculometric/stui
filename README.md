@@ -4,6 +4,8 @@ a lightweight, easy-to-use, header-only, semi-immediate-mode TUI framework for b
 
 ## Key Features
 
+[the project i developed this library for, my FBX file debug tool](doc/fbx_debug_tool.png)
+
 i sorta just summarised them above didn't i but here you go again:
 - **cross-platform** - tested on Windows and Linux (including WSL)
 - **lightweight** - simple components and architectured with efficiency in mind, including giving you tools to limit your framerate and only redraw when necessary
@@ -14,6 +16,8 @@ i sorta just summarised them above didn't i but here you go again:
 - **supports Unicode glyphs** - assuming your terminal can display them, `Component`s can draw Unicode characters (e.g. for boxes, spinners, etc)
 - **modular** - manage you UI behaviour manually, or use the `Page` extension to handle `Component` management and focus for you
 
+[showing off most of the available widgets. see widgets_demo.cpp](doc/widgets_demo.png)
+
 ## Purpose
 
 i started writing a tool for debugging FBX files, and i wanted to have a little UI for it displayed in the terminal so you could browse the NodeRecord tree. since i couldn't seem to find any decent, easy-to-use TUI frameworks (my main requirements being header-only and cross-platform), *un*fortunately this cast me into a rabbit hole of building my own library to do that. and now you have this project.
@@ -22,7 +26,11 @@ the project concept was partly inspired by [gitui](https://github.com/extrawurst
 
 ## Status
 
-i'm actively developing this at the moment. see the TODO list file for what i'm probably working on. once the project is complete and fully documented, i'll likely not be actively adding stuff. i'll do my best to respond to issues on Github.
+i'm not actively developing this at the moment. the project is reasonably complete and documented as it is. i'd really like to develop a scripting language for building UIs (see the layout-script branch) but it's not my priority right now.
+
+if there's something you'd really like to see added, or something you've added that you want merged, i'll look into it.
+
+if there is a bug that needs fixing, or something missing, please submit an issue and i'll endeavour to address it.
 
 ## Installation and Usage
 

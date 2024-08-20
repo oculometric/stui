@@ -17,6 +17,9 @@ i sorta just summarised them above didn't i but here you go again:
 - **supports Unicode glyphs** - assuming your terminal can display them, `Component`s can draw Unicode characters (e.g. for boxes, spinners, etc)
 - **modular** - manage you UI behaviour manually, or use the `Page` extension to handle `Component` management and focus for you
 
+![](stui_compiler.gif)
+_TUI-driven compiler tool to demonstrate widgets and callbacks. see compiler_tool.cpp_
+
 ![](doc/widgets_demo.png)
 _showing off most of the available widgets. see widgets_demo.cpp_
 

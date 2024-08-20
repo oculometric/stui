@@ -1299,6 +1299,7 @@ public:
 	{
 		if (size.y < 1) return;
 
+		cursor_index = min(cursor_index, text.length());
 		horizontal_scroll = max(0, (static_cast<int>(cursor_index) - size.x) + 3);
 
 		drawText("> " + text, Coordinate{ -horizontal_scroll,0 }, Coordinate{ static_cast<int>(text.length()) + 2,1 }, output_buffer, size);

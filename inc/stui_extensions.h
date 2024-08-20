@@ -289,16 +289,18 @@ public:
         return false;
     }
 
-private:
     /**
      * @brief ensures that only one component is focused. specifically the 
-     * one indexed by `focused_component_index`.
+     * one indexed by `focused_component_index`. you should call this if you make
+     * manual changes to the list of of focusable components or the focused component
+     * index.
      */
     inline void updateFocus()
     {
         for (size_t i = 0; i < focusable_component_sequence.size(); i++)
             focusable_component_sequence[i]->focused = (i == focused_component_index);
     }
+private:
 
     /**
      * @brief callback for when the shortcut for advancing to the next focusable

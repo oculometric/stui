@@ -18,6 +18,7 @@ i sorta just summarised them above didn't i but here you go again:
 - **modular** - manage you UI behaviour manually, or use the `Page` extension to handle `Component` management and focus for you
 
 ![](stui_compiler.gif)
+
 _TUI-driven compiler tool to demonstrate widgets and callbacks. see compiler_tool.cpp_
 
 ![](doc/widgets_demo.png)

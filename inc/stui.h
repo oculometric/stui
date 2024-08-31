@@ -2639,6 +2639,7 @@ void Renderer::render(Component* root_component)
 	DEBUG_TIMER_E(transcoding);
 
 	OUTPUT_TARGET << output;
+	OUTPUT_TARGET.flush();
 
 	delete[] root_staging_buffer;
 }

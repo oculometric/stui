@@ -182,11 +182,11 @@ inline void debug(string str)
 string stripNullsAndMore(string str, const char* others)
 #ifdef STUI_IMPLEMENTATION
 {
-    string result = "";
-    for (char c : str)
-    {
+	string result = "";
+	for (char c : str)
+	{
 		// auto-strip if the character is a non-renderable
-        if (c < ' ' && c != '\n' && c != '\t' && c != '\b') continue;
+		if (c < ' ' && c != '\n' && c != '\t' && c != '\b') continue;
 		// check if the current char is inside list to remove
 		bool is_valid = true;
 		for (size_t i = 0; others[i] != '\0'; i++)
@@ -197,8 +197,8 @@ string stripNullsAndMore(string str, const char* others)
 			if (c == '\t') result += "    ";
 			else result += c;
 		}
-    }
-    return result;
+	}
+	return result;
 }
 #endif
 ;
@@ -591,15 +591,15 @@ private:
 		{
 			Key k = key_events[i];
 			if ((k.control_states == ControlKeys::NONE || k.control_states == ControlKeys::SHIFT) && (
-				  (k.key >= 32 && k.key <= 127) 
-				|| k.key == '\n' 
-				|| k.key == '\t' 
-				|| k.key == '\b'
-				|| k.key == 127
-				|| k.key == ArrowKeys::UP
-				|| k.key == ArrowKeys::DOWN
-				|| k.key == ArrowKeys::LEFT
-				|| k.key == ArrowKeys::RIGHT))
+			      (k.key >= 32 && k.key <= 127) 
+			    || k.key == '\n' 
+			    || k.key == '\t' 
+			    || k.key == '\b'
+			    || k.key == 127
+			    || k.key == ArrowKeys::UP
+			    || k.key == ArrowKeys::DOWN
+			    || k.key == ArrowKeys::LEFT
+			    || k.key == ArrowKeys::RIGHT))
 			{
 				result.push_back(pair<uint8_t, ControlKeys>(static_cast<uint8_t>(k.key), k.control_states));
 			}

@@ -2387,6 +2387,7 @@ public:
 #endif
 #if defined(_WIN32)
 		SetConsoleCtrlHandler(windowsControlHandler, true);
+		SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), ENABLE_VIRTUAL_TERMINAL_PROCESSING | ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT);
 #elif defined(__linux__)
 		signal(SIGINT, linuxControlHandler);
 		signal(SIGQUIT, linuxControlHandler);
@@ -2531,7 +2532,7 @@ private:
 #if defined(_WIN32)
 		CONSOLE_SCREEN_BUFFER_INFO info;
 		GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
-		return Coordinate{ info.dwSize.X, info.dwSize.Y };
+		return Coordinate{ (info.srWindow.Right - info.srWindow.Left) + 1, (info.srWindow.Bottom - info.srWindow.Top) + 1 };
 #elif defined(__linux__)
 		struct winsize size;
 		ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);

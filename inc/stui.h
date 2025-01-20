@@ -1551,17 +1551,21 @@ public:
 			return;
 		}
 
+		bool changed;
 		while (budget > 0)
 		{
+			changed = false;
 			for (size_t i = 0; i < children.size(); i++)
 			{
 				if (calculated_heights[i] >= max_heights[i] && max_heights[i] != -1) continue;
 
 				calculated_heights[i]++;
+				changed = true;
 
 				budget--;
 				if (budget == 0) break;
 			}
+			if (!changed) break;
 		}
 
 		int y_offset = 0;
@@ -1647,17 +1651,21 @@ public:
 		int budget = size.x - total_width;
 		if (budget < 0) return;
 
+		bool changed;
 		while (budget > 0)
 		{
+			changed = false;
 			for (size_t i = 0; i < children.size(); i++)
 			{
 				if (calculated_widths[i] >= max_widths[i] && max_widths[i] != -1) continue;
 
 				calculated_widths[i]++;
+				changed = true;
 
 				budget--;
 				if (budget == 0) break;
 			}
+			if (!changed) break;
 		}
 
 		int x_offset = 0;

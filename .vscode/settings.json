@@ -63,6 +63,11 @@
         "thread": "cpp",
         "typeinfo": "cpp",
         "fstream": "cpp",
-        "iomanip": "cpp"
+        "iomanip": "cpp",
+        "charconv": "cpp",
+        "optional": "cpp",
+        "span": "cpp",
+        "text_encoding": "cpp",
+        "variant": "cpp"
     }
 }

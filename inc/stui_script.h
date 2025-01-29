@@ -23,233 +23,159 @@
 
 #define STUI_KEEP_DEFINES
 #include "stui.h"
+#include "stui_extensions.h"
 #undef STUI_KEEP_DEFINES
 
-#include <map>
+#include <iostream>
+#include <fstream>
 
 namespace stui
 {
 
-class PageManager
+class ComponentBuilder
+{
+// TODO:
+};
+
+class LayoutReader
 {
 private:
-	vector<Component*> pages;
-	map<string, Component*> components;
+    enum TokenType
+    {
+        TEXT,
+        OPEN_ROUND,
+        CLOSE_ROUND,
+        OPEN_CURLY,
+        CLOSE_CURLY,
+        NEWLINE,
+        COLON,
+        STRING,
+        INT,
+        FLOAT,
+        COMMA,
+        COORDINATE,
+        EQUALS,
+        COMMENT,
+        WHITESPACE
+    };
+
+    struct Token
+    {
+        TokenType type;
+        union
+        {
+            string s_value = "";
+            int i_value;
+            float f_value;
+            Coordinate c_value;
+        };
+        size_t start_offset = 0;
+
+        inline Token(TokenType ttype)
+        {
+            type = ttype;
+            start_offset = 0;
+
+            switch(ttype)
+            {
+                case TEXT:
+                case STRING:
+                case COMMENT:
+                    s_value = "";
+                    break;
+                case COORDINATE:
+                    c_value = Coordinate{0, 0};
+                    break;
+                case INT:
+                    i_value = 0;
+                    break;
+                case FLOAT:
+                    f_value = 0.0f;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        inline Token(const Token& other)
+        {
+            type = other.type;
+            start_offset = other.start_offset;
+
+            switch(type)
+            {
+                case TEXT:
+                case STRING:
+                case COMMENT:
+                    s_value = other.s_value;
+                    break;
+                case COORDINATE:
+                    c_value = other.c_value;
+                    break;
+                case INT:
+                    i_value = other.i_value;
+                    break;
+                case FLOAT:
+                    f_value = other.f_value;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        inline Token operator=(const Token& other)
+        {
+            type = other.type;
+            start_offset = other.start_offset;
+
+            switch(type)
+            {
+                case TEXT:
+                case STRING:
+                case COMMENT:
+                    s_value = other.s_value;
+                    break;
+                case COORDINATE:
+                    c_value = other.c_value;
+                    break;
+                case INT:
+                    i_value = other.i_value;
+                    break;
+                case FLOAT:
+                    f_value = other.f_value;
+                    break;
+                default:
+                    break;
+            }
+
+            return *this;
+        }
+
+        inline ~Token()
+        {
+            switch (type)
+            {
+                case TEXT:
+                case STRING:
+                case COMMENT:
+                    s_value.~string();
+                    break;
+                case COORDINATE:
+                    c_value.~Coordinate();
+                    break;
+                default:
+                    break;
+            };
+        }
+    };
 
 public:
-	inline PageManager() { }
-	inline PageManager(string formating_file) { readFromFile(formating_file); }
+    static Page* readPage(string file);
 
-	inline bool ensureIntegrity(); // search the tree, register unregistered, unregister and delete unreferenced 
-	inline bool readFromFile(string formatting_file);
-
-	inline Component* operator[](size_t page) { if (page < pages.size()) return pages[page]; throw runtime_error("page index out of range"); }
-	inline Component* operator[](string identifier) { return components[identifier]; }
-
-	inline void registerComponent(Component* component, string identifier)
-	{
-		if (isNameUnique(identifier)) components.insert(pair<string, Component*>(identifier, component));
-		else components.insert(pair<string, Component*>(getUniqueName(), component));
-	}
-
-	inline void unregisterComponent(string identifier)
-	{
-		if (components.contains(identifier)) { delete components[identifier]; components.erase(identifier); }
-		else throw runtime_error("no component registered with that name");
-	}
-
-	inline void addPage(Component* page_root) { pages.push_back(page_root); }
-	inline void removePage(size_t page_index) { if (page_index < pages.size()) pages.erase(pages.begin() + page_index); }
-	inline size_t countPages() { return pages.size(); }
-
-	inline ~PageManager() { for (pair<string, Component*> p : components) delete p.second; }
 private:
-	inline bool isNameUnique(string name)
-	{
-		if (name.length() < 1) return false;
+    static vector<Token> tokenise(const string content);
 
-		return !components.contains(name);
-	}
-
-	inline string getUniqueName()
-	{
-		size_t i = 0;
-
-		while (components.contains("__component_" + to_string(i)))
-			i++;
-		
-		return "__component_" + to_string(i);
-	}
-
-	static inline void reportError(string input, size_t char_index, string summary)
-	{
-		throw runtime_error("STUI format document parsing error:\n\t" + summary
-			+ "\n\tat character " + to_string(char_index)
-			+ "\n\t-> '..." + input.substr(max(0, (int32_t)char_index - 16), 32) + "...'"
-			+ "\n\t" + string(min((size_t)16, char_index) + 7, ' ') + "^"
-			+ "\n\tterminating parsing.");
-	}
-
-	static inline string stripNonCoding(string input)
-	{
-		string result;
-
-		bool is_inside_string = false;
-		bool is_inside_line_comment = false;
-		bool is_inside_star_comment = false;
-		for (size_t i = 0; i < input.size(); i++)
-		{
-			if (is_inside_line_comment && input[i] == '\n')
-				is_inside_line_comment = false;
-			else if (is_inside_star_comment && i > 0 && input[i - 1] == '*' && input[i] == '/')
-			{
-				is_inside_star_comment = false;
-				i++;
-			}
-			else if (!is_inside_string && !is_inside_star_comment && i < input.size() - 1 && input[i] == '/' && input[i + 1] == '/')
-				is_inside_line_comment = true;
-			else if (!is_inside_string && i < input.size() - 1 && input[i] == '/' && input[i + 1] == '*')
-			{
-				is_inside_line_comment = false;
-				is_inside_star_comment = true;
-			}
-
-			if (!is_inside_line_comment && !is_inside_star_comment)
-			{
-				if (is_inside_string) result.push_back(input[i]);
-				else if (!(input[i] == ' ' || input[i] == '\t' || input[i] == '\n'))
-				{
-					result.push_back(input[i]);
-				}
-
-				if (input[i] == '"') is_inside_string = !is_inside_string;
-			}
-		}
-
-		return result;
-	}
-
-	static inline string extractString(string input, size_t& first_char)
-	{
-		if (input[first_char] != '"')
-			reportError(input, first_char, "character is not the start of a string block");
-
-		size_t end = input.find('"', first_char + 1);
-		if (end == string::npos)
-			reportError(input, first_char, "unclosed quotation mark");
-
-		string substr = input.substr(first_char + 1, (end - first_char - 1));
-		first_char = end + 1;
-
-		return substr;
-	}
-
-	static inline size_t findMatchingClosingBrace(string input, size_t opening_brace)
-	{
-		vector<char> bracket_history;
-
-		bool is_in_string = false;
-		size_t i = opening_brace;
-		char outermost = input[i];
-		if (outermost != '{' && outermost != '(') return opening_brace;
-		while (i < input.size())
-		{
-			if (!is_in_string)
-			{
-				if (input[i] == '{')
-					bracket_history.push_back('{');
-				else if (input[i] == '(')
-					bracket_history.push_back('(');
-				else if (input[i] == ')')
-				{
-					if (bracket_history[bracket_history.size() - 1] == '(')
-						bracket_history.pop_back();
-					else
-						reportError(input, i, "inappropriate closing round bracket");
-				}
-				else if (input[i] == '}')
-				{
-					if (bracket_history[bracket_history.size() - 1] == '{')
-						bracket_history.pop_back();
-					else
-						reportError(input, i, "inappropriate closing curly brace");
-				}
-			}
-
-			if (input[i] == '"') is_in_string = !is_in_string;
-
-			if (bracket_history.size() == 0) break;
-
-			i++;
-		}
-
-		if (i >= input.size())
-			reportError(input, opening_brace, "missing closing brace");
-
-		return i;
-	}
-
-	// TODO: fix broken error indices in functions like this
-	static inline vector<pair<size_t, string>> splitCommaSeparatedList(string input)
-	{
-		bool is_inside_string = false;
-		int curly_brace_depth = 0;
-		int round_brace_depth = 0;
-		int angle_brace_depth = 0;
-
-		vector<pair<size_t, string>> result;
-		string current;
-
-		size_t last = 0;
-		size_t i = 0;
-		while (i < input.size())
-		{
-			current += input[i];
-
-			if (!is_inside_string && curly_brace_depth == 0 && round_brace_depth == 0 && angle_brace_depth == 0 && input[i] == ',')
-			{
-				current.pop_back();
-				result.push_back(pair<size_t, string>(last, current));
-				current = "";
-				last = i + 1;
-				i++;
-				continue;
-			}
-
-			if (input[i] == '"')
-			{
-				is_inside_string = !is_inside_string;
-			}
-			else if (!is_inside_string)
-			{
-				switch (input[i])
-				{
-				case '{': curly_brace_depth++; break;
-				case '}': curly_brace_depth--; break;
-				case '(': round_brace_depth++; break;
-				case ')': round_brace_depth--; break;
-				case '[': angle_brace_depth++; break;
-				case ']': angle_brace_depth--; break;
-				}
-			}
-
-			i++;
-		}
-
-		result.push_back(pair<size_t, string>(last, current));
-
-		if (i == input.size())
-		{
-			if (curly_brace_depth != 0 || round_brace_depth != 0 || angle_brace_depth != 0)
-				reportError(input, 0, "illegal brackets found in comma separated list");
-			if (is_inside_string)
-				reportError(input, 0, "dangling string block in comma separated list");
-		}
-
-		return result;
-	}
-
-	static inline bool isAlphabetic(char c)
+    static inline bool isAlphabetic(char c)
 	{
 		if (c >= 'a' && c <= 'z') return true;
 		if (c >= 'A' && c <= 'Z') return true;
@@ -257,207 +183,282 @@ private:
 		return false;
 	}
 
-	enum ArgumentType
-	{
-		INT,
-		STRING,
-		COORDINATE,
-		FLOAT,
-		COMPONENT,
-		INT_ARRAY,
-		STRING_ARRAY,
-		COORDINATE_ARRAY,
-		FLOAT_ARRAY,
-		COMPONENT_ARRAY
-	};
+    static inline TokenType getType(const char c)
+    {
+        if (isAlphabetic(c)) return TEXT;
+        if (c == '(') return OPEN_ROUND;
+        if (c == ')') return CLOSE_ROUND;
+        if (c == '{') return OPEN_CURLY;
+        if (c == '}') return CLOSE_CURLY;
+        if (c == '"') return STRING;
+        if (c == '\n') return NEWLINE;
+        if (c == ':') return COLON;
+        if (c == '=') return EQUALS;
+        if (c == ',') return COMMA;
+        if (c == '[' || c == ']') return COORDINATE;
+        if (c == '-' || (c >= '0' && c <= '9')) return INT;
+        if (c == '.') return FLOAT;
+        if (c == '/') return COMMENT;
+        if (c == ' ' || c == '\t') return WHITESPACE;
+        return TEXT;
+    }
 
-	union ArgumentValue
-	{
-		long long int int_val;
-		string string_val;
-		Coordinate coordinate_val;
-		float float_val;
-		Component* component_val;
-		vector<long long int> int_arr;
-		vector<string> string_arr;
-		vector<Coordinate> coordinate_arr;
-		vector<float> float_arr;
-		vector<Component*> component_arr;
+    static inline void reportError(const string err, size_t off, const string& str)
+    {
+        int32_t extract_start = max(0, (int32_t)off - 16);
+        int32_t extract_end = extract_start + 32;
+        while (true)
+        {
+            size_t find = str.find('\n', extract_start);
+            if (find > off) break;
+            extract_start = find + 1;
+        }
+        size_t find = str.find('\n', off);
+        if (find != string::npos)
+        {
+            if ((int32_t)find < extract_end)
+            extract_end = find;
+        }
+        string extract = str.substr(extract_start, extract_end - extract_start);
 
-		ArgumentValue() { }
-		~ArgumentValue() { }
-	};
-
-	struct Argument
-	{
-		ArgumentType type = ArgumentType::INT;
-		ArgumentValue value;
-	};
-
-	static inline string decodeStringArg(string s, string input, size_t offset)
-	{
-		size_t first_char = 0;
-		string str = extractString(s, first_char);
-		if (first_char != s.size())
-			reportError(input, offset + str.size(), "detected junk after string");
-		
-		return str;
-	}
-
-	static inline long long int decodeIntArg(string s, string input, size_t offset)
-	{
-		try
-		{
-			long long int i = stoll(s);
-			return i;
-		}
-		catch (exception e)
-		{
-			reportError(input, offset, "invalid integer description");
-		}
-	}
-
-	static inline float decodeFloatArg(string s, string input, size_t offset)
-	{
-		try
-		{
-			float f = stof(s);
-			return f;
-		}
-		catch (exception e)
-		{
-			reportError(input, offset, "invalid float description");
-		}
-	}
-
-	static inline Coordinate decodeCoordArg(string s, string input, size_t offset)
-	{
-		size_t end_bracket = s.find(']');
-		if (end_bracket == string::npos)
-			reportError(input, offset, "unable to find closing square bracket");
-		
-		size_t separator = s.find(',');
-		if (separator == string::npos || s.find(',', separator + 1) != string::npos)
-			reportError(input, offset, "Coordinate description must contain exactly two comma-separated integers");
-		
-		try
-		{
-			int x = stoi(s.substr(1, separator - 1));
-			int y = stoi(s.substr(separator + 1, end_bracket - separator - 1));
-
-			return Coordinate{ x,y };
-		}
-		catch (exception e)
-		{
-			reportError(input, offset, "invalid integer description");
-		}
-	}
-
-	static inline vector<long long int> decodeIntArrArg(string s, string input, size_t offset)
-	{
-		size_t closing_brace = findMatchingClosingBrace(s, 0);
-		// TODO: ... here
-	}
-
-	static Component* decodeComponentString(string input)
-	{
-		bool has_name = true;
-		size_t i = 0;
-		while (input[i] != ':')
-		{
-			if (i >= input.size() || input[i] == '"') reportError(input, i, "unable to find name separator or paramter list");
-
-			if (input[i] == '(') { has_name = false; break; }
-
-			i++;
-		}
-
-		string name;
-		if (has_name)
-		{
-			i++;
-			name = extractString(input, i);
-			if (name.length() == 0) name = "_component";
-		}
-		else
-		{
-			name = "_component";
-		}
-
-		if (input[i] != '(') reportError(input, i, "unable to find parameter list");
-
-		size_t j = findMatchingClosingBrace(input, i);
-
-		if (i == j) reportError(input, i, "parameter list not enclosed");
-
-		vector<pair<size_t, string>> split_params = splitCommaSeparatedList(input.substr(i + 1, j - i - 1));
-
-		vector<Argument> arguments;
-		for (pair<size_t, string> p : split_params)
-		{
-			if (p.second.length() < 1)
-				reportError(input, p.first + i + 1, "malformed element in comma separated list");
-
-			Argument arg;
-			if (p.second[0] == '"') arg.type = ArgumentType::STRING;
-			else if (p.second[0] == '[') arg.type = ArgumentType::COORDINATE;
-			else if ((p.second[0] >= '0' && p.second[0] <= '9') || p.second[0] == '-')
-			{
-				if (p.second.find('.') != string::npos)
-					arg.type = ArgumentType::FLOAT;
-				else
-					arg.type = ArgumentType::INT;
-			}
-			else if (p.second[0] == '{')
-			{
-				if (p.second.length() < 2) reportError(input, p.first + i + 1, "malformed array argument");
-				if (p.second[1] == '{') reportError(input, p.first + i + 1, "nested arrays are not allowed");
-				else if (p.second[1] == '}') reportError(input, p.first + i + 1, "empty arrays are not allowed");
-				else if (p.second[1] == '"') arg.type = ArgumentType::STRING_ARRAY;
-				else if (p.second[1] == '[') arg.type = ArgumentType::COORDINATE_ARRAY;
-				else if ((p.second[1] >= '0' && p.second[1] <= '9') || p.second[1] == '-')
-				{
-					if (p.second.find('.') != string::npos)
-						arg.type = ArgumentType::FLOAT_ARRAY;
-					else
-						arg.type = ArgumentType::INT_ARRAY;
-				}
-				else if (isAlphabetic(p.second[1])) arg.type = ArgumentType::COMPONENT_ARRAY;
-				else reportError(input, p.first + i + 1, "invalid array type");
-			}
-			else if (isAlphabetic(p.second[0])) arg.type = ArgumentType::COMPONENT;
-			else reportError(input, p.first + i + 1, "invalid argument type");
-
-			arguments.push_back(arg);
-		}
-
-		for (size_t i = 0; i < arguments.size(); i++)
-		{
-			switch (arguments[i].type)
-			{
-			// TODO: implement functions for decoding argument types
-			case INT: arguments[i].value.int_val = decodeIntArg(split_params[i].second, input, split_params[i].first); break;
-			case STRING: arguments[i].value.string_val = decodeStringArg(split_params[i].second, input, split_params[i].first); break;
-			case COORDINATE: arguments[i].value.coordinate_val = decodeCoordArg(split_params[i].second, input, split_params[i].first); break;
-			case FLOAT: arguments[i].value.float_val = decodeFloatArg(split_params[i].second, input, split_params[i].first); break;
-			case COMPONENT: arguments[i].value.component_val = decodeComponentString(split_params[i].second); break;
-			case INT_ARRAY: arguments[i].value.int_arr = decodeIntArrArg(split_params[i].second, input, split_params[i].first); break;
-			case STRING_ARRAY: arguments[i].value.string_arr = decodeStringArrArg(split_params[i].second); break;
-			case COORDINATE_ARRAY: arguments[i].coordinate_arr = decodeCoordArrArg(split_params[i].second); break;
-			case FLOAT_ARRAY: arguments[i].value.float_arr = decodeFloatArrArg(split_params[i].second); break;
-			case COMPONENT_ARRAY: arguments[i].value.component_arr = decodeComponentArrArg(split_params[i].second); break;
-			default:
-				reportError(input, split_params[i].first, "what???");
-			}
-		}
-		// TODO: construct the component and add it to the registry
-
-		return nullptr;
-	}
+        throw runtime_error("STUI format document parsing error:\n\t" + err
+			+ "\n\tat character " + to_string(off)
+			+ "\n\t-> '..." + extract + "..."\
+			+ "\n\t" + string(7 + ((int32_t)off - extract_start), ' ') + "^"\
+			+ "\n\tterminating parsing.");
+    }
 };
 
+#ifdef STUI_IMPLEMENTATION
+
+Page* LayoutReader::readPage(string file)
+{
+    cout << "here" << endl;
+    ifstream file_data(file, ifstream::ate);
+    cout << "here2" << endl;
+    if (!file_data.is_open())
+    {
+    cout << "nofile" << endl;
+
+        return nullptr;
+    }
+    cout << "read" << endl;
+
+    string file_content = "";
+    file_content.resize(file_data.tellg());
+    file_data.seekg(ios::beg);
+    file_data.read(file_content.data(), file_content.size());
+
+    file_data.close();
+    cout << file_content << endl;
+
+    vector<Token> tokens = tokenise(file_content);
+
+    return nullptr;
+    // some code
 }
 
-#define STUI_ONLY_UNDEFS
-#include "stui.h"
-#undef STUI_ONLY_UNDEFS
+vector<LayoutReader::Token> LayoutReader::tokenise(const string content)
+{
+    size_t offset = 0;
+    vector<Token> tokens;
+    if (content.length() == 0) return tokens;
+
+    string current_token = "";
+    TokenType current_type = getType(content[0]);
+    size_t start_offset = 0;
+    if (current_type != TokenType::TEXT && current_type != TokenType::COMMENT)
+        reportError("invalid first token", offset, content);
+
+    current_type = TokenType::WHITESPACE;
+
+    while (offset < content.length())
+    {
+        char cur = content[offset];
+        TokenType new_type = getType(cur);
+
+        if (current_type == TokenType::STRING)
+        {
+            if (new_type == TokenType::STRING)
+            {
+                Token finished_token = Token(current_type);
+                finished_token.start_offset = start_offset;
+                finished_token.s_value = current_token;
+                tokens.push_back(finished_token);
+
+                start_offset = ++offset;
+                current_token = "";
+                current_type = TokenType::WHITESPACE;
+                continue;
+            }
+
+            current_token += cur;
+        }
+        else if (current_type == TokenType::COMMENT)
+        {
+            if (new_type != TokenType::COMMENT && current_token.length() < 2)
+                reportError("incomplete comment initiator", offset, content);
+            else if (new_type == TokenType::NEWLINE)
+            {
+                Token finished_token = Token(TokenType::COMMENT);
+                finished_token.start_offset = start_offset;
+                finished_token.s_value = current_token.substr(2);
+                tokens.push_back(finished_token);
+
+                Token extra_token = Token(new_type);
+                extra_token.start_offset = offset;
+                tokens.push_back(extra_token);
+
+                current_token = "";
+                
+                start_offset = offset + 1;
+                current_type = TokenType::WHITESPACE;
+            }
+            else
+            {
+                current_token += cur;
+            }
+        }
+        else if (current_type == TokenType::COORDINATE)
+        {
+            size_t comma;
+            switch(new_type)
+            {
+                case INT:
+                case COMMA:
+                    current_token += cur;
+                    break;
+                case FLOAT:
+                    reportError("coordinates may not be floating-point", offset, content);
+                    break;
+                case COMMENT:
+                    reportError("incomplete coordinate token", offset, content);
+                    break;
+                case WHITESPACE:
+                    break;
+                case COORDINATE:
+                    comma = current_token.find(',');
+                    if (comma == string::npos)
+                        reportError("incomplete coordinate token", offset, content);
+                    else
+                    {
+                        string cx = current_token.substr(0, comma);
+                        string cy = current_token.substr(comma + 1);
+                        try
+                        {
+                            int co_x = stoi(cx);
+                            int co_y = stoi(cy);
+
+                            Token finished_token = Token(TokenType::COORDINATE);
+                            finished_token.start_offset = start_offset;
+                            finished_token.c_value = Coordinate{ co_x, co_y };
+                            tokens.push_back(finished_token);
+
+                            current_token = "";
+                            current_type = TokenType::WHITESPACE;
+                        }
+                        catch(const exception& _)
+                        {
+                            reportError("invalid integer token within coordinate token", start_offset, content);
+                        }
+                    }
+                    break;
+                default:
+                    reportError("invalid token within coordinate token", offset, content);
+                    break;
+            }
+        }
+        else if (new_type != current_type)
+        {
+            if ((current_type == TokenType::FLOAT && new_type == TokenType::INT) || (current_type == TokenType::INT && new_type == TokenType::FLOAT))
+            {
+                current_type = TokenType::FLOAT;
+                current_token += cur;
+
+                offset++;
+                continue;
+            }
+
+            if (current_type != TokenType::WHITESPACE)
+            {
+                Token finished_token = Token(current_type);
+                finished_token.start_offset = start_offset;
+                switch(current_type)
+                {
+                    case TEXT:
+                        if (new_type == TokenType::INT || new_type == TokenType::FLOAT || new_type == TokenType::STRING || new_type == TokenType::COORDINATE)
+                            reportError("invalid conjoined token", offset, content);
+                        finished_token.s_value = current_token;
+                        break;
+                    case INT:
+                        if (new_type == TokenType::TEXT || new_type == TokenType::STRING || new_type == TokenType::COORDINATE)
+                            reportError("invalid conjoined token", offset, content);
+                        try
+                        {
+                            finished_token.i_value = stoi(current_token);
+                        }
+                        catch (const exception& _)
+                        {
+                            reportError("invalid int token", start_offset, content);
+                        }
+                        break;
+                    case FLOAT:
+                        if (new_type == TokenType::TEXT || new_type == TokenType::STRING || new_type == TokenType::COORDINATE)
+                            reportError("invalid conjoined token", offset, content);
+                        try
+                        {
+                            finished_token.f_value = stof(current_token);
+                        }
+                        catch (const exception& _)
+                        {
+                            reportError("invalid float token", start_offset, content);
+                        }
+                        break;
+                    default:
+                        reportError("invalid tokeniser state", offset, content);
+                }
+                tokens.push_back(finished_token);
+            }
+
+            start_offset = offset;
+            current_token = "";
+            if (!(new_type == TokenType::STRING || new_type == TokenType::COORDINATE || new_type == TokenType::WHITESPACE)) current_token += cur;
+
+            Token extra_token = Token(new_type);
+            switch(new_type)
+            {
+                case OPEN_ROUND:
+                case CLOSE_ROUND:
+                case OPEN_CURLY:
+                case CLOSE_CURLY:
+                case EQUALS:
+                case COLON:
+                case COMMA:
+                case NEWLINE:
+                    extra_token.start_offset = offset;
+                    tokens.push_back(extra_token);
+
+                    start_offset = offset + 1;
+                    current_type = TokenType::WHITESPACE;
+                    break;
+                default:
+                    current_type = new_type;
+                    break;
+            }
+        }
+        else if (current_type != TokenType::WHITESPACE)
+        {
+            current_token += cur;
+        }
+
+        offset++;
+    }
+
+    return tokens;
+}
+
+#undef PARSE_ERROR
+
+#endif
+
+}

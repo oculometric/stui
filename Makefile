@@ -1,6 +1,6 @@
 BIN			:= bin
 
-CC_FLAGS	:= -I inc -O3 -Wall
+CC_FLAGS	:= -I inc -O0 -Wall -g
 
 $(BIN):
 	@mkdir $(BIN)
@@ -24,7 +24,11 @@ compiler_tool: $(BIN)
 qr_demo: $(BIN)
 	@g++ -o $(BIN)/qr_demo $(CC_FLAGS) examples/qr_demo.cpp
 	@$(BIN)/qr_demo
+
+script_demo: $(BIN)
+	@g++ -o $(BIN)/script_demo $(CC_FLAGS) examples/script_demo.cpp
+
 clean:
-	rm widgets_demo
+	rm $(BIN)
 
 .PHONY: clean widgets_demo

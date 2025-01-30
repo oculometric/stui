@@ -21,6 +21,10 @@ page_usage: $(BIN)
 	@g++ -o $(BIN)/page_usage $(CC_FLAGS) examples/page_usage.cpp
 	@$(BIN)/page_usage
 
+page_usage_ls: $(BIN)
+	@g++ -o $(BIN)/page_usage_ls $(CC_FLAGS) examples/page_usage_ls.cpp
+	@$(BIN)/page_usage_ls
+
 compiler_tool: $(BIN)
 	@g++ -o $(BIN)/compiler_tool $(CC_FLAGS) examples/compiler_tool.cpp
 	@$(BIN)/compiler_tool

@@ -398,10 +398,12 @@ private:
         return TEXT;
     }
 
-    static size_t findClosingBrace(const vector<Token>& tokens, size_t open_index, string original_content);
+    static size_t findClosingBrace(const vector<Token>& tokens, size_t open_index, const string& original_content);
 
-    Component* parseComponent(const vector<Token>& tokens, size_t start_index, string original_content, Page* page);
+    Component* parseComponent(const vector<Token>& tokens, size_t start_index, const string& original_content, Page* page);
 
+    BuilderArgs::Argument createArgument(const vector<Token>& tokens, const string& original_content, Page* page);
+        
     static inline void reportError(const string err, size_t off, const string& str)
     {
         int32_t extract_start = max(0, (int32_t)off - 16);
@@ -887,10 +889,11 @@ Page* LayoutReader::readPage(string file)
         return nullptr;
     }
 
-    string file_content = "";
-    file_content.resize(file_data.tellg());
+    vector<char> data;
+    data.resize(file_data.tellg());
     file_data.seekg(ios::beg);
-    file_data.read(file_content.data(), file_content.size());
+    file_data.read(data.data(), data.size());
+    string file_content = string(data.data());
 
     file_data.close();
 
@@ -1171,7 +1174,7 @@ vector<LayoutReader::Token> LayoutReader::tokenise(const string content)
     return tokens;
 }
 
-Component* LayoutReader::parseComponent(const vector<Token>& tokens, size_t start_index, string original_content, Page* page)
+Component* LayoutReader::parseComponent(const vector<Token>& tokens, size_t start_index, const string& original_content, Page* page)
 {
     if (start_index >= tokens.size())
         reportError("start token out of range", original_content.size() - 1, original_content);
@@ -1209,10 +1212,72 @@ Component* LayoutReader::parseComponent(const vector<Token>& tokens, size_t star
         reportError("incomplete Component definition", original_content.size() - 1, original_content);
 
     size_t bracket_close_index = findClosingBrace(tokens, bracket_open_index, original_content);
-
+    
     // TODO: collect the arguments into a map of name-value pairs
     map<string, BuilderArgs::Argument> args;
-    // TODO: if necessary, recurse to parse inner components
+    int arg_finder_state = 0; // 0 - reading name, 1 - looking for equals, 2 - looking for comma
+    string current_arg_identifier = "";
+    vector<Token> current_arg_value;
+    vector<Token> bracket_stack;
+    for (size_t index = bracket_open_index + 1; index < bracket_close_index; index++)
+    {
+        switch (arg_finder_state)
+        {
+            case 0:
+                if (tokens[index].type == TokenType::TEXT)
+                {
+                    current_arg_identifier = tokens[index].s_value;
+                    arg_finder_state = 1;
+                }
+                else
+                    reportError("expected argument identifier", tokens[index].start_offset, original_content);
+                break;
+            case 1:
+                if (tokens[index].type == TokenType::EQUALS)
+                    arg_finder_state = 2;
+                else
+                    reportError("expected '=' following identifier", tokens[index].start_offset, original_content);
+                break;
+            case 2:
+                if (tokens[index].type == TokenType::COMMA && bracket_stack.size() == 0)
+                {
+                    if (current_arg_value.size() == 0)
+                        reportError("expected argument value after '='", tokens[index - 1].start_offset, original_content);
+                    BuilderArgs::Argument arg = createArgument(current_arg_value, original_content, page);
+                    args.emplace(current_arg_identifier, arg);
+                    current_arg_value.clear();
+                    current_arg_identifier = "";
+                    arg_finder_state = 0;
+                    break;
+                }
+                current_arg_value.push_back(tokens[index]);
+                switch (tokens[index].type)
+                {
+                    case OPEN_ROUND:
+                    case OPEN_CURLY:
+                        bracket_stack.push_back(tokens[index]);
+                        break;
+                    case CLOSE_ROUND:
+                        if (bracket_stack[bracket_stack.size() - 1].type == TokenType::OPEN_ROUND)
+                            bracket_stack.pop_back();
+                        else
+                            reportError("invalid closing bracket", tokens[index].start_offset, original_content);
+                        break;
+                    case CLOSE_CURLY:
+                        if (bracket_stack[bracket_stack.size() - 1].type == TokenType::OPEN_CURLY)
+                            bracket_stack.pop_back();
+                        else
+                            reportError("invalid closing curly brace", tokens[index].start_offset, original_content);
+                        break;
+                    default: break;
+                }
+                break;
+            default: break;
+        }
+    }
+    if (arg_finder_state == 1)
+        reportError("incomplete argument", tokens[bracket_close_index - 1].start_offset, original_content);
+
     ComponentBuilder* comp_builder = builders[component_type_name];
     Component* component = comp_builder->build(BuilderArgs(args));
 
@@ -1221,7 +1286,53 @@ Component* LayoutReader::parseComponent(const vector<Token>& tokens, size_t star
     return component;
 }
 
-size_t LayoutReader::findClosingBrace(const vector<Token>& tokens, size_t open_index, string original_content)
+BuilderArgs::Argument LayoutReader::createArgument(const vector<Token>& tokens, const string& original_content, Page* page)
+{
+    // TODO: create an Argument from the current_arg_value and current_arg_identifier
+    BuilderArgs::Argument arg = BuilderArgs::Argument();
+
+    switch (tokens[0].type)
+    {
+    case INT:
+        if (tokens.size() > 1)
+            reportError("unexpected token(s) after int", tokens[1].start_offset, original_content);
+        arg.type = BuilderArgs::ArgType::INT;
+        arg.i_value = tokens[0].i_value;
+        break;
+    case FLOAT:
+        if (tokens.size() > 1)
+            reportError("unexpected token(s) after float", tokens[1].start_offset, original_content);
+        arg.type = BuilderArgs::ArgType::FLOAT;
+        arg.f_value = tokens[0].f_value;
+        break;
+    case STRING:
+        if (tokens.size() > 1)
+            reportError("unexpected token(s) after string", tokens[1].start_offset, original_content);
+        arg.type = BuilderArgs::ArgType::STRING;
+        arg.s_value = tokens[0].s_value;
+        break;
+    case COORDINATE:
+        if (tokens.size() > 1)
+            reportError("unexpected token(s) after coordinate", tokens[1].start_offset, original_content);
+        arg.type = BuilderArgs::ArgType::COORDINATE;
+        arg.coo_value = tokens[0].c_value;
+        break;
+    case OPEN_CURLY:
+        // TODO: arrays
+        break;
+    case TEXT:
+        arg.type = BuilderArgs::ArgType::COMPONENT;
+        arg.com_value = parseComponent(tokens, 0, original_content, page);
+        break;
+    default:
+        reportError("invalid token(s) after '='", tokens[0].start_offset, original_content);
+        break;
+    }
+
+    return arg;
+}
+
+size_t LayoutReader::findClosingBrace(const vector<Token>& tokens, size_t open_index, const string& original_content)
 {
     vector<Token> brackets;
     size_t index = open_index;

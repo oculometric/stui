@@ -7,6 +7,7 @@
 - [ ] implement LayoutScript reading from file
 - [ ] documentation and examples for LayoutScript
 - [ ] fix invalid free pointer in page_usage.cpp (related to object deletion on page destruct probably)
+- [ ] correct consistency of '*'s at end of comments
 - [x] better handling of object deletion within pages
 
 # Completed v0.3

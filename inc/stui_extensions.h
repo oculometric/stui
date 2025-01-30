@@ -212,6 +212,30 @@ public:
 	inline Component* operator[](string identifier) { return components[identifier]; }
 
 	/**
+	 * @brief get a component from the registry with the specified name, automatically
+	 * cast to the specified `Component` type.
+	 * 
+	 * returns nullptr if the component name is not present in the registry, or if
+	 * the component is present but its type does not match the requested type.
+	 * 
+	 * @tparam T component type to cast to
+	 * @param identifier name of the component to fetch
+	 * @returns component with the given name from the registry, or nullptr
+	 */
+	template<class T>
+	inline T* get(string identifier)
+	{
+    	static_assert(std::is_base_of<Component, T>::value, "T is not a Component type");
+		if (components.count(identifier) == 0) return nullptr;
+		T* tmp = new T();
+		Component* comp = components[identifier];
+		if (comp->getTypeName() == tmp->getTypeName())
+			return (T*)comp;
+		
+		return nullptr;
+	}
+
+	/**
 	 * @brief assign a new root component. automatically calls `ensureIntegrity`.
 	 *
 	 * @param component component to make the new root
@@ -433,7 +457,9 @@ public:
 	bool* data;
 	QRVersion version;
 
-	QRCodeView(bool* _data, QRVersion _version) : data(_data), version(_version) { }
+	QRCodeView(bool* _data = nullptr, QRVersion _version = QRVersion::VER_1) : data(_data), version(_version) { }
+
+	GETTYPENAME_STUB("QRCodeView");
 
 	RENDER_STUB
 	{

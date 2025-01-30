@@ -12,7 +12,7 @@ int main()
     Page* pg = reader.readPage("demo.sls");
     if (!pg) return 1;
 
-    ((ProgressBar*)((*pg)["progress_bar"]))->fraction = 0.99f;
+    pg->get<ProgressBar>("progress_bar")->fraction = 0.99f;
     pg->render();
 
     Terminal::unConfigure(false);

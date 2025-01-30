@@ -443,7 +443,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        Label* c = new Label("", 0);
+        Label* c = new Label();
         constructor.copy("text", c->text);
         constructor.copy("alignment", c->alignment);
         return c;
@@ -460,7 +460,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        Button* c = new Button("", nullptr, true);
+        Button* c = new Button();
         constructor.copy("text", c->text);
         int enabled = true;
         constructor.copy("enabled", enabled);
@@ -479,7 +479,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        RadioButton* c = new RadioButton({}, 0, true);
+        RadioButton* c = new RadioButton();
         constructor.copy("options", c->options);
         int enabled = true;
         constructor.copy("enabled", enabled);
@@ -499,7 +499,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        ToggleButton* c = new ToggleButton({}, true);
+        ToggleButton* c = new ToggleButton();
         vector<string> options;
         constructor.copy("options", options);
         for (string op : options) c->options.push_back(pair<string, bool>(op, false));
@@ -520,7 +520,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        TextInputBox* c = new TextInputBox("", nullptr, true);
+        TextInputBox* c = new TextInputBox();
         constructor.copy("text", c->text);
         int enabled = true;
         constructor.copy("enabled", enabled);
@@ -539,7 +539,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        TextArea* c = new TextArea("", 0);
+        TextArea* c = new TextArea();
         constructor.copy("text", c->text);
         constructor.copy("scroll", c->scroll);
         return c;
@@ -556,7 +556,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        ProgressBar* c = new ProgressBar(0.0f);
+        ProgressBar* c = new ProgressBar();
         constructor.copy("fraction", c->fraction);
         return c;
     }
@@ -572,7 +572,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        Slider* c = new Slider(0.5f);
+        Slider* c = new Slider();
         constructor.copy("value", c->value);
         return c;
     }
@@ -588,7 +588,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        Spinner* c = new Spinner(0, 0);
+        Spinner* c = new Spinner();
         int state = 0;
         constructor.copy("state", state);
         c->state = (size_t)state;
@@ -607,7 +607,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        VerticalBox* c = new VerticalBox({ });
+        VerticalBox* c = new VerticalBox();
         constructor.copy("children", c->children);
         return c;
     }
@@ -623,7 +623,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        HorizontalBox* c = new HorizontalBox({ });
+        HorizontalBox* c = new HorizontalBox();
         constructor.copy("children", c->children);
         return c;
     }
@@ -639,7 +639,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        VerticalSpacer* c = new VerticalSpacer(1);
+        VerticalSpacer* c = new VerticalSpacer();
         constructor.copy("height", c->height);
         return c;
     }
@@ -655,7 +655,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        HorizontalSpacer* c = new HorizontalSpacer(1);
+        HorizontalSpacer* c = new HorizontalSpacer();
         constructor.copy("width", c->width);
         return c;
     }
@@ -671,7 +671,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        BorderedBox* c = new BorderedBox(nullptr, "");
+        BorderedBox* c = new BorderedBox();
         constructor.copy("child", c->child);
         constructor.copy("name", c->name);
         return c;
@@ -688,7 +688,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        ListView* c = new ListView({ }, 0, 0);
+        ListView* c = new ListView();
         constructor.copy("elements", c->elements);
         constructor.copy("scroll", c->scroll);
         constructor.copy("selected_index", c->selected_index);
@@ -706,7 +706,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        TreeView* c = new TreeView(nullptr, 0, 0);
+        TreeView* c = new TreeView();
         int scroll = 0;
         constructor.copy("scroll", scroll);
         c->scroll = (size_t)scroll;
@@ -727,7 +727,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        ImageView* c = new ImageView(nullptr, { 0, 0 });
+        ImageView* c = new ImageView();
         return c;
     }
 #endif
@@ -742,7 +742,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        SizeLimiter* c = new SizeLimiter(nullptr, { -1, -1 });
+        SizeLimiter* c = new SizeLimiter();
         constructor.copy("child", c->child);
         constructor.copy("max_size", c->max_size);
         return c;
@@ -759,7 +759,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        TabDisplay* c = new TabDisplay({ }, 0);
+        TabDisplay* c = new TabDisplay();
         constructor.copy("tab_descriptions", c->tab_descriptions);
         int current_tab = 0;
         constructor.copy("current_tab", current_tab);
@@ -778,7 +778,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        Banner* c = new Banner("");
+        Banner* c = new Banner();
         constructor.copy("text", c->text);
         return c;
     }
@@ -824,7 +824,7 @@ protected:
     BUILD_STUB
 #ifdef STUI_IMPLEMENTATION
     {
-        QRCodeView* c = new QRCodeView(nullptr, QRCodeView::QRVersion::VER_1);
+        QRCodeView* c = new QRCodeView();
         return c;
     }
 #endif

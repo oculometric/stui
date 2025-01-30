@@ -649,7 +649,7 @@ public:
 	 * to right, top to bottom
 	 * @param size size of the buffer
 	 */
-	virtual inline void render(Tixel* output_buffer, Coordinate size) { }
+	virtual inline void render(Tixel* output_buffer, Coordinate size) = 0;
 	
 	/**
 	 * @brief returns the maximum desired size that this component should be given.
@@ -660,7 +660,7 @@ public:
 	 * 
 	 * @returns a `Coordinate` representing the maximum size for the `Component`
 	 */
-	virtual inline Coordinate getMaxSize() { return { 0, 0 }; }
+	virtual inline Coordinate getMaxSize() { return { -1, -1 }; }
 
 	/**
 	 * @brief returns the minimum size that this component should be given to draw into.
@@ -700,7 +700,7 @@ public:
 	 * 
 	 * @returns string name of the class/component type
 	 */
-	virtual inline string getTypeName() { return ""; }
+	virtual inline string getTypeName() = 0;
 
 	/**
 	 * @brief return a list of any children this component has. subclasses
@@ -710,7 +710,7 @@ public:
 	 */
 	virtual inline vector<Component*> getAllChildren() { return { }; }
 
-	virtual ~Component() { }
+	virtual inline ~Component() { }
 };
 #pragma pack(pop)
 
@@ -1096,7 +1096,7 @@ public:
 	string text;
 	int alignment;
 	
-	Label(string _text, int _alignment) : text(_text), alignment(_alignment) { }
+	Label(string _text = "", int _alignment = -1) : text(_text), alignment(_alignment) { }
 
 	GETTYPENAME_STUB("Label");
 
@@ -1132,7 +1132,7 @@ public:
 	void (*callback)();
 	bool enabled;
 
-	Button(string _text, void (*_callback)(), bool _enabled) : text(_text), callback(_callback), enabled(_enabled) { }
+	Button(string _text = "Button", void (*_callback)() = nullptr, bool _enabled = true) : text(_text), callback(_callback), enabled(_enabled) { }
 
 	GETTYPENAME_STUB("Button");
 
@@ -1177,7 +1177,7 @@ public:
 	int selected_index;
 	bool enabled;
 
-	RadioButton(vector<string> _options, int _selected_index, bool _enabled) : options(_options), selected_index(_selected_index), enabled(_enabled) { }
+	RadioButton(vector<string> _options = { }, int _selected_index = 0, bool _enabled = true) : options(_options), selected_index(_selected_index), enabled(_enabled) { }
 
 	GETTYPENAME_STUB("RadioButton");
 
@@ -1231,7 +1231,7 @@ public:
 	vector<pair<string, bool>> options;
 	bool enabled;
 
-	ToggleButton(vector<pair<string, bool>> _options, bool _enabled) : options(_options), enabled(_enabled) { }
+	ToggleButton(vector<pair<string, bool>> _options = { }, bool _enabled = true) : options(_options), enabled(_enabled) { }
 
 	GETTYPENAME_STUB("ToggleButton");
 
@@ -1285,7 +1285,7 @@ public:
 	void (*callback)();
 	bool enabled;
 
-	TextInputBox(string _text, void (*_callback)(), bool _enabled) : text(_text), callback(_callback), enabled(_enabled) { }
+	TextInputBox(string _text = "", void (*_callback)() = nullptr, bool _enabled = true) : text(_text), callback(_callback), enabled(_enabled) { }
 
 	GETTYPENAME_STUB("TextInputBox");
 
@@ -1352,7 +1352,7 @@ public:
 	string text;
 	int scroll;
 
-	TextArea(string _text, int _scroll) : text(_text), scroll(_scroll) { }
+	TextArea(string _text = "", int _scroll = 0) : text(_text), scroll(_scroll) { }
 
 	GETTYPENAME_STUB("TextArea");
 
@@ -1403,7 +1403,7 @@ class ProgressBar : public Component
 public:
 	float fraction;
 	
-	ProgressBar(float _fraction) : fraction(_fraction) { }
+	ProgressBar(float _fraction = 0.5f) : fraction(_fraction) { }
 
 	GETTYPENAME_STUB("ProgressBar");
 
@@ -1432,7 +1432,7 @@ class Slider : public Component, public Utility
 public:
 	float value;
 
-	Slider(float _value) : value(_value) { }
+	Slider(float _value = 0.5f) : value(_value) { }
 
 	GETTYPENAME_STUB("Slider");
 
@@ -1490,7 +1490,7 @@ public:
 	size_t state;
 	int type;
 
-	Spinner(size_t _state, int _type) : state(_state), type(_type) { }
+	Spinner(size_t _state = 0, int _type = 0) : state(_state), type(_type) { }
 
 	GETTYPENAME_STUB("Spinner");
 
@@ -1518,7 +1518,7 @@ class VerticalBox : public Component, public Utility
 public:
 	vector<Component*> children;
 	
-	VerticalBox(vector<Component*> _children) : children(_children) { }
+	VerticalBox(vector<Component*> _children = { }) : children(_children) { }
 	
 	GETTYPENAME_STUB("VerticalBox");
 
@@ -1624,7 +1624,7 @@ class HorizontalBox : public Component, public Utility
 public:
 	vector<Component*> children;
 	
-	HorizontalBox(vector<Component*> _children) : children(_children) { }
+	HorizontalBox(vector<Component*> _children = { }) : children(_children) { }
 
 	GETTYPENAME_STUB("HorizontalBox");
 
@@ -1720,9 +1720,11 @@ class VerticalSpacer : public Component
 public:
 	int height;
 	
-	VerticalSpacer(int _height) : height(_height) { }
+	VerticalSpacer(int _height = 1) : height(_height) { }
 
 	GETTYPENAME_STUB("VerticalSpacer");
+
+	inline RENDER_STUB { }
 
 	GETMAXSIZE_STUB { return Coordinate{ 1, height }; }
 	GETMINSIZE_STUB { return Coordinate{ 1, max(height, 0) }; }
@@ -1736,9 +1738,11 @@ class HorizontalSpacer : public Component
 public:
 	int width;
 	
-	HorizontalSpacer(int _width) : width(_width) { }
+	HorizontalSpacer(int _width = 1) : width(_width) { }
 
 	GETTYPENAME_STUB("HorizontalSpacer");
+
+	inline RENDER_STUB { }
 
 	GETMAXSIZE_STUB { return Coordinate{ width, 1 }; }
 	GETMINSIZE_STUB { return Coordinate{ max(width, 0), 1 }; }
@@ -1753,7 +1757,7 @@ public:
 	Component* child;
 	string name;
 
-	BorderedBox(Component* _child, string _name) : child(_child), name(_name) { }
+	BorderedBox(Component* _child = nullptr, string _name = "") : child(_child), name(_name) { }
 
 	GETTYPENAME_STUB("BorderedBox");
 
@@ -1802,7 +1806,7 @@ public:
 	int scroll;
 	int selected_index;
 
-	ListView(vector<string> _elements, int _scroll, int _selected_index) : elements(_elements), scroll(_scroll), selected_index(_selected_index) { }
+	ListView(vector<string> _elements = { }, int _scroll = 0, int _selected_index = 0) : elements(_elements), scroll(_scroll), selected_index(_selected_index) { }
 
 	GETTYPENAME_STUB("ListView");
 
@@ -1889,7 +1893,7 @@ public:
 	size_t scroll;
 	size_t selected_index = 0;
 
-	TreeView(Node* _root, size_t _scroll, size_t _selected_index) : root(_root), scroll(_scroll), selected_index(_selected_index) { }
+	TreeView(Node* _root = nullptr, size_t _scroll = 0, size_t _selected_index = 0) : root(_root), scroll(_scroll), selected_index(_selected_index) { }
 
 	GETTYPENAME_STUB("TreeView");
 
@@ -2095,7 +2099,7 @@ public:
 	uint8_t* grayscale_image;
 	Coordinate image_size;
 	
-	ImageView(uint8_t* _grayscale_image, Coordinate _image_size) : grayscale_image(_grayscale_image), image_size(_image_size) { }
+	ImageView(uint8_t* _grayscale_image = nullptr, Coordinate _image_size = Coordinate{ 0, 0 }) : grayscale_image(_grayscale_image), image_size(_image_size) { }
 	
 	GETTYPENAME_STUB("ImageView");
 
@@ -2139,7 +2143,7 @@ public:
 	Component* child;
 	Coordinate max_size;
 	
-	SizeLimiter(Component* _child, Coordinate _max_size) : child(_child), max_size(_max_size) { }
+	SizeLimiter(Component* _child = nullptr, Coordinate _max_size = Coordinate{ -1, -1 }) : child(_child), max_size(_max_size) { }
 
 	GETTYPENAME_STUB("SizeLimiter");
 	
@@ -2173,7 +2177,7 @@ public:
 	vector<string> tab_descriptions;
 	size_t current_tab;
 
-	TabDisplay(vector<string> _tab_descriptions, size_t _current_tab) : tab_descriptions(_tab_descriptions), current_tab(_current_tab) { }
+	TabDisplay(vector<string> _tab_descriptions = { }, size_t _current_tab = 0) : tab_descriptions(_tab_descriptions), current_tab(_current_tab) { }
 
 	GETTYPENAME_STUB("TabDisplay");
 
@@ -2208,7 +2212,7 @@ class Banner : public Component, public Utility
 public:
 	string text;
 
-	Banner(string _text) : text(_text) { }
+	Banner(string _text = "") : text(_text) { }
 
 	GETTYPENAME_STUB("Banner");
 

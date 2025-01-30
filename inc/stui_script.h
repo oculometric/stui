@@ -226,7 +226,6 @@ protected:
     virtual ~ComponentBuilder() { }; // don't touch this
 };
 
-
 class LabelBuilder : public ComponentBuilder
 {
 protected:
@@ -640,9 +639,23 @@ inline ComponentBuilder* builder()
 
 #pragma region STUI_LAYOUTREADER
 
+/**
+ * @brief encapsulates functionality for deserialising `Page`s from
+ * LayoutScript files.
+ * 
+ * allows registering of custom builders to support deserialising
+ * custom component types. all built-in component types are supported
+ * by default.
+ */
 class LayoutReader
 {
 private:
+    /**
+     * @brief enumerates types of token the tokeniser supports.
+     * 
+     * these don't translate one-to-one to meaningful parts of
+     * LayoutScript files (e.g. argument names, Component definitions).
+     */
     enum TokenType
     {
         TEXT,
@@ -662,6 +675,10 @@ private:
         WHITESPACE
     };
 
+    /**
+     * @brief stores a token decoded from the raw LayoutScript text
+     * input.
+     */
     struct Token
     {
         TokenType type;
@@ -777,6 +794,24 @@ private:
 
 public:
     inline LayoutReader() : LayoutReader(vector<ComponentBuilder*(*)(void)>({ })) { };
+
+    /**
+     * @brief constructs a `LayoutReader` with an array of pointers
+     * to constructor functions for additional (custom) component
+     * builder types.
+     * 
+     * for this to function properly, you should only supply a list
+     * of expressions which look like this:
+     * ```
+     * builder<ThingBuilder>
+     * ```
+     * where you obviously replace `ThingBuilder` with your custom
+     * builder type. this ensures they are registered correctly.
+     * 
+     * @param additional_builders array of pointers to functions
+     * which construct and return instances of specified component
+     * builder types
+     */
     LayoutReader(vector<ComponentBuilder*(*)(void)> additional_builders);
 
     LayoutReader operator=(LayoutReader& other) = delete;
@@ -784,15 +819,58 @@ public:
     LayoutReader(LayoutReader& other) = delete;
     LayoutReader(LayoutReader&& other) = delete; 
 
+    /**
+     * @brief adds a new `ComponentBuilder` type to the list of
+     * available builder types that this `LayoutReader` knows about.
+     * 
+     * if you have custom component types you'd like to deserialise,
+     * then use this to register their builders.
+     * 
+     * the builder will replace an existing builder with the same
+     * `getName` return value, if present.
+     * 
+     * @param builder pointer to an instance of the builder type
+     * desired. this `LayoutReader` will handle deallocation of
+     * all builders, including ones given via this function
+     */
     void registerBuilder(ComponentBuilder* builder);
 
+    /**
+     * @brief reads a `Page` of STUI LayoutScript from a text file.
+     * 
+     * since the `Component`s in the page are constructed using `new`
+     * at runtime, you **MUST** call `destroyAllComponents` on the
+     * page when you're done using it.
+     * 
+     * throws an exception if a syntax error is found.
+     * 
+     * @param file path of the file to read from
+     * @returns a `Page` fully constructed with all of the components
+     * specified in the file, or `nullptr` if the file was not readable
+     */
     Page* readPage(string file);
 
     ~LayoutReader();
 
 private:
-    static vector<Token> tokenise(const string content);
+    /**
+     * @brief converts a stream of raw LayoutScript text into a
+     * sequence of simplified `Token`s.
+     * 
+     * throws an exception if a syntax error is found.
+     * 
+     * @param content raw text data to parse
+     * @returns list of `Token`s decoded from the raw content
+     */
+    static vector<Token> tokenise(const string& content);
 
+    /**
+     * @brief returns whether a character is within the English
+     * alphabet.
+     * 
+     * @param c character to check
+     * @returns true if the character is alphabetic, otherwise false
+     */
     static inline bool isAlphabetic(char c)
 	{
 		if (c >= 'a' && c <= 'z') return true;
@@ -801,6 +879,19 @@ private:
 		return false;
 	}
 
+    /**
+     * @brief gets an estimate of the `TokenType` of a given
+     * character.
+     * 
+     * note that this is not guaranteed to be accurate, since
+     * many token types are differentiated by context. for
+     * instance, the letter 'c' within a string would return
+     * `TEXT` here, even though it should in that case
+     * technically be `STRING`.
+     * 
+     * @param c character to analyse
+     * @returns a guess at the type of token `c` is part of
+     */
     static inline TokenType getType(const char c)
     {
         if (isAlphabetic(c)) return TEXT;
@@ -821,12 +912,79 @@ private:
         return TEXT;
     }
 
+    /**
+     * @brief searches through a sequence of tokens to find
+     * the closing bracket/brace matching the opening one at
+     * the `open_index`.
+     * 
+     * throws an exception if a syntax error is found.
+     * 
+     * @param tokens list of tokens to operate on
+     * @param open_index index of the opening bracket/brace
+     * @param original_content original text content from
+     * which the token array was parsed (used for error
+     * reporting)
+     * @returns index of the matching closing brace/bracket
+     */
     static size_t findClosingBrace(const vector<Token>& tokens, size_t open_index, const string& original_content);
 
+    /**
+     * @brief converts a sequence of tokens into a `Component`.
+     * 
+     * throws an exception if a syntax error is found.
+     * 
+     * @param tokens list of tokens to operate on
+     * @param start_index first token of the `Component`
+     * definition
+     * @param original_content original text content from
+     * which the token array was parsed (used for error
+     * reporting)
+     * @param page the `Page` to which components are to be
+     * registered as they are created
+     * @returns the fully initialised component
+     */
     Component* parseComponent(const vector<Token>& tokens, size_t start_index, const string& original_content, Page* page);
 
+    /**
+     * @brief converts a sequence fo tokens into an argument,
+     * which will then be used to initialise a component.
+     * 
+     * starting with the first token, this function will try
+     * to understand what type the argument is (string, int
+     * float, component, or an array version of these) from
+     * the first few tokens, and then organise it into a single
+     * `Argument`.
+     * 
+     * throws an exception if a syntax error is found.
+     * 
+     * @param tokens list of tokens to operate on
+     * @param original_content original text content from
+     * which the token array was parsed (used for error
+     * reporting)
+     * @param page the `Page` to which new components are to
+     * be registered, if necessary
+     * @returns a finalised argument
+     */
     BuilderArgs::Argument createArgument(const vector<Token>& tokens, const string& original_content, Page* page);
-        
+    
+    /**
+     * @brief prints a syntax exception to the debug log,
+     * and throws it as an error.
+     * 
+     * automatically shows a preview of the faulty piece of
+     * code, along with a description of the error, and 
+     * calculates the line number and column from the 
+     * provided offset into the provided string.
+     * 
+     * the offset is usually taken from the `start_offset`
+     * of the `Token` on which the error occurred.
+     * 
+     * @param err a description of the type of error
+     * @param off the offset into `str` where the error
+     * occurred
+     * @param str the raw LayoutScript text content for
+     * generating a preview of the offending code
+     */
     static inline void reportError(const string err, size_t off, const string& str)
     {
         int32_t extract_start = max(0, (int32_t)off - 16);
@@ -996,7 +1154,7 @@ LayoutReader::~LayoutReader()
         delete pair.second;
 }
 
-vector<LayoutReader::Token> LayoutReader::tokenise(const string content)
+vector<LayoutReader::Token> LayoutReader::tokenise(const string& content)
 {
     size_t offset = 0;
     vector<Token> tokens;

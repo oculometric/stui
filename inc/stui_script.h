@@ -79,12 +79,13 @@ public:
             float f_value;
             Coordinate coo_value;
             Component* com_value;
-            vector<string> as_value;
-            vector<int> ai_value;
-            vector<float> af_value;
-            vector<Coordinate> acoo_value;
-            vector<Component*> acom_value;
         };
+
+        vector<string> as_value;
+        vector<int> ai_value;
+        vector<float> af_value;
+        vector<Coordinate> acoo_value;
+        vector<Component*> acom_value;
 
         inline Argument() { }
 
@@ -128,16 +129,8 @@ public:
 
         inline ~Argument()
         {
-            switch (type)
-            {
-                case STRING: s_value.~string(); break;
-                case STRING_ARRAY: as_value.~vector(); break;
-                case INT_ARRAY: ai_value.~vector(); break;
-                case FLOAT_ARRAY: af_value.~vector(); break;
-                case COORDINATE_ARRAY: acoo_value.~vector(); break;
-                case COMPONENT_ARRAY: acom_value.~vector(); break;
-                default: break;
-            }
+            if (type == ArgType::STRING)
+                s_value.~string();
         }
     };
 
@@ -422,8 +415,20 @@ private:
         }
         string extract = str.substr(extract_start, extract_end - extract_start);
 
+        size_t ln = 0;
+        size_t last = 0;
+        size_t next = 0;
+        while (next < off)
+        {
+            ln++;
+            last = next;
+            next = str.find('\n', next + 1);
+        }
+        size_t col = off - last;
+        if (ln > 0) col--;
+
         throw runtime_error("STUI format document parsing error:\n\t" + err
-			+ "\n\tat character " + to_string(off)
+			+ "\n\tat character " + to_string(off) + " (ln " + to_string(ln + 1) + ", col " + to_string(col + 1) + ")"
 			+ "\n\t-> '..." + extract + "..."\
 			+ "\n\t" + string(7 + ((int32_t)off - extract_start), ' ') + "^"\
 			+ "\n\tterminating parsing.");
@@ -883,9 +888,7 @@ Page* LayoutReader::readPage(string file)
     ifstream file_data(file, ifstream::ate);
     if (!file_data.is_open())
     {
-#ifdef DEBUG
         DEBUG_LOG("failed to load script file " + file);
-#endif
         return nullptr;
     }
 
@@ -897,9 +900,7 @@ Page* LayoutReader::readPage(string file)
 
     file_data.close();
 
-#ifdef DEBUG
     DEBUG_LOG("loaded " + to_string(file_content.size()) + " chars of script from " + file);
-#endif
 
     vector<Token> tokens;
     try
@@ -908,9 +909,7 @@ Page* LayoutReader::readPage(string file)
     }
     catch (const runtime_error& e)
     {
-#ifdef DEBUG
         DEBUG_LOG(e.what());
-#endif
         return nullptr;
     }
 
@@ -921,9 +920,7 @@ Page* LayoutReader::readPage(string file)
         else pruned_tokens.push_back(t);
     }
 
-#ifdef DEBUG
     DEBUG_LOG("decoded " + to_string(tokens.size()) + " tokens total, pruned " + to_string(tokens.size() - pruned_tokens.size()) + " useless ones");
-#endif
 
     try
     {
@@ -938,9 +935,7 @@ Page* LayoutReader::readPage(string file)
         }
     } catch (const runtime_error& e)
     {
-#ifdef DEBUG
         DEBUG_LOG(e.what());
-#endif
         return nullptr;
     }
 
@@ -953,18 +948,14 @@ Page* LayoutReader::readPage(string file)
     }
     catch (const runtime_error& e)
     {
-#ifdef DEBUG
         DEBUG_LOG(e.what());
-#endif
         page->destroyAllComponents({ });
         delete page;
 
         return nullptr;
     }
 
-#ifdef DEBUG
     DEBUG_LOG("successfully built a UI tree of " + to_string(page->getAllComponents().size()) + " components from file " + file);
-#endif
 
     return page;
 }
@@ -1213,7 +1204,6 @@ Component* LayoutReader::parseComponent(const vector<Token>& tokens, size_t star
 
     size_t bracket_close_index = findClosingBrace(tokens, bracket_open_index, original_content);
     
-    // TODO: collect the arguments into a map of name-value pairs
     map<string, BuilderArgs::Argument> args;
     int arg_finder_state = 0; // 0 - reading name, 1 - looking for equals, 2 - looking for comma
     string current_arg_identifier = "";
@@ -1258,13 +1248,13 @@ Component* LayoutReader::parseComponent(const vector<Token>& tokens, size_t star
                         bracket_stack.push_back(tokens[index]);
                         break;
                     case CLOSE_ROUND:
-                        if (bracket_stack[bracket_stack.size() - 1].type == TokenType::OPEN_ROUND)
+                        if (!bracket_stack.empty() && bracket_stack[bracket_stack.size() - 1].type == TokenType::OPEN_ROUND)
                             bracket_stack.pop_back();
                         else
                             reportError("invalid closing bracket", tokens[index].start_offset, original_content);
                         break;
                     case CLOSE_CURLY:
-                        if (bracket_stack[bracket_stack.size() - 1].type == TokenType::OPEN_CURLY)
+                        if (!bracket_stack.empty() && bracket_stack[bracket_stack.size() - 1].type == TokenType::OPEN_CURLY)
                             bracket_stack.pop_back();
                         else
                             reportError("invalid closing curly brace", tokens[index].start_offset, original_content);
@@ -1295,45 +1285,151 @@ Component* LayoutReader::parseComponent(const vector<Token>& tokens, size_t star
 
 BuilderArgs::Argument LayoutReader::createArgument(const vector<Token>& tokens, const string& original_content, Page* page)
 {
-    // TODO: create an Argument from the current_arg_value and current_arg_identifier
     BuilderArgs::Argument arg = BuilderArgs::Argument();
+
+    vector<BuilderArgs::Argument> array_elements;
+    vector<Token> current_tokens;
+    vector<Token> bracket_stack;
+    TokenType array_token_type;
+    int array_splitter_state;
+    size_t end_bracket_index;
 
     switch (tokens[0].type)
     {
-    case INT:
-        if (tokens.size() > 1)
-            reportError("unexpected token(s) after int", tokens[1].start_offset, original_content);
-        arg.type = BuilderArgs::ArgType::INT;
-        arg.i_value = tokens[0].i_value;
-        break;
-    case FLOAT:
-        if (tokens.size() > 1)
-            reportError("unexpected token(s) after float", tokens[1].start_offset, original_content);
-        arg.type = BuilderArgs::ArgType::FLOAT;
-        arg.f_value = tokens[0].f_value;
-        break;
-    case STRING:
-        if (tokens.size() > 1)
-            reportError("unexpected token(s) after string", tokens[1].start_offset, original_content);
-        arg.type = BuilderArgs::ArgType::STRING;
-        arg.s_value = tokens[0].s_value;
-        break;
-    case COORDINATE:
-        if (tokens.size() > 1)
-            reportError("unexpected token(s) after coordinate", tokens[1].start_offset, original_content);
-        arg.type = BuilderArgs::ArgType::COORDINATE;
-        arg.coo_value = tokens[0].c_value;
-        break;
-    case OPEN_CURLY:
-        // TODO: arrays
-        break;
-    case TEXT:
-        arg.type = BuilderArgs::ArgType::COMPONENT;
-        arg.com_value = parseComponent(tokens, 0, original_content, page);
-        break;
-    default:
-        reportError("invalid token(s) after '='", tokens[0].start_offset, original_content);
-        break;
+        case INT:
+            if (tokens.size() > 1)
+                reportError("unexpected token(s) after int", tokens[1].start_offset, original_content);
+            arg.type = BuilderArgs::ArgType::INT;
+            arg.i_value = tokens[0].i_value;
+            break;
+        case FLOAT:
+            if (tokens.size() > 1)
+                reportError("unexpected token(s) after float", tokens[1].start_offset, original_content);
+            arg.type = BuilderArgs::ArgType::FLOAT;
+            arg.f_value = tokens[0].f_value;
+            break;
+        case STRING:
+            if (tokens.size() > 1)
+                reportError("unexpected token(s) after string", tokens[1].start_offset, original_content);
+            arg.type = BuilderArgs::ArgType::STRING;
+            arg.s_value = tokens[0].s_value;
+            break;
+        case COORDINATE:
+            if (tokens.size() > 1)
+                reportError("unexpected token(s) after coordinate", tokens[1].start_offset, original_content);
+            arg.type = BuilderArgs::ArgType::COORDINATE;
+            arg.coo_value = tokens[0].c_value;
+            break;
+        case OPEN_CURLY:
+            end_bracket_index = findClosingBrace(tokens, 0, original_content);
+            if (end_bracket_index != tokens.size() - 1)
+                reportError("unexpected token(s) after closing curly brace", tokens[end_bracket_index].start_offset, original_content);
+            if (end_bracket_index == 1)
+                reportError("empty arrays are not permitted", tokens[1].start_offset, original_content);
+
+            BuilderArgs::ArgType array_arg_type;
+            array_splitter_state = 0; // 0 - looking for first token of element, 1 - looking for comma
+
+            for (size_t index = 1; index < end_bracket_index; index++)
+            {
+                if (array_elements.empty() && current_tokens.empty())
+                {
+                    array_token_type = tokens[index].type;
+                    switch (tokens[index].type)
+                    {
+                        case INT: array_arg_type =  BuilderArgs::ArgType::INT_ARRAY; break;
+                        case FLOAT: array_arg_type =  BuilderArgs::ArgType::FLOAT_ARRAY; break;
+                        case STRING: array_arg_type =  BuilderArgs::ArgType::STRING_ARRAY; break;
+                        case COORDINATE: array_arg_type =  BuilderArgs::ArgType::COORDINATE_ARRAY; break;
+                        case TEXT: array_arg_type =  BuilderArgs::ArgType::COMPONENT_ARRAY; break;
+                        default:
+                            reportError("invalid token", tokens[index].start_offset, original_content);
+                    }
+                }
+
+                if (array_splitter_state == 0)
+                {
+                    if (tokens[index].type != array_token_type)
+                        reportError("arrays may only contain one type of data", tokens[index].start_offset, original_content);
+                    current_tokens.push_back(tokens[index]);
+                    array_splitter_state = 1;
+                }
+                else if (array_splitter_state == 1)
+                {
+                    if (tokens[index].type == TokenType::COMMA && bracket_stack.size() == 0)
+                    {
+                        BuilderArgs::Argument arg2 = createArgument(current_tokens, original_content, page);
+                        array_elements.push_back(arg2);
+                        array_splitter_state = 0;
+                        current_tokens.clear();
+                    }
+                    else
+                    {
+                        current_tokens.push_back(tokens[index]);
+                        switch (tokens[index].type)
+                        {
+                            case OPEN_ROUND:
+                            case OPEN_CURLY:
+                                bracket_stack.push_back(tokens[index]);
+                                break;
+                            case CLOSE_ROUND:
+                                if (!bracket_stack.empty() && bracket_stack[bracket_stack.size() - 1].type == TokenType::OPEN_ROUND)
+                                    bracket_stack.pop_back();
+                                else
+                                    reportError("invalid closing bracket", tokens[index].start_offset, original_content);
+                                break;
+                            case CLOSE_CURLY:
+                                if (!bracket_stack.empty() && bracket_stack[bracket_stack.size() - 1].type == TokenType::OPEN_CURLY)
+                                    bracket_stack.pop_back();
+                                else
+                                    reportError("invalid closing curly brace", tokens[index].start_offset, original_content);
+                                break;
+                            default: break;
+                        }
+                    }
+                }
+            }
+
+            if (array_splitter_state == 1)
+            {
+                BuilderArgs::Argument arg2 = createArgument(current_tokens, original_content, page);
+                array_elements.push_back(arg2);
+            }
+
+            arg.type = array_arg_type;
+            switch (array_arg_type)
+            {
+                case BuilderArgs::ArgType::INT_ARRAY:
+                    for (BuilderArgs::Argument a : array_elements)
+                        arg.ai_value.push_back(a.i_value);
+                    break;
+                case BuilderArgs::ArgType::FLOAT_ARRAY:
+                    for (BuilderArgs::Argument a : array_elements)
+                        arg.af_value.push_back(a.f_value);
+                    break;
+                case BuilderArgs::ArgType::STRING_ARRAY:
+                    for (BuilderArgs::Argument a : array_elements)
+                        arg.as_value.push_back(a.s_value);
+                    break;
+                case BuilderArgs::ArgType::COORDINATE_ARRAY:
+                    for (BuilderArgs::Argument a : array_elements)
+                        arg.acoo_value.push_back(a.coo_value);
+                    break;
+                case BuilderArgs::ArgType::COMPONENT_ARRAY:
+                    for (BuilderArgs::Argument a : array_elements)
+                        arg.acom_value.push_back(a.com_value);
+                    break;
+                default:
+                    reportError("invalid argument decoder state", tokens[0].start_offset, original_content);
+            }
+            break;
+        case TEXT:
+            arg.type = BuilderArgs::ArgType::COMPONENT;
+            arg.com_value = parseComponent(tokens, 0, original_content, page);
+            break;
+        default:
+            reportError("invalid token(s) after '='", tokens[0].start_offset, original_content);
+            break;
     }
 
     return arg;
@@ -1353,13 +1449,13 @@ size_t LayoutReader::findClosingBrace(const vector<Token>& tokens, size_t open_i
                 brackets.push_back(tokens[index]);
                 break;
             case CLOSE_ROUND:
-                if (brackets[brackets.size() - 1].type == TokenType::OPEN_ROUND)
+                if (!brackets.empty() && brackets[brackets.size() - 1].type == TokenType::OPEN_ROUND)
                     brackets.pop_back();
                 else
                     reportError("invalid closing bracket", tokens[index].start_offset, original_content);
                 break;
             case CLOSE_CURLY:
-                if (brackets[brackets.size() - 1].type == TokenType::OPEN_CURLY)
+                if (!brackets.empty() && brackets[brackets.size() - 1].type == TokenType::OPEN_CURLY)
                     brackets.pop_back();
                 else
                     reportError("invalid closing curly brace", tokens[index].start_offset, original_content);

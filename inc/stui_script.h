@@ -946,7 +946,6 @@ Page* LayoutReader::readPage(string file)
     try
     {
         Component* root = parseComponent(pruned_tokens, 0, file_content, page);
-        // FIXME: root component is duplicated
         page->setRoot(root);
     }
     catch (const runtime_error& e)

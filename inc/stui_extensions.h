@@ -126,7 +126,6 @@ public:
 	 *
 	 * @param fps_target target number of frames/function calls to be
 	 * possible per second
-	 *
 	 * @returns information about the duration and active fraction of
 	 * the last frame
 	 */
@@ -208,7 +207,6 @@ public:
 	 * throws if there is no component present with the specified name.
 	 *
 	 * @param identifier name of the component to fetch
-	 *
 	 * @returns component with the given name in the registry
 	 */
 	inline Component* operator[](string identifier) { return components[identifier]; }
@@ -237,7 +235,6 @@ public:
 	 * @param component new component to add to the registry
 	 * @param identifier name for the new component, optional if you
 	 * don't care about accessing the component by name later
-	 *
 	 * @returns the identifier assigned to the component in the registry
 	 */
 	string registerComponent(Component* component, string identifier = "")
@@ -284,7 +281,6 @@ public:
 	 * potentially slow for large pages.
 	 *
 	 * @param component component to check for
-	 *
 	 * @returns true if the component is already registered, false
 	 * if not
 	 */
@@ -390,7 +386,6 @@ private:
 	 * @brief check if a name already exsists in the registry or not.
 	 *
 	 * @param name name to search for
-	 *
 	 * @returns true if the name was not found in the registry (and therefore)
 	 * is unique, false if the name already exists
 	 */
@@ -406,7 +401,6 @@ private:
 	 *
 	 * @param type type name of the component this identifier will be
 	 * used for
-	 *
 	 * @returns a unique identifier
 	 */
 	inline string getUniqueName(string type)

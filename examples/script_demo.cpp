@@ -10,7 +10,13 @@ int main()
 
     LayoutReader reader;
     Page* pg = reader.readPage("demo.sls");
-    if (pg) pg->render();
+    if (!pg) return 1;
+
+    ((ProgressBar*)((*pg)["progress_bar"]))->fraction = 0.99f;
+    pg->render();
+
+    Terminal::unConfigure(false);
+    cout << endl;
 
     return 0;
 }

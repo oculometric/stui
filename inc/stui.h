@@ -178,7 +178,7 @@ inline void debug(string str)
  * @param str string to remove invalid characters from
  * @param others array of additional characters that should be excluded
  * @return repaired string 
- **/
+ */
 string stripNullsAndMore(string str, const char* others)
 #ifdef STUI_IMPLEMENTATION
 {
@@ -205,13 +205,14 @@ string stripNullsAndMore(string str, const char* others)
 
 /**
  * @brief two-dimensional integer coordinate pair.
- * 
- **/
+ */
 struct Coordinate
 {
 	int x, y;
 };
 
+#pragma pack(push)
+#pragma pack(1)
 /**
  * @brief structure describing the value of a terminal-pixel, which
  * may optionally have a command to change colour specified.
@@ -220,9 +221,7 @@ struct Coordinate
  * then this `Tixel` will inherit the colour configuration of the
  * previous pixel (for whichever of FG/BG were not specified for this
  * `Tixel`).
- **/
-#pragma pack(push)
-#pragma pack(1)
+ */
 struct Tixel
 {
 	/**
@@ -231,7 +230,7 @@ struct Tixel
 	 * 
 	 * one FG and one BG colour can be or-ed together to set both on
 	 * this `Tixel`
-	 **/
+	 */
 	enum ColourCommand : uint8_t
 	{
 		FG_BLACK 	= 0b00000001,
@@ -296,7 +295,7 @@ struct Tixel
  * @brief class which encapsulates input functionality which is used to receive and handle
  * input in useful ways. another way of encapsulating functionality to hide it from the you!
  * just pretend this isn't here.
- **/
+ */
 class Input
 {
 	friend class Renderer;
@@ -307,7 +306,7 @@ public:
 	 * 
 	 * left and right shift are treated as the same on Windows, so for cross-platform-ness i'll
 	 * settle for that.
-	 **/
+	 */
 	enum ControlKeys : uint16_t
 	{
 		NONE        = 0b00000000,
@@ -318,7 +317,7 @@ public:
 
 	/**
 	 * @brief enumerates the arrow keys for identifying directional key strokes
-	 **/
+	 */
 	enum ArrowKeys
 	{
 		UP          = 0x11,
@@ -330,20 +329,19 @@ public:
 	/**
 	 * @brief describes a key input event. though we only care about key down or key repeat
 	 * events.
-	 **/
+	 */
 	struct Key
 	{
 		uint16_t key;
 		ControlKeys control_states;
 	};
 
+	#pragma pack(push)
+	#pragma pack(4)
 	/**
 	 * @brief describes a shortcut linking a desired key-bind to a function that should
 	 * be called when the binding is triggered.
-	 **/
-
-	#pragma pack(push)
-	#pragma pack(4)
+	 */
 	struct Shortcut
 	{
 		Input::Key binding;
@@ -382,7 +380,7 @@ private:
 	 * ASCII range to make them easier to read (specifically the arrow keys).
 	 * 
 	 * @returns list of key-press events
-	 **/
+	 */
 	static vector<Key> getQueuedKeyEvents()
 #ifdef STUI_IMPLEMENTATION
 	{
@@ -527,7 +525,7 @@ private:
 	 * @param a first key event
 	 * @param b second key event
 	 * @returns whether or not the key events are identical
-	 **/
+	 */
 	static inline bool compare(Key a, Key b)
 	{
 		return (a.control_states == b.control_states) && ((a.key == b.key) || (a.control_states != ControlKeys::NONE && toupper(a.key) == toupper(b.key)));
@@ -542,7 +540,7 @@ private:
 	 * 
 	 * @param shortcuts list of keyboard shortcut bindings
 	 * @param key_events list of key events to check
-	 **/
+	 */
 	static void processShortcuts(vector<Shortcut> shortcuts, vector<Key>& key_events)
 #ifdef STUI_IMPLEMENTATION
 	{
@@ -581,7 +579,7 @@ private:
 	 * 
 	 * @param key_events list of key events to check
 	 * @returns list of extracted text characters
-	 **/
+	 */
 	static vector<pair<uint8_t, ControlKeys>> getTextCharacters(vector<Key>& key_events)
 #ifdef STUI_IMPLEMENTATION
 	{
@@ -632,7 +630,7 @@ private:
  * 
  * all `Component` subclasses must override the `render`, `getMaxSize`, and 
  * `getMinSize` methods (ideally using the relevant macros).
- **/
+ */
 #pragma pack(push)
 #pragma pack(8)
 class Component
@@ -650,7 +648,7 @@ public:
 	 * @param output_buffer buffer allocated by the caller to be drawn into. ordered left
 	 * to right, top to bottom
 	 * @param size size of the buffer
-	 **/
+	 */
 	virtual inline void render(Tixel* output_buffer, Coordinate size) { }
 	
 	/**
@@ -661,7 +659,7 @@ public:
 	 * value `-1` to indicate no maximum size in that dimension.
 	 * 
 	 * @returns a `Coordinate` representing the maximum size for the `Component`
-	 **/
+	 */
 	virtual inline Coordinate getMaxSize() { return { 0, 0 }; }
 
 	/**
@@ -673,7 +671,7 @@ public:
 	 * for either dimension.
 	 *
 	 * @returns a `Coordinate` representing the minimum size for the `Component`
-	 **/
+	 */
 	virtual inline Coordinate getMinSize() { return { 0, 0 }; }
 
 	/**
@@ -684,7 +682,7 @@ public:
 	 * 
 	 * @param input_character the character to handle
 	 * @returns true if the input was consumed or false if not
-	 **/
+	 */
 	virtual inline bool handleInput(uint8_t input_character, Input::ControlKeys modifiers) { return false; }
 
 	/**
@@ -693,7 +691,7 @@ public:
 	 * should be overriden by subclasses which want to receive input.
 	 * 
 	 * @returns true if the component is focusable
-	 **/
+	 */
 	virtual inline bool isFocusable() { return false; }
 
 	/**
@@ -720,7 +718,7 @@ public:
  * @brief class which encapsulates the utility functions that many of `Component`s reuse but
  * which probably shouldn't be publicly accessible outside the header file. basically ignore
  * this.
- **/
+ */
 class Utility
 {
 protected:
@@ -735,7 +733,7 @@ protected:
 	 * ends outside the bounds of the buffer, but areas outside won't be drawn
 	 * @param buffer pointer to a character array ordered left-to-right, top-to-bottom
 	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
-	 **/
+	 */
 	static void drawBox(Coordinate box_origin, Coordinate box_size, Tixel* buffer, Coordinate buffer_size)
 #ifdef STUI_IMPLEMENTATION
 	{
@@ -784,7 +782,6 @@ protected:
 	 * 
 	 * @param text string to split
 	 * @param delim character to split at. this will be removed from the resulting array of strings
-	 * 
 	 * @returns array of strings
 	 */
 	static vector<string> splitString(string text, char delim)
@@ -815,9 +812,8 @@ protected:
 	 * 
 	 * @param text string on which to perform wrapping
 	 * @param max_width maximum number of characters to place in any row
-	 * 
 	 * @returns list of individual lines of text
-	 **/
+	 */
 	static vector<string> wrapText(string text, size_t max_width)
 #ifdef STUI_IMPLEMENTATION
 	{
@@ -890,7 +886,7 @@ protected:
 	 * be positive in both dimensions. text that runs outside this area is not drawn
 	 * @param buffer pointer to a `Tixel` array ordered left-to-right, top-to-bottom
 	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
-	 **/
+	 */
 	static void drawText(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size)
 #ifdef STUI_IMPLEMENTATION
 	{
@@ -927,7 +923,7 @@ protected:
 	 * fit inside this horizontally
 	 * @param buffer pointer to a `Tixel` array ordered left-to-right, top-to-bottom
 	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
-	 **/
+	 */
 	static vector<size_t> drawTextWrapped(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size)
 #ifdef STUI_IMPLEMENTATION
 	{
@@ -966,10 +962,9 @@ protected:
 	 * 
 	 * @param buffer_size two-dimensional size of the buffer required. must be positive and non-zero in
 	 * both axes
-	 * 
 	 * @returns pointer to newly-allocated block of memory, or `nullptr` if the buffer size would be
 	 * less than 1
-	 **/
+	 */
 	static Tixel* makeBuffer(Coordinate buffer_size)
 #ifdef STUI_IMPLEMENTATION
 	{
@@ -1007,7 +1002,7 @@ protected:
 	 * @param dst_size size of the destination buffer, must match with the allocated size of `dst`
 	 * @param dst_offset position of the top-left corner of the box to copy to in the destination buffer.
 	 * must be positive in both dimensions
-	 **/
+	 */
 	static void copyBox(const Tixel* src, Coordinate src_size, Coordinate src_offset, Coordinate area_size, Tixel* dst, Coordinate dst_size, Coordinate dst_offset)
 #ifdef STUI_IMPLEMENTATION
 	{
@@ -1030,7 +1025,7 @@ protected:
 	 * @brief get the current default colour configuration for the interface.
 	 * 
 	 * @returns the current colour configuration
-	 **/
+	 */
 	static inline Tixel::ColourCommand getDefaultColour()
 	{
 		return (Tixel::ColourCommand)(Tixel::ColourCommand::BG_BLACK | Tixel::ColourCommand::FG_WHITE);
@@ -1040,7 +1035,7 @@ protected:
 	 * @brief get the current highlighted colour configuration for the interface.
 	 * 
 	 * @returns the current highlighted colour configuration
-	 **/
+	 */
 	static inline Tixel::ColourCommand getHighlightedColour()
 	{
 		return (Tixel::ColourCommand)(Tixel::ColourCommand::FG_BLACK | Tixel::ColourCommand::BG_WHITE);
@@ -1050,7 +1045,7 @@ protected:
 	 * @brief get the current unfocused colour configuration for the interface.
 	 * 
 	 * @returns the current unfocused colour configuration
-	 **/
+	 */
 	static inline Tixel::ColourCommand getUnfocusedColour()
 	{
 		return (Tixel::ColourCommand)(Tixel::ColourCommand::FG_BLACK | Tixel::ColourCommand::BG_GRAY);
@@ -1064,7 +1059,7 @@ protected:
 	 * @param size size of the area. must be positive in both axes
 	 * @param buffer output buffer into which the filled box should be drawn
 	 * @param buffer_size size of the output buffer
-	 **/
+	 */
 	static void fillColour(Tixel::ColourCommand colour, Coordinate origin, Coordinate size, Tixel* buffer, Coordinate buffer_size)
 #ifdef STUI_IMPLEMENTATION
 	{
@@ -1093,8 +1088,8 @@ protected:
  * @brief single-line text box.
  * 
  * text `alignment` can be specified as < 0 for left-aligned, = 0 for center-aligned, or
- * > 0 for right-aligned
- **/
+ * > 0 for right-aligned.
+ */
 class Label : public Component, public Utility
 {
 public:
@@ -1129,7 +1124,7 @@ public:
 
 /**
  * @brief simple clickable button.
- **/
+ */
 class Button : public Component, public Utility
 {
 public:
@@ -1172,7 +1167,7 @@ public:
 /**
  * @brief list of options from which the user can select one by navigating up/down and
  * pressing enter/space.
- **/
+ */
 class RadioButton : public Component, public Utility
 {
 	int highlighted_index = 0;
@@ -1227,7 +1222,7 @@ public:
 /**
  * @brief list of options from which the user can select any, all, or none by navigating
  * up/down and pressing enter/space.
- **/
+ */
 class ToggleButton : public Component, public Utility
 {
 	int highlighted_index = 0;
@@ -1280,7 +1275,7 @@ public:
 
 /**
  * @brief simple text entry box.
- **/
+ */
 class TextInputBox : public Component, public Utility
 {
 	size_t cursor_index = 0;
@@ -1348,7 +1343,7 @@ public:
 
 /**
  * @brief multi-line wrapping text area. scrollable
- **/
+ */
 class TextArea : public Component, public Utility
 {
 	int last_rendered_height = 0;
@@ -1402,7 +1397,7 @@ public:
  * @brief linear progress bar.
  * 
  * progress is expressed as a `fraction` between 0 and 1.
- **/
+ */
 class ProgressBar : public Component
 {
 public:
@@ -1431,7 +1426,7 @@ public:
 
 /**
  * @brief user-interactible slider widget.
- **/
+ */
 class Slider : public Component, public Utility
 {
 public:
@@ -1480,7 +1475,7 @@ public:
  * 
  * described by its `state` (effectively the current animation frame index), and its `type`
  * (style setting between 0 and 3 inclusive).
- **/
+ */
 class Spinner : public Component
 {
 	static constexpr int types = 4;
@@ -1517,7 +1512,7 @@ public:
  * the layout algorithm will attempt to meet the minimum sizes of all children first, then
  * expand each element one-by-one until they either meet their max height or there's no more
  * space to expand into. ensures minimum widths for all elements.
- **/
+ */
 class VerticalBox : public Component, public Utility
 {
 public:
@@ -1623,7 +1618,7 @@ public:
  * the layout algorithm will attempt ot meet the minimum sizes of all children first, then
  * expand each element one-by-one until they either meet their max width or there's no more
  * space to expand into. ensures minimum heights for all elements.
- **/
+ */
 class HorizontalBox : public Component, public Utility
 {
 public:
@@ -1719,7 +1714,7 @@ public:
 
 /**
  * @brief blank spacing element which fills a set amount of space vertically.
- **/
+ */
 class VerticalSpacer : public Component
 {
 public:
@@ -1735,7 +1730,7 @@ public:
 
 /**
  * @brief blank spacing element which fills a set amount of space horizontally.
- **/
+ */
 class HorizontalSpacer : public Component
 {
 public:
@@ -1751,7 +1746,7 @@ public:
 
 /**
  * @brief draws a border around another component using IBM box characters.
- **/
+ */
 class BorderedBox : public Component, public Utility
 {
 public:
@@ -1797,8 +1792,7 @@ public:
  * @brief element which displays a list of strings.
  * 
  * allows scrolling.
- * 
- **/
+ */
 class ListView : public Component, public Utility
 {
 	int last_render_height = 0;
@@ -1877,7 +1871,7 @@ public:
  * nodes can be given a descriptive name, and an identifier (which could be used to
  * index into your own array of proprietary nodes). expansion of nodes can be toggled;
  * if a node is expanded then its children will be shown, otherwise they will not.
- **/
+ */
 class TreeView : public Component, public Utility
 {
 	int last_render_height = 0;
@@ -1999,7 +1993,7 @@ private:
 		int parent_expansion_level = root->expanded ? 0 : -1;
 		while (current_node->id != id)
 		{
-		// TODO: actual_offset is still not correct
+		// FIXME: actual_offset is still not correct
 			if (!current_node->children.empty())
 			{
 				parents.push_back(current_node);
@@ -2094,7 +2088,7 @@ private:
  * images will be displayed at twice the width they are stored at to compensate for the
  * aspect ratio of terminal characters. each pixel should be described by a single byte.
  * the size of the image buffer must be allocated to match the image size parameter.
- **/
+ */
 class ImageView : public Component
 {
 public:
@@ -2138,7 +2132,7 @@ public:
  * 
  * the specified `max_size` should probably be at least as large as the minimum
  * size of the `child`
- **/
+ */
 class SizeLimiter : public Component
 {
 public:
@@ -2208,7 +2202,7 @@ public:
  * @brief displays a block of text in the center of it's area.
  * 
  * does not wrap text, but does respect line breaks using `\n`.
- **/
+ */
 class Banner : public Component, public Utility
 {
 public:
@@ -2294,9 +2288,8 @@ public:
 
 /**
  * @brief purely static class which encapsulates code for rendering a page
- * to the terminal. a page just consists of a `Component` tree
- *
- **/
+ * to the terminal. a page just consists of a `Component` tree.
+ */
 class Renderer : public Utility
 {
 public:
@@ -2308,7 +2301,7 @@ public:
 	 * terminal, which is completely cleared to prevent scrolling jank.
 	 *
 	 * @param root_component element to draw into the terminal
-	 **/
+	 */
 	static void render(Component* root_component);
 
 	/**
@@ -2317,13 +2310,12 @@ public:
 	 *
 	 * @param focused_component component to send input to
 	 * @param shortcut_bindings list of shortcuts to check for
-	 **/
+	 */
 	static bool handleInput(Component* focused_component, vector<Input::Shortcut> shortcut_bindings);
 
 	/**
 	 * @brief stores information about a frame-wait which just happened
-	 *
-	 **/
+	 */
 	struct FrameData
 	{
 		float delta_time;		// time since the last time `targetFramerate` was called
@@ -2342,7 +2334,7 @@ public:
 	 * @return information about the frame: the delta time since the previous call, and
 	 * the fraction of the delta time which was taken up by the time between calls (the
 	 * remaining fraction being occupied by the `targetFramerate` function idling)
-	 **/
+	 */
 	static FrameData targetFramerate(int fps, clock_type::time_point& last_frame_time);
 
 private:
@@ -2353,7 +2345,7 @@ private:
 	 * @param max maximum desired size of the subject
 	 * @param min minimum desired size of the subject
 	 * @return resulting constrained size
-	 **/
+	 */
 	static inline int getConstrainedSize(int available, int _max, int _min);
 };
 
@@ -2524,7 +2516,7 @@ private:
 
 	/**
 	 * @brief clear the entire terminal, including scrollback and onscreen buffers
-	 **/
+	 */
 	static inline void clear()
 	{
 		OUTPUT_TARGET << ANSI_CLEAR_SCREEN << ANSI_CLEAR_SCROLL;
@@ -2534,7 +2526,7 @@ private:
 	 * @brief get the size of the terminal window in characters
 	 * 
 	 * @return size of the terminal window 
-	 **/
+	 */
 	static inline Coordinate getScreenSize()
 	{
 #if defined(_WIN32)
@@ -2552,7 +2544,7 @@ private:
 	 * @brief move the cursor to a given position in the terminal window
 	 * 
 	 * @param position desired position of the cursor
-	 **/
+	 */
 	static inline void setCursorPosition(Coordinate position)
 	{
 		OUTPUT_TARGET << ANSI_SET_CURSOR(position.x, position.y);
@@ -2562,7 +2554,7 @@ private:
 	 * @brief toggle terminal cursor visibility
 	 * 
 	 * @param visible whether or not the cursor should be visible
-	 **/
+	 */
 	static inline void setCursorVisible(bool visible)
 	{
 #if defined(_WIN32)

@@ -40,14 +40,14 @@ namespace stui
  * 
  * provides some helper functions to check if arguments exist and are of a specific
  * type.
- **/
+ */
 class BuilderArgs
 {
 public:
     /**
      * @brief enumerates possible types for a builder argument, each one having
      * and array counterpart.
-     **/
+     */
     enum ArgType
     {
         STRING,
@@ -67,7 +67,7 @@ public:
      * 
      * this should be used by `ComponentBuilder` subclasses to be translated into actual
      * constructor arguments for the `Component`s which get built.
-     **/
+     */
     struct Argument
     {
         ArgType type = ArgType::STRING;
@@ -183,7 +183,7 @@ class LayoutReader;
  * in order for your custom component types to be read in from LayoutScript, you
  * must define your own builders for each custom type, and register them with
  * the `LayoutReader` you're using to read files.
- **/
+ */
 class ComponentBuilder
 {
     friend class LayoutReader;
@@ -194,7 +194,7 @@ protected:
      * type which this builder intends to handle construction of.
      * 
      * @param the name as shown in LayoutScript files 
-     **/
+     */
     virtual string getName() = 0;
 
     /**
@@ -204,7 +204,7 @@ protected:
      * @param constructor collection of arguments to work with
      * @returns newly initialised `Component` of whatever subclass corresponds to
      * this `ComponentBuilder` subclass
-     **/
+     */
     virtual Component* build(BuilderArgs constructor) = 0;
 
     virtual ~ComponentBuilder() { }; // don't touch this

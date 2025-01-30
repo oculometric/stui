@@ -3,12 +3,16 @@
 - [ ] add editable text area component
 
 # v0.4
-- [ ] move most of the itty bitty STUI_IMPLEMENTATION bits into one big block at the end of each file
-- [ ] implement LayoutScript reading from file
-- [ ] documentation and examples for LayoutScript
+- [ ] make it easier to get components of a particular type from page
 - [ ] fix invalid free pointer in page_usage.cpp (related to object deletion on page destruct probably)
-- [ ] correct consistency of '*'s at end of comments
+- [ ] move most of the itty bitty STUI_IMPLEMENTATION bits into one big block at the end of each file
+- [ ] test by rebuilding other demos in LayoutScript
+- [ ] documentation and examples for LayoutScript
+- [ ] fix actual_offset in tree view
+- [ ] update help relating to `Page`
 - [x] better handling of object deletion within pages
+- [x] implement LayoutScript reading from file
+- [x] correct consistency of '*'s at end of comments
 
 # Completed v0.3
 - [x] allow the user to configure callbacks for program exit                                                                (v0.3)

@@ -9,7 +9,8 @@ int main()
     Terminal::configure("script test", 0.5f);
 
     LayoutReader reader;
-    reader.readPage("demo.sls");
+    Page* pg = reader.readPage("demo.sls");
+    if (pg) pg->render();
 
     return 0;
 }

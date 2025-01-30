@@ -66,6 +66,13 @@ public:
 	Page operator=(Page& other) = delete;
 
 	/**
+	 * @brief returns a list of all the names of the components registered in the page.
+	 * 
+	 * @returns list of component names
+	 */
+	inline vector<string> getAllComponents() { vector<string> comps; for (auto pair : components) comps.push_back(pair.first); return comps; }
+
+	/**
 	 * @brief checks for user input and sends it to the currently focused component.
 	 * 
 	 * @returns true if some input was detected, false if none
@@ -152,7 +159,7 @@ public:
 	{
 		if (root == nullptr)
 		{
-			for (auto p : components) unregisterComponent(p.first);
+			destroyAllComponents({ });
 			DEBUG_LOG("ensure integrity called, root was null so the registry was cleared");
 		}
 
@@ -211,7 +218,7 @@ public:
 	 *
 	 * @param component component to make the new root
 	 */
-	inline void setRoot(Component* component) { registerComponent(component, ""); root = component; ensureIntegrity(); }
+	inline void setRoot(Component* component) { root = component; ensureIntegrity(); }
 
 	/**
 	 * @brief get the current root of the UI tree.
@@ -289,6 +296,40 @@ public:
 		return false;
 	}
 
+	vector<Component*> destroyAllComponents(vector<string> exclude_list)
+#ifdef STUI_IMPLEMENTATION
+	{
+		vector<Component*> remainders;
+
+		for (auto pair : components)
+		{
+			string name = pair.first;
+			unregisterComponent(name);
+
+			bool to_exclude = false;
+			for (string s : exclude_list)
+			{
+				if (s == name)
+				{
+					to_exclude = true;
+					break;
+				}
+			}
+			
+			if (to_exclude)
+				remainders.push_back(pair.second);
+			else
+				delete pair.second;
+		}
+
+		root = nullptr;
+		focusable_component_sequence.clear();
+
+		return remainders;
+	}
+#endif
+	;
+
 	/**
 	 * @brief ensures that only one component is focused. specifically the
 	 * one indexed by `focused_component_index`. you should call this if you make
@@ -300,6 +341,12 @@ public:
 		for (size_t i = 0; i < focusable_component_sequence.size(); i++)
 			focusable_component_sequence[i]->focused = (i == focused_component_index);
 	}
+
+	inline ~Page()
+	{
+		destroyAllComponents({ });
+	}
+
 private:
 
 	/**

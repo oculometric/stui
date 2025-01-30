@@ -2,6 +2,13 @@
 
 - [ ] add editable text area component
 
+# v0.4
+- [ ] move most of the itty bitty STUI_IMPLEMENTATION bits into one big block at the end of each file
+- [ ] implement LayoutScript reading from file
+- [ ] documentation and examples for LayoutScript
+- [ ] fix invalid free pointer in page_usage.cpp (related to object deletion on page destruct probably)
+- [x] better handling of object deletion within pages
+
 # Completed v0.3
 - [x] allow the user to configure callbacks for program exit                                                                (v0.3)
 - [x] make it possible to un-configure the terminal                                                                         (v0.3)

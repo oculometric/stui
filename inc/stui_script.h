@@ -353,7 +353,7 @@ private:
     map<string, ComponentBuilder*> builders;
 
 public:
-    inline LayoutReader() { LayoutReader(vector<ComponentBuilder*(*)(void)>({ })); }
+    inline LayoutReader() : LayoutReader(vector<ComponentBuilder*(*)(void)>({ })) { };
     LayoutReader(vector<ComponentBuilder*(*)(void)> additional_builders);
 
     LayoutReader operator=(LayoutReader& other) = delete;
@@ -397,6 +397,10 @@ private:
         if (c == ' ' || c == '\t') return WHITESPACE;
         return TEXT;
     }
+
+    static size_t findClosingBrace(const vector<Token>& tokens, size_t open_index, string original_content);
+
+    Component* parseComponent(const vector<Token>& tokens, size_t start_index, string original_content, Page* page);
 
     static inline void reportError(const string err, size_t off, const string& str)
     {
@@ -857,7 +861,7 @@ LayoutReader::LayoutReader(vector<ComponentBuilder*(*)(void)> additional_builder
     copy.push_back(builder<HorizontalDividerBuilder>);
     copy.push_back(builder<QRCodeViewBuilder>);
 
-    for (auto ptr : additional_builders)
+    for (auto ptr : copy)
         registerBuilder(ptr());
 }
 
@@ -877,7 +881,9 @@ Page* LayoutReader::readPage(string file)
     ifstream file_data(file, ifstream::ate);
     if (!file_data.is_open())
     {
-
+#ifdef DEBUG
+        DEBUG_LOG("failed to load script file " + file);
+#endif
         return nullptr;
     }
 
@@ -888,7 +894,23 @@ Page* LayoutReader::readPage(string file)
 
     file_data.close();
 
-    vector<Token> tokens = tokenise(file_content);
+#ifdef DEBUG
+    DEBUG_LOG("loaded " + to_string(file_content.size()) + " chars of script from " + file);
+#endif
+
+    vector<Token> tokens;
+    try
+    {
+        tokens = tokenise(file_content);
+    }
+    catch (const runtime_error& e)
+    {
+#ifdef DEBUG
+        DEBUG_LOG(e.what());
+#endif
+        return nullptr;
+    }
+
     vector<Token> pruned_tokens;
     for (Token t : tokens)
     {
@@ -897,17 +919,52 @@ Page* LayoutReader::readPage(string file)
     }
 
 #ifdef DEBUG
-    DEBUG_LOG("loaded " + to_string(file_content.size()) + " chars of script from " + file);
     DEBUG_LOG("decoded " + to_string(tokens.size()) + " tokens total, pruned " + to_string(tokens.size() - pruned_tokens.size()) + " useless ones");
 #endif
 
-    // TODO: identify component stubs
-    // TODO: build a tree of these (i.e. type, name, map of arg names to token arrays)
-    // TODO: find a builder and call build() from the innermost outward (using a stack)
-    // TODO: add each component to the page, along with its name, as we go
-    // TODO: add top level component as page root
+    try
+    {
+        if (tokens.size() < 3)
+        {
+            reportError("the LayoutScript file must contain at least one complete Component", 0, file_content);
+        }
 
-    return nullptr;
+        if (tokens[0].type != TokenType::TEXT)
+        {
+            reportError("the LayoutScript file must begin with a Component definition", 0, file_content);
+        }
+    } catch (const runtime_error& e)
+    {
+#ifdef DEBUG
+        DEBUG_LOG(e.what());
+#endif
+        return nullptr;
+    }
+
+    Page* page = new Page();
+
+    try
+    {
+        Component* root = parseComponent(pruned_tokens, 0, file_content, page);
+        // FIXME: root component is duplicated
+        page->setRoot(root);
+    }
+    catch (const runtime_error& e)
+    {
+#ifdef DEBUG
+        DEBUG_LOG(e.what());
+#endif
+        page->destroyAllComponents({ });
+        delete page;
+
+        return nullptr;
+    }
+
+#ifdef DEBUG
+    DEBUG_LOG("successfully built a UI tree of " + to_string(page->getAllComponents().size()) + " components from file " + file);
+#endif
+
+    return page;
 }
 
 LayoutReader::~LayoutReader()
@@ -1113,6 +1170,97 @@ vector<LayoutReader::Token> LayoutReader::tokenise(const string content)
     }
 
     return tokens;
+}
+
+Component* LayoutReader::parseComponent(const vector<Token>& tokens, size_t start_index, string original_content, Page* page)
+{
+    if (start_index >= tokens.size())
+        reportError("start token out of range", original_content.size() - 1, original_content);
+
+    if (tokens[start_index].type != TokenType::TEXT)
+        reportError("initial token must be a Component name", tokens[start_index].start_offset, original_content);
+
+    string component_type_name = tokens[start_index].s_value;
+
+    if (builders.count(component_type_name) == 0)
+        reportError("unrecognised Component type", tokens[start_index].start_offset, original_content);
+
+    if (start_index + 2 >= tokens.size())
+        reportError("incomplete Component definition", tokens[start_index].start_offset, original_content);
+
+    string component_nickname = "";
+    bool has_name = false;
+    if (tokens[start_index + 1].type == TokenType::COLON)
+    {
+        if (tokens[start_index + 2].type == TokenType::STRING)
+        {
+            component_nickname = tokens[start_index + 2].s_value;
+            has_name = true;
+        }
+        else
+            reportError("invalid token", tokens[start_index + 2].start_offset, original_content);
+    }
+    
+    size_t bracket_open_index = start_index + (has_name ? 3 : 1);
+
+    if (bracket_open_index >= tokens.size() || tokens[bracket_open_index].type != TokenType::OPEN_ROUND)
+        reportError("Component type token name must be followed by either a bracket pair or a colon, a string name in quotes, and then a bracket pair", tokens[start_index].start_offset, original_content);
+
+    if (bracket_open_index + 1 >= tokens.size())
+        reportError("incomplete Component definition", original_content.size() - 1, original_content);
+
+    size_t bracket_close_index = findClosingBrace(tokens, bracket_open_index, original_content);
+
+    // TODO: collect the arguments into a map of name-value pairs
+    map<string, BuilderArgs::Argument> args;
+    // TODO: if necessary, recurse to parse inner components
+    ComponentBuilder* comp_builder = builders[component_type_name];
+    Component* component = comp_builder->build(BuilderArgs(args));
+
+    page->registerComponent(component, component_nickname);
+
+    return component;
+}
+
+size_t LayoutReader::findClosingBrace(const vector<Token>& tokens, size_t open_index, string original_content)
+{
+    vector<Token> brackets;
+    size_t index = open_index;
+
+    while (index < tokens.size())
+    {
+        switch(tokens[index].type)
+        {
+            case OPEN_ROUND:
+            case OPEN_CURLY:
+                brackets.push_back(tokens[index]);
+                break;
+            case CLOSE_ROUND:
+                if (brackets[brackets.size() - 1].type == TokenType::OPEN_ROUND)
+                    brackets.pop_back();
+                else
+                    reportError("invalid closing bracket", tokens[index].start_offset, original_content);
+                break;
+            case CLOSE_CURLY:
+                if (brackets[brackets.size() - 1].type == TokenType::OPEN_CURLY)
+                    brackets.pop_back();
+                else
+                    reportError("invalid closing curly brace", tokens[index].start_offset, original_content);
+                break;
+            default:
+                break;
+        }
+
+        if (brackets.size() == 0)
+            break;
+
+        index++;
+    }
+
+    if (index >= tokens.size())
+        reportError("missing closing " + string(tokens[open_index].type == TokenType::OPEN_ROUND ? "bracket" : "brace"), tokens[open_index].start_offset, original_content);
+
+    return index;
 }
 
 #endif

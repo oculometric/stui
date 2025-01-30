@@ -1277,6 +1277,13 @@ Component* LayoutReader::parseComponent(const vector<Token>& tokens, size_t star
     }
     if (arg_finder_state == 1)
         reportError("incomplete argument", tokens[bracket_close_index - 1].start_offset, original_content);
+    else if (arg_finder_state == 2)
+    {
+        if (current_arg_value.size() == 0)
+            reportError("expected argument value after '='", tokens[bracket_close_index - 1].start_offset, original_content);
+        BuilderArgs::Argument arg = createArgument(current_arg_value, original_content, page);
+        args.emplace(current_arg_identifier, arg);
+    }
 
     ComponentBuilder* comp_builder = builders[component_type_name];
     Component* component = comp_builder->build(BuilderArgs(args));

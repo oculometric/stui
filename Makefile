@@ -9,6 +9,10 @@ widgets_demo: $(BIN)
 	@g++ -o $(BIN)/widgets_demo $(CC_FLAGS) examples/widgets_demo.cpp
 	@$(BIN)/widgets_demo
 
+widgets_demo_ls: $(BIN)
+	@g++ -o $(BIN)/widgets_demo_ls $(CC_FLAGS) examples/widgets_demo_ls.cpp
+	@$(BIN)/widgets_demo_ls
+
 basic_usage: $(BIN)
 	@g++ -o $(BIN)/basic_usage $(CC_FLAGS) examples/basic_usage.cpp
 	@$(BIN)/basic_usage

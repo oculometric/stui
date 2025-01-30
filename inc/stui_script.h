@@ -857,11 +857,15 @@ private:
         size_t col = off - last;
         if (ln > 0) col--;
 
-        throw runtime_error("STUI format document parsing error:\n\t" + err
+        string error = "STUI layout document parsing error:\n\t" + err
 			+ "\n\tat character " + to_string(off) + " (ln " + to_string(ln + 1) + ", col " + to_string(col + 1) + ")"
 			+ "\n\t-> '..." + extract + "..."\
 			+ "\n\t" + string(7 + ((int32_t)off - extract_start), ' ') + "^"\
-			+ "\n\tterminating parsing.");
+			+ "\n\tterminating parsing.";
+
+        DEBUG_LOG(error);
+
+        throw runtime_error(error);
     }
 };
 
@@ -956,21 +960,14 @@ Page* LayoutReader::readPage(string file)
 
     DEBUG_LOG("decoded " + to_string(tokens.size()) + " tokens total, pruned " + to_string(tokens.size() - pruned_tokens.size()) + " useless ones");
 
-    try
+    if (tokens.size() < 3)
     {
-        if (tokens.size() < 3)
-        {
-            reportError("the LayoutScript file must contain at least one complete Component", 0, file_content);
-        }
+        reportError("the LayoutScript file must contain at least one complete Component", 0, file_content);
+    }
 
-        if (tokens[0].type != TokenType::TEXT)
-        {
-            reportError("the LayoutScript file must begin with a Component definition", 0, file_content);
-        }
-    } catch (const runtime_error& e)
+    if (tokens[0].type != TokenType::TEXT)
     {
-        DEBUG_LOG(e.what());
-        return nullptr;
+        reportError("the LayoutScript file must begin with a Component definition", 0, file_content);
     }
 
     Page* page = new Page();
@@ -982,11 +979,10 @@ Page* LayoutReader::readPage(string file)
     }
     catch (const runtime_error& e)
     {
-        DEBUG_LOG(e.what());
         page->destroyAllComponents({ });
         delete page;
 
-        return nullptr;
+        throw runtime_error(e.what());
     }
 
     DEBUG_LOG("successfully built a UI tree of " + to_string(page->getAllComponents().size()) + " components from file " + file);

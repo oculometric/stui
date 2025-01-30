@@ -70,7 +70,7 @@ private:
 	clock_type::time_point last_frame;
 
 public:
-	Page() { }
+	Page() { last_frame = clock_type::now(); }
 
 	Page(Page& other) = delete;
 	Page operator=(Page& other) = delete;

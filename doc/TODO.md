@@ -5,6 +5,7 @@
 # v0.4
 - [ ] test all new changes back against other demos
 - [ ] test by rebuilding other demos in LayoutScript
+- [ ] show a message when an area is too small to display things
 - [ ] documentation and examples for LayoutScript
 - [ ] fix actual_offset in tree view
 - [ ] update help relating to `Page`

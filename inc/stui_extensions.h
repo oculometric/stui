@@ -22,6 +22,10 @@
 #ifndef STUI_EXTENSIONS_H
 #define STUI_EXTENSIONS_H
 
+///////////////////////////////////////////////////////////////////////
+//                             INCLUDES
+///////////////////////////////////////////////////////////////////////
+
 #define STUI_KEEP_DEFINES
 #include "stui.h"
 #undef STUI_KEEP_DEFINES
@@ -31,6 +35,12 @@
 
 namespace stui
 {
+
+///////////////////////////////////////////////////////////////////////
+//                               PAGE
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_PAGE
 
 class Page;
 
@@ -66,36 +76,11 @@ public:
 	Page operator=(Page& other) = delete;
 
 	/**
-	 * @brief returns a list of all the names of the components registered in the page.
-	 * 
-	 * @returns list of component names
-	 */
-	inline vector<string> getAllComponents() { vector<string> comps; for (auto pair : components) comps.push_back(pair.first); return comps; }
-
-	/**
 	 * @brief checks for user input and sends it to the currently focused component.
 	 * 
 	 * @returns true if some input was detected, false if none
 	 */
-	bool checkInput()
-#ifdef STUI_IMPLEMENTATION
-	{
-		current_page = this;
-
-		Component* focused_component = nullptr;
-		if (focused_component_index < focusable_component_sequence.size() && root != nullptr) focused_component = focusable_component_sequence[focused_component_index];
-
-		vector<Input::Shortcut> shortcuts_tmp = shortcuts;
-		shortcuts_tmp.push_back(Input::Shortcut
-		{
-			Input::Key{ '\t', Input::ControlKeys::NONE },
-			advanceFocus
-		});
-
-		return Renderer::handleInput(focused_component, shortcuts_tmp);
-	}
-#endif
-	;
+	bool checkInput();
 
 	/**
 	 * @brief redraws the entire UI tree pointed to by `root` into the terminal.
@@ -104,17 +89,7 @@ public:
 	 * you changed the text of a component, or some input was received from the
 	 * user, or the terminal window was resized.
 	 */
-	void render()
-#ifdef STUI_IMPLEMENTATION
-	{
-		current_page = this;
-
-		if (root == nullptr) return;
-		updateFocus();
-		Renderer::render(root);
-	}
-#endif
-	;
+	void render();
 
 	/**
 	 * @brief attempts to maintain the framerate specified, by waiting for
@@ -129,13 +104,7 @@ public:
 	 * @returns information about the duration and active fraction of
 	 * the last frame
 	 */
-	Renderer::FrameData framerate(int fps_target)
-#ifdef STUI_IMPLEMENTATION
-	{
-		return Renderer::targetFramerate(fps_target, last_frame);
-	}
-#endif
-	;
+	Renderer::FrameData framerate(int fps_target);
 
 	/**
 	 * @brief checks that all components in the UI tree are registered with
@@ -153,53 +122,7 @@ public:
 	 * if `root` is null when this is called, the entire registry will be
 	 * cleared.
 	 */
-	void ensureIntegrity()
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (root == nullptr)
-		{
-			destroyAllComponents({ });
-			DEBUG_LOG("ensure integrity called, root was null so the registry was cleared");
-		}
-
-		map<Component*, int> discovered_nodes;
-		queue<Component*> to_check;
-		to_check.push(root);
-		while (!to_check.empty())
-		{
-			Component* comp = to_check.front();
-			to_check.pop();
-			discovered_nodes.insert_or_assign(comp, 0);
-
-			vector<Component*> children = comp->getAllChildren();
-			for (Component* c : children) to_check.push(c);
-		}
-
-		map<Component*, string> known_nodes;
-		vector<Component*> new_nodes;
-		size_t ignored_nodes = 0;
-		for (auto p : components) known_nodes.insert(pair<Component*, string>(p.second, p.first));
-
-		for (auto p : discovered_nodes)
-		{
-			Component* c = p.first;
-			if (known_nodes.count(c) != 0) { known_nodes.erase(c); ignored_nodes++; }
-			else new_nodes.push_back(c);
-		}
-
-		for (auto p : known_nodes) unregisterComponent(p.second);
-		for (auto c : new_nodes) registerComponent(c, "");
-
-#ifdef DEBUG
-		DEBUG_LOG("ensure integrity called, registered " + to_string(new_nodes.size()) + " new nodes, ignored " + to_string(ignored_nodes) + " existing nodes, unregistered " + to_string(known_nodes.size()) + " no-longer-referenced nodes.");
-		string dbg = "component registry now looks like this:";
-		for (auto p : components)
-			dbg += "\n\t" + p.first + " : " + to_string((size_t)p.second);
-		DEBUG_LOG(dbg);
-#endif
-	}
-#endif
-	;
+	void ensureIntegrity();
 
 	/**
 	 * @brief get the component from the registry with the specified name.
@@ -236,6 +159,13 @@ public:
 	}
 
 	/**
+	 * @brief returns a list of all the names of the components registered in the page.
+	 * 
+	 * @returns list of component names
+	 */
+	vector<string> getAllComponents();
+
+	/**
 	 * @brief assign a new root component. automatically calls `ensureIntegrity`.
 	 *
 	 * @param component component to make the new root
@@ -261,20 +191,7 @@ public:
 	 * don't care about accessing the component by name later
 	 * @returns the identifier assigned to the component in the registry
 	 */
-	string registerComponent(Component* component, string identifier = "")
-#ifdef STUI_IMPLEMENTATION
-	{
-		string name = identifier;
-		if (isNameUnique(name)) components.insert(pair<string, Component*>(name, component));
-		else
-		{
-			name = getUniqueName(component->getTypeName());
-			components.insert(pair<string, Component*>(name, component));
-		}
-		return name;
-	}
-#endif
-	;
+	string registerComponent(Component* component, string identifier = "");
 
 	/**
 	 * @brief remove a component from the registry.
@@ -284,20 +201,7 @@ public:
 	 *
 	 * @param identifier name of the component to remove
 	 */
-	Component* unregisterComponent(string identifier)
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (components.count(identifier) != 0)
-		{
-			Component* c = components[identifier];
-			components.erase(identifier);
-			return c;
-		}
-		else throw runtime_error("no component registered with that name");
-		return nullptr;
-	}
-#endif
-	;
+	Component* unregisterComponent(string identifier);
 
 	/**
 	 * @brief checks if a component exists in the registry.
@@ -316,39 +220,21 @@ public:
 		return false;
 	}
 
-	vector<Component*> destroyAllComponents(vector<string> exclude_list)
-#ifdef STUI_IMPLEMENTATION
-	{
-		vector<Component*> remainders;
-
-		for (auto pair : components)
-		{
-			string name = pair.first;
-			unregisterComponent(name);
-
-			bool to_exclude = false;
-			for (string s : exclude_list)
-			{
-				if (s == name)
-				{
-					to_exclude = true;
-					break;
-				}
-			}
-			
-			if (to_exclude)
-				remainders.push_back(pair.second);
-			else
-				delete pair.second;
-		}
-
-		root = nullptr;
-		focusable_component_sequence.clear();
-
-		return remainders;
-	}
-#endif
-	;
+	/**
+	 * @brief destroys all the components the page knows about, and `delete`s them.
+	 * 
+	 * this function is called when the page is destructed, which means that if you have
+	 * components in the page which *shouldn't* have `delete` called (i.e. they are still)
+	 * in use or they were not allocated with `new`, you **MUST** call this before the page
+	 * destructs with the names of the non-deleteable-components in the exclude list.
+	 * 
+	 * components in the exclude list will still be removed from the tree (along with everything else),
+	 * but they won't be `delete`d and will instead be returned.
+	 * 
+	 * @param exclude_list list of component names to exclude from the deletion
+	 * @returns list of `Component`s which were not deleted (correspond to the `exclude_list`)
+	 */
+	vector<Component*> destroyAllComponents(vector<string> exclude_list);
 
 	/**
 	 * @brief ensures that only one component is focused. specifically the
@@ -376,35 +262,7 @@ private:
 	 * acts on the currently active page, which is set automatically by whichever
 	 * page is currently consuming input/rendering.
 	 */
-	static void advanceFocus()
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (current_page == nullptr) return;
-
-		if (current_page->focusable_component_sequence.empty()) return;
-
-		current_page->focused_component_index %= current_page->focusable_component_sequence.size();
-
-		bool was_any_focusable = false;
-		size_t old_focus = current_page->focused_component_index;
-		do
-		{
-			current_page->focused_component_index++;
-			current_page->focused_component_index %= current_page->focusable_component_sequence.size();
-			if (current_page->focusable_component_sequence[current_page->focused_component_index]->isFocusable())
-			{
-				was_any_focusable = true;
-				break;
-			}
-		}
-		while (current_page->focused_component_index != old_focus);
-
-		if (!was_any_focusable) current_page->focused_component_index = (size_t)-1;
-
-		current_page->updateFocus();
-	}
-#endif
-	;
+	static void advanceFocus();
 
 	/**
 	 * @brief check if a name already exsists in the registry or not.
@@ -427,16 +285,16 @@ private:
 	 * used for
 	 * @returns a unique identifier
 	 */
-	inline string getUniqueName(string type)
-	{
-		size_t i = 0;
-
-		while (components.count("__component_" + type + '_' + to_string(i)) != 0)
-			i++;
-
-		return "__component_" + type + '_' + to_string(i);
-	}
+	string getUniqueName(string type);
 };
+
+#pragma endregion STUI_PAGE
+
+///////////////////////////////////////////////////////////////////////
+//                         EXTRA COMPONENTS
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_COMPONENTS
 
 /**
  * @brief renders a QR code inside the terminal. data buffer must be an array
@@ -462,6 +320,7 @@ public:
 	GETTYPENAME_STUB("QRCodeView");
 
 	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
 		const uint32_t chars[4] =
 		{
@@ -487,10 +346,203 @@ public:
 			}
 		}
 	}
+#endif
+	;
 
 	GETMAXSIZE_STUB{ return Coordinate{ (version * 2) - 1, version }; }
 	GETMINSIZE_STUB{ return Coordinate{ (version * 2) - 1, version }; }
 };
+
+
+#pragma endregion STUI_COMPONENTS
+
+///////////////////////////////////////////////////////////////////////
+//                         IMPLEMENTATIONS
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_IMPLEMENTATIONS
+
+#ifdef STUI_IMPLEMENTATION
+
+bool Page::checkInput()
+{
+	current_page = this;
+
+	Component* focused_component = nullptr;
+	if (focused_component_index < focusable_component_sequence.size() && root != nullptr) focused_component = focusable_component_sequence[focused_component_index];
+
+	vector<Input::Shortcut> shortcuts_tmp = shortcuts;
+	shortcuts_tmp.push_back(Input::Shortcut
+	{
+		Input::Key{ '\t', Input::ControlKeys::NONE },
+		advanceFocus
+	});
+
+	return Renderer::handleInput(focused_component, shortcuts_tmp);
+}
+
+void Page::render()
+{
+	current_page = this;
+
+	if (root == nullptr) return;
+	updateFocus();
+	Renderer::render(root);
+}
+
+Renderer::FrameData Page::framerate(int fps_target)
+{
+	return Renderer::targetFramerate(fps_target, last_frame);
+}
+
+void Page::ensureIntegrity()
+{
+	if (root == nullptr)
+	{
+		destroyAllComponents({ });
+		DEBUG_LOG("ensure integrity called, root was null so the registry was cleared");
+	}
+
+	map<Component*, int> discovered_nodes;
+	queue<Component*> to_check;
+	to_check.push(root);
+	while (!to_check.empty())
+	{
+		Component* comp = to_check.front();
+		to_check.pop();
+		discovered_nodes.insert_or_assign(comp, 0);
+
+		vector<Component*> children = comp->getAllChildren();
+		for (Component* c : children) to_check.push(c);
+	}
+
+	map<Component*, string> known_nodes;
+	vector<Component*> new_nodes;
+	size_t ignored_nodes = 0;
+	for (auto p : components) known_nodes.insert(pair<Component*, string>(p.second, p.first));
+
+	for (auto p : discovered_nodes)
+	{
+		Component* c = p.first;
+		if (known_nodes.count(c) != 0) { known_nodes.erase(c); ignored_nodes++; }
+		else new_nodes.push_back(c);
+	}
+
+	for (auto p : known_nodes) unregisterComponent(p.second);
+	for (auto c : new_nodes) registerComponent(c, "");
+
+#ifdef DEBUG
+	DEBUG_LOG("ensure integrity called, registered " + to_string(new_nodes.size()) + " new nodes, ignored " + to_string(ignored_nodes) + " existing nodes, unregistered " + to_string(known_nodes.size()) + " no-longer-referenced nodes.");
+	string dbg = "component registry now looks like this:";
+	for (auto p : components)
+		dbg += "\n\t" + p.first + " : " + to_string((size_t)p.second);
+	DEBUG_LOG(dbg);
+#endif
+}
+
+vector<string> Page::getAllComponents()
+{
+	vector<string> comps;
+	for (auto pair : components)
+		comps.push_back(pair.first);
+	return comps;
+}
+
+string Page::registerComponent(Component* component, string identifier)
+{
+	string name = identifier;
+	if (isNameUnique(name)) components.insert(pair<string, Component*>(name, component));
+	else
+	{
+		name = getUniqueName(component->getTypeName());
+		components.insert(pair<string, Component*>(name, component));
+	}
+	return name;
+}
+
+Component* Page::unregisterComponent(string identifier)
+{
+	if (components.count(identifier) != 0)
+	{
+		Component* c = components[identifier];
+		components.erase(identifier);
+		return c;
+	}
+	else throw runtime_error("no component registered with that name");
+	return nullptr;
+}
+
+vector<Component*> Page::destroyAllComponents(vector<string> exclude_list)
+{
+	vector<Component*> remainders;
+
+	for (auto pair : components)
+	{
+		string name = pair.first;
+		unregisterComponent(name);
+
+		bool to_exclude = false;
+		for (string s : exclude_list)
+		{
+			if (s == name)
+			{
+				to_exclude = true;
+				break;
+			}
+		}
+		
+		if (to_exclude)
+			remainders.push_back(pair.second);
+		else
+			delete pair.second;
+	}
+
+	root = nullptr;
+	focusable_component_sequence.clear();
+
+	return remainders;
+}
+
+void Page::advanceFocus()
+{
+	if (current_page == nullptr) return;
+
+	if (current_page->focusable_component_sequence.empty()) return;
+
+	current_page->focused_component_index %= current_page->focusable_component_sequence.size();
+
+	bool was_any_focusable = false;
+	size_t old_focus = current_page->focused_component_index;
+	do
+	{
+		current_page->focused_component_index++;
+		current_page->focused_component_index %= current_page->focusable_component_sequence.size();
+		if (current_page->focusable_component_sequence[current_page->focused_component_index]->isFocusable())
+		{
+			was_any_focusable = true;
+			break;
+		}
+	}
+	while (current_page->focused_component_index != old_focus);
+
+	if (!was_any_focusable) current_page->focused_component_index = (size_t)-1;
+
+	current_page->updateFocus();
+}
+
+string Page::getUniqueName(string type)
+{
+	size_t i = 0;
+
+	while (components.count("__component_" + type + '_' + to_string(i)) != 0)
+		i++;
+
+	return "__component_" + type + '_' + to_string(i);
+}
+
+#endif
+
+#pragma endregion STUI_IMPLEMENTATIONS
 
 }
 

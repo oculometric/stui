@@ -19,6 +19,12 @@
 	Contact me here <mailto://jcostenart@gmail.com>
 */
 
+///////////////////////////////////////////////////////////////////////
+//                             DEFINES
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_DEFS
+
 #ifndef STUI_ONLY_UNDEFS
 
 #define RENDER_STUB virtual void render(Tixel* output_buffer, Coordinate size) override
@@ -82,6 +88,12 @@
 #define UNICODE_ELLIPSIS_HORIZONTAL (uint32_t)0xa680e2
 #define UNICODE_ELLIPSIS_VERTICAL (uint32_t)0xae8be2
 
+#pragma endregion STUI_DEFS
+
+///////////////////////////////////////////////////////////////////////
+//                             INCLUDES
+///////////////////////////////////////////////////////////////////////
+
 #ifndef STUI_H
 #define STUI_H
 
@@ -115,11 +127,17 @@ using namespace std;
 	#include <poll.h>
 #endif
 
-
 namespace stui
 {
 
+///////////////////////////////////////////////////////////////////////
+//                            DEBUG
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_DEBUG
+
 #ifdef DEBUG
+
 ofstream debug_log;
 
 static struct DebugTimingData
@@ -171,37 +189,13 @@ inline void debug(string str)
 #define DEBUG_TIMER_E(type)
 #endif
 
-/**
- * @brief removes any invalid characters from a string, as well as other
- * specified illegal characters
- * 
- * @param str string to remove invalid characters from
- * @param others array of additional characters that should be excluded
- * @return repaired string 
- */
-string stripNullsAndMore(string str, const char* others)
-#ifdef STUI_IMPLEMENTATION
-{
-	string result = "";
-	for (char c : str)
-	{
-		// auto-strip if the character is a non-renderable
-		if (c < ' ' && c != '\n' && c != '\t' && c != '\b') continue;
-		// check if the current char is inside list to remove
-		bool is_valid = true;
-		for (size_t i = 0; others[i] != '\0'; i++)
-			if (c == others[i]) is_valid = false;
-		if (is_valid)
-		{
-			// if not, keep it, swapping tab for some spaces
-			if (c == '\t') result += "    ";
-			else result += c;
-		}
-	}
-	return result;
-}
-#endif
-;
+#pragma endregion STUI_DEBUG
+
+///////////////////////////////////////////////////////////////////////
+//                          UTILITIES
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_UTILITY
 
 /**
  * @brief two-dimensional integer coordinate pair.
@@ -381,143 +375,7 @@ private:
 	 * 
 	 * @returns list of key-press events
 	 */
-	static vector<Key> getQueuedKeyEvents()
-#ifdef STUI_IMPLEMENTATION
-	{
-		vector<Key> events;
-#if defined(_WIN32)
-		// find available
-		DWORD events_available;
-		GetNumberOfConsoleInputEvents(GetStdHandle(STD_INPUT_HANDLE), &events_available);
-		if (events_available < 1) return events;
-
-		// grab 32 of them
-		INPUT_RECORD records[32] = { };
-		DWORD records_read;
-
-		if (ReadConsoleInput(GetStdHandle(STD_INPUT_HANDLE), records, 32, &records_read) == 0)
-			throw runtime_error("input error");
-		
-		for (size_t i = 0; i < records_read; i++)
-			if (records[i].EventType == KEY_EVENT && records[i].Event.KeyEvent.bKeyDown)
-			{
-				Key k{ };
-				k.key = (uint8_t)records[i].Event.KeyEvent.uChar.AsciiChar;
-				if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_UP) k.key = ArrowKeys::UP;
-				else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_DOWN) k.key = ArrowKeys::DOWN;
-				else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_LEFT) k.key = ArrowKeys::LEFT;
-				else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_RIGHT) k.key = ArrowKeys::RIGHT;
-				if (k.key == '\r') k.key = '\n';
-				k.control_states = ControlKeys::NONE;
-				DWORD control_key = records[i].Event.KeyEvent.dwControlKeyState;
-				if (control_key & 0x04) k.control_states = ControlKeys::CTRL;
-				else if (control_key & 0x08)
-				{
-					k.control_states = ControlKeys::CTRL;
-					k.key += 96;
-				}
-				else if (control_key & 0x10) k.control_states = ControlKeys::SHIFT;
-				else if (control_key & 0x01) k.control_states = ControlKeys::ALT;
-				else if (control_key & 0x02) k.control_states = ControlKeys::ALT;
-				if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_DELETE)
-				{
-					k.key = 127;
-					k.control_states = ControlKeys::NONE;
-				}
-				events.push_back(k);
-			}
-#elif defined(__linux__)
-		// check if there are any events to read
-		if (kbhit() < 1) return events;
-
-		// read a queue of 64 events (or as many are available)
-		uint8_t buffer[64] = { 0 };
-		ssize_t bytes_read = read(STDIN_FILENO, buffer, 64);
-		for (ssize_t i = 0; i < bytes_read; i++)
-		{
-			int c = buffer[i];
-			// process escape sequences
-			if (c == '\e')
-			{
-				// unless it's actually just escape
-				if (i == bytes_read - 1) events.push_back(Key{ '\e', ControlKeys::NONE });
-				else if (buffer[i + 1] != '[')
-				{
-					// if there's no bracket then it's an alt-event
-					int c_next = buffer[i + 1];
-					events.push_back(Key{ linux_keymap[c_next].key, ControlKeys::ALT });
-					// skip to the next char so we don't process the same one twice
-					i++;
-				}
-				else if (i == bytes_read - 2)
-				{
-					// it could just be alt-bracket, not an escape sequences
-					events.push_back(Key{ '[', ControlKeys::ALT });
-					i++;
-				}
-				else
-				{
-					// otherwise it's an escape sequence
-					int c_next = buffer[i + 2];
-					if (c_next == 0x41)
-					{
-						events.push_back(Key{ ArrowKeys::UP, ControlKeys::NONE });
-						i += 2;
-					}
-					else if (c_next == 0x42)
-					{
-						events.push_back(Key{ ArrowKeys::DOWN, ControlKeys::NONE });
-						i += 2;
-					}
-					else if (c_next == 0x44)
-					{
-						events.push_back(Key{ ArrowKeys::LEFT, ControlKeys::NONE });
-						i += 2;
-					}
-					else if (c_next == 0x43)
-					{
-						events.push_back(Key{ ArrowKeys::RIGHT, ControlKeys::NONE });
-						i += 2;
-					}
-					else if (i <= bytes_read - 5 && c_next == '1' && buffer[i + 3] == ';' && buffer[i + 4] == '2')
-					{
-						int c_next_next = buffer[i + 5];
-						if (c_next_next == 0x41) events.push_back(Key{ ArrowKeys::UP, ControlKeys::SHIFT });
-						else if (c_next_next == 0x42) events.push_back(Key{ ArrowKeys::DOWN, ControlKeys::SHIFT });
-						else if (c_next_next == 0x44) events.push_back(Key{ ArrowKeys::LEFT, ControlKeys::SHIFT });
-						else if (c_next_next == 0x43) events.push_back(Key{ ArrowKeys::RIGHT, ControlKeys::SHIFT });
-						i += 5;
-					}
-					else if (i <= bytes_read - 4 && c_next == '3' && buffer[i + 3] == '~')
-					{
-						events.push_back(Key{ 127, ControlKeys::NONE });
-						i += 4;
-					}
-					else
-					{
-						// debug if it isnt handled
-						DEBUG_LOG("unhandled ANSI code: " + string((char*)buffer + i));
-						break;
-					}
-				}
-			}
-			else if (c < 128)
-			{
-				// normal keypress, use the keymap as a look-up table
-				events.push_back(linux_keymap[c]);
-			}
-			else
-			{
-				DEBUG_LOG("uh oh! unhandled UTF-8");
-				// TODO: handle utf8 oh dear god
-				break;
-			}
-		}
-#endif
-		return events;
-	}
-#endif
-	;
+	static vector<Key> getQueuedKeyEvents();
 
 	/**
 	 * @brief checks if a key event is equal to another specified key event
@@ -541,34 +399,7 @@ private:
 	 * @param shortcuts list of keyboard shortcut bindings
 	 * @param key_events list of key events to check
 	 */
-	static void processShortcuts(vector<Shortcut> shortcuts, vector<Key>& key_events)
-#ifdef STUI_IMPLEMENTATION
-	{
-#ifdef DEBUG
-		for (Shortcut s : shortcuts)
-			if (s.binding.control_states != ControlKeys::ALT
-			 && s.binding.control_states != ControlKeys::SHIFT
-			 && s.binding.control_states != ControlKeys::CTRL
-			 && s.binding.control_states != ControlKeys::NONE)
-			DEBUG_LOG("never bind a shortcut to multiple ControlKeys at once! this shortcut will never be called. key: " + string(1, (char)s.binding.key) + " control_states: " + to_string(s.binding.control_states));
-#endif
-
-		vector<Key> non_processed;
-		for (size_t i = 0; i < key_events.size(); i++)
-		{
-			Key k = key_events[i];
-			bool consumed = false;
-			for (Shortcut s : shortcuts)
-			{
-				if (compare(k, s.binding)) { consumed = true; s.callback(); }
-			}
-			if (!consumed) non_processed.push_back(k);
-		}
-
-		key_events = non_processed;
-	}
-#endif
-	;
+	static void processShortcuts(vector<Shortcut> shortcuts, vector<Key>& key_events);
 	
 	/**
 	 * @brief iterate through a list of key events and extract only the text
@@ -580,39 +411,7 @@ private:
 	 * @param key_events list of key events to check
 	 * @returns list of extracted text characters
 	 */
-	static vector<pair<uint8_t, ControlKeys>> getTextCharacters(vector<Key>& key_events)
-#ifdef STUI_IMPLEMENTATION
-	{
-		vector<Key> non_processed;
-		vector<pair<uint8_t, ControlKeys>> result;
-		for (size_t i = 0; i < key_events.size(); i++)
-		{
-			Key k = key_events[i];
-			if ((k.control_states == ControlKeys::NONE || k.control_states == ControlKeys::SHIFT) && (
-			      (k.key >= 32 && k.key <= 127) 
-			    || k.key == '\n' 
-			    || k.key == '\t' 
-			    || k.key == '\b'
-			    || k.key == 127
-			    || k.key == ArrowKeys::UP
-			    || k.key == ArrowKeys::DOWN
-			    || k.key == ArrowKeys::LEFT
-			    || k.key == ArrowKeys::RIGHT))
-			{
-				result.push_back(pair<uint8_t, ControlKeys>(static_cast<uint8_t>(k.key), k.control_states));
-			}
-			else
-			{
-				non_processed.push_back(k);
-			}
-		}
-
-		key_events = non_processed;
-
-		return result;
-	}
-#endif
-	;
+	static vector<pair<uint8_t, ControlKeys>> getTextCharacters(vector<Key>& key_events);
 
 #if defined(__linux__)
 	static inline int kbhit()
@@ -624,6 +423,187 @@ private:
 	}
 #endif
 };
+
+/**
+ * @brief class which encapsulates the utility functions that many of `Component`s reuse but
+ * which probably shouldn't be publicly accessible outside the header file. basically ignore
+ * this.
+ */
+class Utility
+{
+public:
+	/**
+	 * @brief removes any invalid characters from a string, as well as other
+	 * specified illegal characters
+	 * 
+	 * @param str string to remove invalid characters from
+	 * @param others array of additional characters that should be excluded
+	 * @return repaired string 
+	 */
+	static string stripNullsAndMore(string str, const char* others);
+
+protected:
+	/**
+	 * @brief draws a box outline using IBM box drawing characters from standard extended ASCII.
+	 * 
+	 * it's up to the caller to ensure `buffer` is allocated to the size specified by `buffer_size`
+	 * 
+	 * @param box_origin offset of the start of the box from the top-left corner of the buffer.
+	 * may be negative, though areas of the box outside the buffer won't be drawn
+	 * @param box_size size of the box. must be positive in both axes. can result in a box which
+	 * ends outside the bounds of the buffer, but areas outside won't be drawn
+	 * @param buffer pointer to a character array ordered left-to-right, top-to-bottom
+	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
+	 */
+	static void drawBox(Coordinate box_origin, Coordinate box_size, Tixel* buffer, Coordinate buffer_size);
+
+	/**
+	 * @brief split a string at a delimiter character.
+	 * 
+	 * @param text string to split
+	 * @param delim character to split at. this will be removed from the resulting array of strings
+	 * @returns array of strings
+	 */
+	static vector<string> splitString(string text, char delim);
+
+	/**
+	 * @brief converts a single string into an array of lines of a given maximum length.
+	 * 
+	 * respects line breaks, uses word-wrapping where possible, or forcibly breaks words 
+	 * if necessary.
+	 * 
+	 * @param text string on which to perform wrapping
+	 * @param max_width maximum number of characters to place in any row
+	 * @returns list of individual lines of text
+	 */
+	static vector<string> wrapText(string text, size_t max_width);
+
+	static vector<string> wrapTextInner(string text, size_t max_width);
+
+	/**
+	 * @brief draws a line of text into a buffer.
+	 * 
+	 * supports single-line drawing (out-of-bounds characters are skipped). it's up to the 
+	 * caller to ensure `buffer` is allocated to the size specified by `buffer_size`. 
+	 * newlines, nulls or other special characters should not be passed into this function, 
+	 * as it will fuck up the output stage at the end of rendering.
+	 * 
+	 * @param text text to draw to the buffer
+	 * @param text_origin position in the output buffer of the top-left-most corner of the
+	 * text
+	 * @param max_size maximum size of the drawn text, measured from the `text_origin`. must 
+	 * be positive in both dimensions. text that runs outside this area is not drawn
+	 * @param buffer pointer to a `Tixel` array ordered left-to-right, top-to-bottom
+	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
+	 */
+	static void drawText(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size);
+
+	/**
+	 * @brief draws a block of text into a buffer.
+	 * 
+	 * supports either multi-line wrapped drawing, where lines are wrapped to fit into the
+	 * box specified by `max_size`. it's up to the caller to ensure `buffer` is allocated 
+	 * to the size specified by `buffer_size`. newlines, nulls or other special characters 
+	 * should not be passed into this function, as it will fuck up the output stage at the
+	 * end of rendering.
+	 * 
+	 * @param text text to draw to the buffer
+	 * @param text_origin position in the output buffer of the top-left-most corner of the
+	 * text
+	 * @param max_size maximum size of the drawn text, measured from the `text_origin`. must 
+	 * be positive in both dimensions. text that runs outside this area will be wrapped to 
+	 * fit inside this horizontally
+	 * @param buffer pointer to a `Tixel` array ordered left-to-right, top-to-bottom
+	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
+	 */
+	static vector<size_t> drawTextWrapped(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size);
+
+	/**
+	 * @brief simplifies allocation of 2D text buffers.
+	 * 
+	 * automatically clears the buffer with spaces and adds an extra null-terminator on the end. this
+	 * function allocates memory with `new`, and callers are responsible for `delete[]`ing the buffers
+	 * after it is no longer being used.
+	 * 
+	 * @param buffer_size two-dimensional size of the buffer required. must be positive and non-zero in
+	 * both axes
+	 * @returns pointer to newly-allocated block of memory, or `nullptr` if the buffer size would be
+	 * less than 1
+	 */
+	static Tixel* makeBuffer(Coordinate buffer_size);
+
+	/**
+	 * @brief copy an area from one buffer to another.
+	 * 
+	 * useful for transferring an area into a larger, differently-shaped buffer for combining elements.
+	 * it's up to the caller to ensure `src` is allocated to the size specified by `src_size`, and to
+	 * ensure 'dst' is allocated to the size specified by `dst_size`. also, this function does not
+	 * clamp the bounds of the box, so trying to copy a box which overflows outside `src` or `dst`, or
+	 * both at once, is likely to corrupt the heap or cause an exception.
+	 * 
+	 * @param src source buffer to copy characters from. must be appropriately sized and allocated, see
+	 * above
+	 * @param src_size size of the source buffer, must match with the allocated size of `src`
+	 * @param src_offset position of the top-left corner of the box to copy in the source buffer. must
+	 * be positive in both dimensions
+	 * @param area_size size of the area to be copied between buffers. must fit inside both buffers
+	 * @param dst destination buffer to copy characters into. must be appropriately sized and allocated,
+	 * see above
+	 * @param dst_size size of the destination buffer, must match with the allocated size of `dst`
+	 * @param dst_offset position of the top-left corner of the box to copy to in the destination buffer.
+	 * must be positive in both dimensions
+	 */
+	static void copyBox(const Tixel* src, Coordinate src_size, Coordinate src_offset, Coordinate area_size, Tixel* dst, Coordinate dst_size, Coordinate dst_offset);
+
+	/**
+	 * @brief get the current default colour configuration for the interface.
+	 * 
+	 * @returns the current colour configuration
+	 */
+	static inline Tixel::ColourCommand getDefaultColour()
+	{
+		return (Tixel::ColourCommand)(Tixel::ColourCommand::BG_BLACK | Tixel::ColourCommand::FG_WHITE);
+	}
+
+	/**
+	 * @brief get the current highlighted colour configuration for the interface.
+	 * 
+	 * @returns the current highlighted colour configuration
+	 */
+	static inline Tixel::ColourCommand getHighlightedColour()
+	{
+		return (Tixel::ColourCommand)(Tixel::ColourCommand::FG_BLACK | Tixel::ColourCommand::BG_WHITE);
+	}
+
+	/**
+	 * @brief get the current unfocused colour configuration for the interface.
+	 * 
+	 * @returns the current unfocused colour configuration
+	 */
+	static inline Tixel::ColourCommand getUnfocusedColour()
+	{
+		return (Tixel::ColourCommand)(Tixel::ColourCommand::FG_BLACK | Tixel::ColourCommand::BG_GRAY);
+	}
+
+	/**
+	 * @brief fill a specified box area with a particular colour command.
+	 * 
+	 * @param colour colour command to fill the area with
+	 * @param origin starting offset of the area
+	 * @param size size of the area. must be positive in both axes
+	 * @param buffer output buffer into which the filled box should be drawn
+	 * @param buffer_size size of the output buffer
+	 */
+	static void fillColour(Tixel::ColourCommand colour, Coordinate origin, Coordinate size, Tixel* buffer, Coordinate buffer_size);
+};
+
+#pragma endregion STUI_UTILITY
+
+///////////////////////////////////////////////////////////////////////
+//                          COMPONENTS
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_COMPONENTS
 
 /**
  * @brief base class from which all UI components inherit.
@@ -713,376 +693,6 @@ public:
 	virtual inline ~Component() { }
 };
 #pragma pack(pop)
-
-/**
- * @brief class which encapsulates the utility functions that many of `Component`s reuse but
- * which probably shouldn't be publicly accessible outside the header file. basically ignore
- * this.
- */
-class Utility
-{
-protected:
-	/**
-	 * @brief draws a box outline using IBM box drawing characters from standard extended ASCII.
-	 * 
-	 * it's up to the caller to ensure `buffer` is allocated to the size specified by `buffer_size`
-	 * 
-	 * @param box_origin offset of the start of the box from the top-left corner of the buffer.
-	 * may be negative, though areas of the box outside the buffer won't be drawn
-	 * @param box_size size of the box. must be positive in both axes. can result in a box which
-	 * ends outside the bounds of the buffer, but areas outside won't be drawn
-	 * @param buffer pointer to a character array ordered left-to-right, top-to-bottom
-	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
-	 */
-	static void drawBox(Coordinate box_origin, Coordinate box_size, Tixel* buffer, Coordinate buffer_size)
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (buffer == nullptr) return;
-		if (box_size.x <= 0 || box_size.y <= 0) return;
-
-		if (box_origin.y >= 0 && box_origin.y < buffer_size.y)
-		{
-			for (int x = box_origin.x; x < box_origin.x + box_size.x; x++)
-			{
-				if (x < 0) continue;
-				if (x >= buffer_size.x) break;
-
-				buffer[x + (box_origin.y * buffer_size.x)] = (x == box_origin.x ? UNICODE_BOX_TOPLEFT : (x == box_origin.x + box_size.x - 1 ? UNICODE_BOX_TOPRIGHT : UNICODE_BOX_HORIZONTAL));
-			}
-		}
-
-		for (int y = box_origin.y + 1; y < box_origin.y + box_size.y - 1; y++)
-		{
-			if (y < 0) continue;
-			if (y >= buffer_size.y) break;
-
-			if (box_origin.x >= 0 && box_origin.x < buffer_size.x)
-				buffer[box_origin.x + (y * buffer_size.x)] = UNICODE_BOX_VERTICAL;
-
-			if (box_origin.x + box_size.x - 1 >= 0 && box_origin.x + box_size.x - 1 < buffer_size.x)
-				buffer[box_origin.x + box_size.x + (y * buffer_size.x) - 1] = UNICODE_BOX_VERTICAL;
-		}
-
-		if (box_origin.y + box_size.y - 1 >= 0 && box_origin.y + box_size.y - 1 < buffer_size.y)
-		{
-			for (int x = box_origin.x; x < box_origin.x + box_size.x; x++)
-			{
-				if (x < 0) continue;
-				if (x >= buffer_size.x) break;
-
-				buffer[x + ((box_origin.y + box_size.y - 1) * buffer_size.x)] = (x == box_origin.x ? UNICODE_BOX_BOTTOMLEFT : (x == box_origin.x + box_size.x - 1 ? UNICODE_BOX_BOTTOMRIGHT : UNICODE_BOX_HORIZONTAL));
-			}
-		}
-	}
-#endif
-	;
-
-	/**
-	 * @brief split a string at a delimiter character.
-	 * 
-	 * @param text string to split
-	 * @param delim character to split at. this will be removed from the resulting array of strings
-	 * @returns array of strings
-	 */
-	static vector<string> splitString(string text, char delim)
-	{
-		vector<string> result;
-		string current;
-
-		for (char c : text)
-		{
-			if (c == delim)
-			{
-				result.push_back(current);
-				current = "";
-			}
-			else
-				current += c;
-		}
-		result.push_back(current);
-
-		return result;
-	}
-
-	/**
-	 * @brief converts a single string into an array of lines of a given maximum length.
-	 * 
-	 * respects line breaks, uses word-wrapping where possible, or forcibly breaks words 
-	 * if necessary.
-	 * 
-	 * @param text string on which to perform wrapping
-	 * @param max_width maximum number of characters to place in any row
-	 * @returns list of individual lines of text
-	 */
-	static vector<string> wrapText(string text, size_t max_width)
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (text.length() < 1)
-			return vector<string>({""});
-		vector<string> result;
-		size_t start = 0;
-		while (start != string::npos)
-		{
-			start++;
-			size_t end = text.find('\n', start);
-			vector<string> tmp = wrapTextInner(text.substr(start, end - start), max_width);
-			for (string s : tmp) result.push_back(s);
-			start = end;
-		}
-		//	i hate this
-		if (result.size() > 0)
-			result[0] = string(1, text[0]) + result[0];
-		return result;
-	}
-#endif
-	;
-
-	static vector<string> wrapTextInner(string text, size_t max_width)
-#ifdef STUI_IMPLEMENTATION
-	{
-		vector<string> lines;
-		size_t last_index = 0;
-		while (last_index != text.length())
-		{
-			size_t max_end = min(last_index + max_width - 1, text.length() - 1);
-			size_t next_end = max_end;
-			bool trim_whitespace = false;
-			while (text[next_end] != ' ')
-			{
-				if (next_end == text.length() - 1)
-				{
-					trim_whitespace = false;
-					break;
-				}
-
-				if (next_end == last_index)
-				{
-					next_end = max_end;
-					trim_whitespace = false;
-					break;
-				}
-				next_end--;
-			}
-			lines.push_back(text.substr(last_index, ((next_end - last_index) + 1) - trim_whitespace));
-			last_index = next_end + 1;
-		}
-		return lines;
-	}
-#endif
-	;
-
-	/**
-	 * @brief draws a line of text into a buffer.
-	 * 
-	 * supports single-line drawing (out-of-bounds characters are skipped). it's up to the 
-	 * caller to ensure `buffer` is allocated to the size specified by `buffer_size`. 
-	 * newlines, nulls or other special characters should not be passed into this function, 
-	 * as it will fuck up the output stage at the end of rendering.
-	 * 
-	 * @param text text to draw to the buffer
-	 * @param text_origin position in the output buffer of the top-left-most corner of the
-	 * text
-	 * @param max_size maximum size of the drawn text, measured from the `text_origin`. must 
-	 * be positive in both dimensions. text that runs outside this area is not drawn
-	 * @param buffer pointer to a `Tixel` array ordered left-to-right, top-to-bottom
-	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
-	 */
-	static void drawText(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size)
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (buffer == nullptr) return;
-		if (buffer_size.x <= 0 || buffer_size.y <= 0) return;
-
-		for (int i = 0; i < static_cast<int>(text.length()); i++)
-		{
-			if (text_origin.x + i < 0) continue;
-			if (text_origin.x + i >= buffer_size.x || i >= max_size.x) break;
-			if (text_origin.y < 0 || text_origin.y >= buffer_size.y) break;
-			if (text[i] == '\n') break;
-
-			buffer[(text_origin.x + i) + (text_origin.y * buffer_size.x)] = text[i];
-		}
-	}
-#endif
-	;
-
-	/**
-	 * @brief draws a block of text into a buffer.
-	 * 
-	 * supports either multi-line wrapped drawing, where lines are wrapped to fit into the
-	 * box specified by `max_size`. it's up to the caller to ensure `buffer` is allocated 
-	 * to the size specified by `buffer_size`. newlines, nulls or other special characters 
-	 * should not be passed into this function, as it will fuck up the output stage at the
-	 * end of rendering.
-	 * 
-	 * @param text text to draw to the buffer
-	 * @param text_origin position in the output buffer of the top-left-most corner of the
-	 * text
-	 * @param max_size maximum size of the drawn text, measured from the `text_origin`. must 
-	 * be positive in both dimensions. text that runs outside this area will be wrapped to 
-	 * fit inside this horizontally
-	 * @param buffer pointer to a `Tixel` array ordered left-to-right, top-to-bottom
-	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
-	 */
-	static vector<size_t> drawTextWrapped(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size)
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (buffer == nullptr) return vector<size_t>();
-		if (buffer_size.x <= 0 || buffer_size.y <= 0) return vector<size_t>();
-
-		vector<string> lines = wrapText(text, min(max_size.x, buffer_size.x - text_origin.x));
-		
-		int row = -1;
-		for (string line : lines)
-		{
-			row++;
-			if (row >= max_size.y || row + text_origin.y >= buffer_size.y) break;
-			if (row + text_origin.y < 0) continue;
-
-			for (size_t col = 0; col < line.length(); col++)
-			{
-				buffer[(text_origin.x + col) + ((text_origin.y + row) * buffer_size.x)] = line[col];
-			}
-		}
-
-		vector<size_t> line_lengths;
-		for (string l : lines) line_lengths.push_back(l.length());
-
-		return line_lengths;
-	}
-#endif
-	;
-
-	/**
-	 * @brief simplifies allocation of 2D text buffers.
-	 * 
-	 * automatically clears the buffer with spaces and adds an extra null-terminator on the end. this
-	 * function allocates memory with `new`, and callers are responsible for `delete[]`ing the buffers
-	 * after it is no longer being used.
-	 * 
-	 * @param buffer_size two-dimensional size of the buffer required. must be positive and non-zero in
-	 * both axes
-	 * @returns pointer to newly-allocated block of memory, or `nullptr` if the buffer size would be
-	 * less than 1
-	 */
-	static Tixel* makeBuffer(Coordinate buffer_size)
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (buffer_size.x <= 0 || buffer_size.y <= 0) return nullptr;
-
-		size_t size = buffer_size.x * buffer_size.y;
-		Tixel* buf = new Tixel[size + 1];
-		Tixel fill{ ' ', getDefaultColour() };
-		for (size_t i = 0; i < size; i++)
-			memcpy(buf + i, &fill, sizeof(fill));
-		buf[size] = Tixel{ '\0', getDefaultColour() };
-
-		return buf;
-	}
-#endif
-	;
-
-	/**
-	 * @brief copy an area from one buffer to another.
-	 * 
-	 * useful for transferring an area into a larger, differently-shaped buffer for combining elements.
-	 * it's up to the caller to ensure `src` is allocated to the size specified by `src_size`, and to
-	 * ensure 'dst' is allocated to the size specified by `dst_size`. also, this function does not
-	 * clamp the bounds of the box, so trying to copy a box which overflows outside `src` or `dst`, or
-	 * both at once, is likely to corrupt the heap or cause an exception.
-	 * 
-	 * @param src source buffer to copy characters from. must be appropriately sized and allocated, see
-	 * above
-	 * @param src_size size of the source buffer, must match with the allocated size of `src`
-	 * @param src_offset position of the top-left corner of the box to copy in the source buffer. must
-	 * be positive in both dimensions
-	 * @param area_size size of the area to be copied between buffers. must fit inside both buffers
-	 * @param dst destination buffer to copy characters into. must be appropriately sized and allocated,
-	 * see above
-	 * @param dst_size size of the destination buffer, must match with the allocated size of `dst`
-	 * @param dst_offset position of the top-left corner of the box to copy to in the destination buffer.
-	 * must be positive in both dimensions
-	 */
-	static void copyBox(const Tixel* src, Coordinate src_size, Coordinate src_offset, Coordinate area_size, Tixel* dst, Coordinate dst_size, Coordinate dst_offset)
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (src == nullptr || dst == nullptr) return;
-		if (area_size.x <= 0 || area_size.y <= 0) return;
-		if (src_offset.x < 0 || src_offset.y < 0) return;
-		if (dst_offset.x < 0 || dst_offset.y < 0) return;
-		if (src_offset.x + area_size.x > src_size.x || src_offset.y + area_size.y > src_size.y) return;
-		if (dst_offset.x + area_size.x > dst_size.x || dst_offset.y + area_size.y > dst_size.y) return;
-
-		for (int y = 0; y < area_size.y; y++)
-		{
-			memcpy(dst + dst_offset.x + ((y + dst_offset.y) * dst_size.x), src + src_offset.x + ((y + src_offset.y) * src_size.x), area_size.x * sizeof(Tixel));
-		}
-	}
-#endif
-	;
-
-	/**
-	 * @brief get the current default colour configuration for the interface.
-	 * 
-	 * @returns the current colour configuration
-	 */
-	static inline Tixel::ColourCommand getDefaultColour()
-	{
-		return (Tixel::ColourCommand)(Tixel::ColourCommand::BG_BLACK | Tixel::ColourCommand::FG_WHITE);
-	}
-
-	/**
-	 * @brief get the current highlighted colour configuration for the interface.
-	 * 
-	 * @returns the current highlighted colour configuration
-	 */
-	static inline Tixel::ColourCommand getHighlightedColour()
-	{
-		return (Tixel::ColourCommand)(Tixel::ColourCommand::FG_BLACK | Tixel::ColourCommand::BG_WHITE);
-	}
-
-	/**
-	 * @brief get the current unfocused colour configuration for the interface.
-	 * 
-	 * @returns the current unfocused colour configuration
-	 */
-	static inline Tixel::ColourCommand getUnfocusedColour()
-	{
-		return (Tixel::ColourCommand)(Tixel::ColourCommand::FG_BLACK | Tixel::ColourCommand::BG_GRAY);
-	}
-
-	/**
-	 * @brief fill a specified box area with a particular colour command.
-	 * 
-	 * @param colour colour command to fill the area with
-	 * @param origin starting offset of the area
-	 * @param size size of the area. must be positive in both axes
-	 * @param buffer output buffer into which the filled box should be drawn
-	 * @param buffer_size size of the output buffer
-	 */
-	static void fillColour(Tixel::ColourCommand colour, Coordinate origin, Coordinate size, Tixel* buffer, Coordinate buffer_size)
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (size.x <= 0 || size.y <= 0) return;
-		if (buffer == nullptr) return;
-		if (buffer_size.x <= 0 || buffer_size.y <= 0) return;
-
-		for (int y = 0; y < size.y; y++)
-		{
-			if (y + origin.y < 0) continue;
-			if (y + origin.y >= buffer_size.y) break;
-
-			for (int x = 0; x < size.x; x++)
-			{
-				if (x + origin.x < 0) continue;
-				if (x + origin.x >= buffer_size.x) break;
-				buffer[x + origin.x + ((y + origin.y) * buffer_size.x)].colour = colour;
-			}
-		}
-	}
-#endif
-	;
-};
 
 /**
  * @brief single-line text box.
@@ -2290,6 +1900,14 @@ public:
 	GETMINSIZE_STUB { return Coordinate{ 1, 1 }; }
 };
 
+#pragma endregion STUI_COMPONENTS
+
+///////////////////////////////////////////////////////////////////////
+//                      RENDERER & TERMINAL
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_RENDERING
+
 /**
  * @brief purely static class which encapsulates code for rendering a page
  * to the terminal. a page just consists of a `Component` tree.
@@ -2380,143 +1998,32 @@ class Terminal
 private:
 
 public:
-	static void configure(string banner_text = "", float banner_duration_seconds = 3.0f)
-#ifdef STUI_IMPLEMENTATION
-	{
-		ios_base::sync_with_stdio(false);
-		isTerminalResized();
-#ifdef DEBUG
-		debug_log.open("stui_debug.log");
-		DEBUG_LOG("STUI logging started");
-#endif
-#if defined(_WIN32)
-		SetConsoleCtrlHandler(windowsControlHandler, true);
-		SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), ENABLE_VIRTUAL_TERMINAL_PROCESSING | ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT);
-#elif defined(__linux__)
-		signal(SIGINT, linuxControlHandler);
-		signal(SIGQUIT, linuxControlHandler);
-		signal(SIGTSTP, linuxControlHandler);
-		signal(SIGWINCH, linuxResizeHandler);
-		termios new_termios;
-		tcgetattr(STDIN_FILENO, &new_termios);
-		tcgetattr(STDIN_FILENO, &original_termios);
+	static void configure(string banner_text = "", float banner_duration_seconds = 3.0f);
 
-		new_termios.c_iflag &= ~(IGNBRK | BRKINT | IXON);
-		new_termios.c_lflag &= ~(ICANON | ECHO);
-        new_termios.c_cc[VMIN] = 1;
-		new_termios.c_cc[VSUSP] = 255;
-		tcsetattr(STDIN_FILENO, TCSANOW, &new_termios);
-#endif
-		Banner b(banner_text + "\n\nusing\n" + default_banner);
-		BorderedBox bb(&b, "");
-		Renderer::render(&bb);
-		this_thread::sleep_for(chrono::duration<float>(banner_duration_seconds));
-	}
-#endif
-	;
-
-	static void registerExitCallback(void (*callback)())
-#ifdef STUI_IMPLEMENTATION
+	static inline void registerExitCallback(void (*callback)())
 	{
 		exit_callback = callback;
 	}
-#endif
-	;
 
-	static void unConfigure(bool clear_terminal)
-#ifdef STUI_IMPLEMENTATION
-	{
-		setCursorVisible(true);
-#if defined(__linux__)
-		tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
-#endif
-		if (clear_terminal)
-		{
-			clear();
-			setCursorPosition(Coordinate{ 0,0 });
-		}
-		else
-			setCursorPosition(Coordinate{ 0,getScreenSize().y + 1 });
-#ifdef DEBUG
-		DEBUG_LOG("STUI logging stopped");
-		DEBUG_LOG("timing data:\n\trender:\t\t\t" + to_string(debug_timing.d_render) + "\t\t" + to_string(debug_timing.i_render) + "\t\t" + to_string(debug_timing.d_render / debug_timing.i_render)
-		                    + "\n\ttranscoding:\t" + to_string(debug_timing.d_transcoding) + "\t\t" + to_string(debug_timing.i_transcoding) + "\t\t" + to_string(debug_timing.d_transcoding / debug_timing.i_transcoding)
-		                    + "\n\tmakebuffer:\t\t" + to_string(debug_timing.d_makebuffer) + "\t\t" + to_string(debug_timing.i_makebuffer) + "\t\t" + to_string(debug_timing.d_makebuffer / debug_timing.i_makebuffer)
-		                    + "\n\tcopybuffer:\t\t" + to_string(debug_timing.d_copybuffer) + "\t\t" + to_string(debug_timing.i_copybuffer) + "\t\t" + to_string(debug_timing.d_copybuffer / debug_timing.i_copybuffer)
-		                    + "\n\tdrawtext:\t\t" + to_string(debug_timing.d_drawtext) + "\t\t" + to_string(debug_timing.i_drawtext) + "\t\t" + to_string(debug_timing.d_drawtext / debug_timing.i_drawtext)
-				);
-		
-		debug_log.close();
-#endif
-	}
-#endif
-	;
+	static void unConfigure(bool clear_terminal);
 
-	static bool isTerminalResized()
-#ifdef STUI_IMPLEMENTATION
-	{
-#if defined(_WIN32)
-		static Coordinate last_checked_screen_size;
-		Coordinate new_screen_size = getScreenSize();
-		if (new_screen_size.x == last_checked_screen_size.x && new_screen_size.y == last_checked_screen_size.y)
-			return false;
-
-		last_checked_screen_size = new_screen_size;
-		return true;
-#elif defined(__linux__)
-		bool resized = linux_resized_triggered;
-		linux_resized_triggered = false;
-		return resized;
-#endif
-	}
-#endif
-	;
+	static bool isTerminalResized();
 
 private:
 #if defined(_WIN32)
-	static int WINAPI windowsControlHandler(DWORD control_type) noexcept
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (control_type == 0)
-		{
-			commonExitHandler();
-		}
-
-		return 1;
-	}
-#endif
-	;
-
+	static int WINAPI windowsControlHandler(DWORD control_type) noexcept;
 #elif defined(__linux__)
-	static void linuxControlHandler(int control_type)
-#ifdef STUI_IMPLEMENTATION
-	{
-		commonExitHandler();
-	}
-#endif
-	;
-
-	static void linuxResizeHandler(int s)
-#ifdef STUI_IMPLEMENTATION
-	{
-		DEBUG_LOG("screen resized");
-		linux_resized_triggered = true;
-	}
-#endif
-	;
-
+	static void linuxControlHandler(int control_type);
+	static void linuxResizeHandler(int s);
 #endif
 
-	static void commonExitHandler()
-#ifdef STUI_IMPLEMENTATION
+	static inline void commonExitHandler()
 	{
 		unConfigure(true);
 		if (exit_callback != nullptr)
 			exit_callback();
 		exit(0);
 	}
-#endif
-	;
 
 	/**
 	 * @brief clear the entire terminal, including scrollback and onscreen buffers
@@ -2531,18 +2038,7 @@ private:
 	 * 
 	 * @return size of the terminal window 
 	 */
-	static inline Coordinate getScreenSize()
-	{
-#if defined(_WIN32)
-		CONSOLE_SCREEN_BUFFER_INFO info;
-		GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
-		return Coordinate{ (info.srWindow.Right - info.srWindow.Left) + 1, (info.srWindow.Bottom - info.srWindow.Top) + 1 };
-#elif defined(__linux__)
-		struct winsize size;
-		ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
-		return Coordinate{ (int)size.ws_col, (int)size.ws_row };
-#endif
-	}
+	static Coordinate getScreenSize();
 
 	/**
 	 * @brief move the cursor to a given position in the terminal window
@@ -2559,18 +2055,7 @@ private:
 	 * 
 	 * @param visible whether or not the cursor should be visible
 	 */
-	static inline void setCursorVisible(bool visible)
-	{
-#if defined(_WIN32)
-		CONSOLE_CURSOR_INFO info;
-		GetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
-		info.bVisible = visible;
-		SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
-#elif defined(__linux__)
-		if (visible) OUTPUT_TARGET << ANSI_SHOW_CURSOR;
-		else OUTPUT_TARGET << ANSI_HIDE_CURSOR;
-#endif
-	}
+	static inline void setCursorVisible(bool visible);
 
 	/**
 	 * @brief forces the current terminal to respect UTF-8
@@ -2583,7 +2068,430 @@ private:
 	}
 };
 
+#pragma endregion STUI_RENDERING
+
+///////////////////////////////////////////////////////////////////////
+//                        IMPLEMENTATIONS
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_IMPLEMENTATIONS
+
 #ifdef STUI_IMPLEMENTATION
+
+vector<Input::Key> Input::getQueuedKeyEvents()
+{
+	vector<Key> events;
+#if defined(_WIN32)
+	// find available
+	DWORD events_available;
+	GetNumberOfConsoleInputEvents(GetStdHandle(STD_INPUT_HANDLE), &events_available);
+	if (events_available < 1) return events;
+
+	// grab 32 of them
+	INPUT_RECORD records[32] = { };
+	DWORD records_read;
+
+	if (ReadConsoleInput(GetStdHandle(STD_INPUT_HANDLE), records, 32, &records_read) == 0)
+		throw runtime_error("input error");
+	
+	for (size_t i = 0; i < records_read; i++)
+		if (records[i].EventType == KEY_EVENT && records[i].Event.KeyEvent.bKeyDown)
+		{
+			Key k{ };
+			k.key = (uint8_t)records[i].Event.KeyEvent.uChar.AsciiChar;
+			if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_UP) k.key = ArrowKeys::UP;
+			else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_DOWN) k.key = ArrowKeys::DOWN;
+			else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_LEFT) k.key = ArrowKeys::LEFT;
+			else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_RIGHT) k.key = ArrowKeys::RIGHT;
+			if (k.key == '\r') k.key = '\n';
+			k.control_states = ControlKeys::NONE;
+			DWORD control_key = records[i].Event.KeyEvent.dwControlKeyState;
+			if (control_key & 0x04) k.control_states = ControlKeys::CTRL;
+			else if (control_key & 0x08)
+			{
+				k.control_states = ControlKeys::CTRL;
+				k.key += 96;
+			}
+			else if (control_key & 0x10) k.control_states = ControlKeys::SHIFT;
+			else if (control_key & 0x01) k.control_states = ControlKeys::ALT;
+			else if (control_key & 0x02) k.control_states = ControlKeys::ALT;
+			if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_DELETE)
+			{
+				k.key = 127;
+				k.control_states = ControlKeys::NONE;
+			}
+			events.push_back(k);
+		}
+#elif defined(__linux__)
+	// check if there are any events to read
+	if (kbhit() < 1) return events;
+
+	// read a queue of 64 events (or as many are available)
+	uint8_t buffer[64] = { 0 };
+	ssize_t bytes_read = read(STDIN_FILENO, buffer, 64);
+	for (ssize_t i = 0; i < bytes_read; i++)
+	{
+		int c = buffer[i];
+		// process escape sequences
+		if (c == '\e')
+		{
+			// unless it's actually just escape
+			if (i == bytes_read - 1) events.push_back(Key{ '\e', ControlKeys::NONE });
+			else if (buffer[i + 1] != '[')
+			{
+				// if there's no bracket then it's an alt-event
+				int c_next = buffer[i + 1];
+				events.push_back(Key{ linux_keymap[c_next].key, ControlKeys::ALT });
+				// skip to the next char so we don't process the same one twice
+				i++;
+			}
+			else if (i == bytes_read - 2)
+			{
+				// it could just be alt-bracket, not an escape sequences
+				events.push_back(Key{ '[', ControlKeys::ALT });
+				i++;
+			}
+			else
+			{
+				// otherwise it's an escape sequence
+				int c_next = buffer[i + 2];
+				if (c_next == 0x41)
+				{
+					events.push_back(Key{ ArrowKeys::UP, ControlKeys::NONE });
+					i += 2;
+				}
+				else if (c_next == 0x42)
+				{
+					events.push_back(Key{ ArrowKeys::DOWN, ControlKeys::NONE });
+					i += 2;
+				}
+				else if (c_next == 0x44)
+				{
+					events.push_back(Key{ ArrowKeys::LEFT, ControlKeys::NONE });
+					i += 2;
+				}
+				else if (c_next == 0x43)
+				{
+					events.push_back(Key{ ArrowKeys::RIGHT, ControlKeys::NONE });
+					i += 2;
+				}
+				else if (i <= bytes_read - 5 && c_next == '1' && buffer[i + 3] == ';' && buffer[i + 4] == '2')
+				{
+					int c_next_next = buffer[i + 5];
+					if (c_next_next == 0x41) events.push_back(Key{ ArrowKeys::UP, ControlKeys::SHIFT });
+					else if (c_next_next == 0x42) events.push_back(Key{ ArrowKeys::DOWN, ControlKeys::SHIFT });
+					else if (c_next_next == 0x44) events.push_back(Key{ ArrowKeys::LEFT, ControlKeys::SHIFT });
+					else if (c_next_next == 0x43) events.push_back(Key{ ArrowKeys::RIGHT, ControlKeys::SHIFT });
+					i += 5;
+				}
+				else if (i <= bytes_read - 4 && c_next == '3' && buffer[i + 3] == '~')
+				{
+					events.push_back(Key{ 127, ControlKeys::NONE });
+					i += 4;
+				}
+				else
+				{
+					// debug if it isnt handled
+					DEBUG_LOG("unhandled ANSI code: " + string((char*)buffer + i));
+					break;
+				}
+			}
+		}
+		else if (c < 128)
+		{
+			// normal keypress, use the keymap as a look-up table
+			events.push_back(linux_keymap[c]);
+		}
+		else
+		{
+			DEBUG_LOG("uh oh! unhandled UTF-8");
+			// TODO: handle utf8 oh dear god
+			break;
+		}
+	}
+#endif
+	return events;
+}
+
+void Input::processShortcuts(vector<Shortcut> shortcuts, vector<Key>& key_events)
+{
+#ifdef DEBUG
+	for (Shortcut s : shortcuts)
+		if (s.binding.control_states != ControlKeys::ALT
+			&& s.binding.control_states != ControlKeys::SHIFT
+			&& s.binding.control_states != ControlKeys::CTRL
+			&& s.binding.control_states != ControlKeys::NONE)
+		DEBUG_LOG("never bind a shortcut to multiple ControlKeys at once! this shortcut will never be called. key: " + string(1, (char)s.binding.key) + " control_states: " + to_string(s.binding.control_states));
+#endif
+
+	vector<Key> non_processed;
+	for (size_t i = 0; i < key_events.size(); i++)
+	{
+		Key k = key_events[i];
+		bool consumed = false;
+		for (Shortcut s : shortcuts)
+		{
+			if (compare(k, s.binding)) { consumed = true; s.callback(); }
+		}
+		if (!consumed) non_processed.push_back(k);
+	}
+
+	key_events = non_processed;
+}
+
+vector<pair<uint8_t, Input::ControlKeys>> Input::getTextCharacters(vector<Key>& key_events)
+{
+	vector<Key> non_processed;
+	vector<pair<uint8_t, ControlKeys>> result;
+	for (size_t i = 0; i < key_events.size(); i++)
+	{
+		Key k = key_events[i];
+		if ((k.control_states == ControlKeys::NONE || k.control_states == ControlKeys::SHIFT) && (
+				(k.key >= 32 && k.key <= 127) 
+			|| k.key == '\n' 
+			|| k.key == '\t' 
+			|| k.key == '\b'
+			|| k.key == 127
+			|| k.key == ArrowKeys::UP
+			|| k.key == ArrowKeys::DOWN
+			|| k.key == ArrowKeys::LEFT
+			|| k.key == ArrowKeys::RIGHT))
+		{
+			result.push_back(pair<uint8_t, ControlKeys>(static_cast<uint8_t>(k.key), k.control_states));
+		}
+		else
+		{
+			non_processed.push_back(k);
+		}
+	}
+	key_events = non_processed;
+
+	return result;
+}
+
+string Utility::stripNullsAndMore(string str, const char* others)
+{
+	string result = "";
+	for (char c : str)
+	{
+		// auto-strip if the character is a non-renderable
+		if (c < ' ' && c != '\n' && c != '\t' && c != '\b') continue;
+		// check if the current char is inside list to remove
+		bool is_valid = true;
+		for (size_t i = 0; others[i] != '\0'; i++)
+			if (c == others[i]) is_valid = false;
+		if (is_valid)
+		{
+			// if not, keep it, swapping tab for some spaces
+			if (c == '\t') result += "    ";
+			else result += c;
+		}
+	}
+	return result;
+}
+
+void Utility::drawBox(Coordinate box_origin, Coordinate box_size, Tixel* buffer, Coordinate buffer_size)
+{
+	if (buffer == nullptr) return;
+	if (box_size.x <= 0 || box_size.y <= 0) return;
+
+	if (box_origin.y >= 0 && box_origin.y < buffer_size.y)
+	{
+		for (int x = box_origin.x; x < box_origin.x + box_size.x; x++)
+		{
+			if (x < 0) continue;
+			if (x >= buffer_size.x) break;
+
+			buffer[x + (box_origin.y * buffer_size.x)] = (x == box_origin.x ? UNICODE_BOX_TOPLEFT : (x == box_origin.x + box_size.x - 1 ? UNICODE_BOX_TOPRIGHT : UNICODE_BOX_HORIZONTAL));
+		}
+	}
+
+	for (int y = box_origin.y + 1; y < box_origin.y + box_size.y - 1; y++)
+	{
+		if (y < 0) continue;
+		if (y >= buffer_size.y) break;
+
+		if (box_origin.x >= 0 && box_origin.x < buffer_size.x)
+			buffer[box_origin.x + (y * buffer_size.x)] = UNICODE_BOX_VERTICAL;
+
+		if (box_origin.x + box_size.x - 1 >= 0 && box_origin.x + box_size.x - 1 < buffer_size.x)
+			buffer[box_origin.x + box_size.x + (y * buffer_size.x) - 1] = UNICODE_BOX_VERTICAL;
+	}
+
+	if (box_origin.y + box_size.y - 1 >= 0 && box_origin.y + box_size.y - 1 < buffer_size.y)
+	{
+		for (int x = box_origin.x; x < box_origin.x + box_size.x; x++)
+		{
+			if (x < 0) continue;
+			if (x >= buffer_size.x) break;
+
+			buffer[x + ((box_origin.y + box_size.y - 1) * buffer_size.x)] = (x == box_origin.x ? UNICODE_BOX_BOTTOMLEFT : (x == box_origin.x + box_size.x - 1 ? UNICODE_BOX_BOTTOMRIGHT : UNICODE_BOX_HORIZONTAL));
+		}
+	}
+}
+
+vector<string> Utility::splitString(string text, char delim)
+{
+	vector<string> result;
+	string current;
+
+	for (char c : text)
+	{
+		if (c == delim)
+		{
+			result.push_back(current);
+			current = "";
+		}
+		else
+			current += c;
+	}
+	result.push_back(current);
+
+	return result;
+}
+
+vector<string> Utility::wrapText(string text, size_t max_width)
+{
+	if (text.length() < 1)
+		return vector<string>({""});
+	vector<string> result;
+	size_t start = 0;
+	while (start != string::npos)
+	{
+		start++;
+		size_t end = text.find('\n', start);
+		vector<string> tmp = wrapTextInner(text.substr(start, end - start), max_width);
+		for (string s : tmp) result.push_back(s);
+		start = end;
+	}
+	//	i hate this
+	if (result.size() > 0)
+		result[0] = string(1, text[0]) + result[0];
+	return result;
+}
+
+vector<string> Utility::wrapTextInner(string text, size_t max_width)
+{
+	vector<string> lines;
+	size_t last_index = 0;
+	while (last_index != text.length())
+	{
+		size_t max_end = min(last_index + max_width - 1, text.length() - 1);
+		size_t next_end = max_end;
+		bool trim_whitespace = false;
+		while (text[next_end] != ' ')
+		{
+			if (next_end == text.length() - 1)
+			{
+				trim_whitespace = false;
+				break;
+			}
+
+			if (next_end == last_index)
+			{
+				next_end = max_end;
+				trim_whitespace = false;
+				break;
+			}
+			next_end--;
+		}
+		lines.push_back(text.substr(last_index, ((next_end - last_index) + 1) - trim_whitespace));
+		last_index = next_end + 1;
+	}
+	return lines;
+}
+
+void Utility::drawText(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size)
+{
+	if (buffer == nullptr) return;
+	if (buffer_size.x <= 0 || buffer_size.y <= 0) return;
+
+	for (int i = 0; i < static_cast<int>(text.length()); i++)
+	{
+		if (text_origin.x + i < 0) continue;
+		if (text_origin.x + i >= buffer_size.x || i >= max_size.x) break;
+		if (text_origin.y < 0 || text_origin.y >= buffer_size.y) break;
+		if (text[i] == '\n') break;
+
+		buffer[(text_origin.x + i) + (text_origin.y * buffer_size.x)] = text[i];
+	}
+}
+
+vector<size_t> Utility::drawTextWrapped(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size)
+{
+	if (buffer == nullptr) return vector<size_t>();
+	if (buffer_size.x <= 0 || buffer_size.y <= 0) return vector<size_t>();
+
+	vector<string> lines = wrapText(text, min(max_size.x, buffer_size.x - text_origin.x));
+	
+	int row = -1;
+	for (string line : lines)
+	{
+		row++;
+		if (row >= max_size.y || row + text_origin.y >= buffer_size.y) break;
+		if (row + text_origin.y < 0) continue;
+
+		for (size_t col = 0; col < line.length(); col++)
+		{
+			buffer[(text_origin.x + col) + ((text_origin.y + row) * buffer_size.x)] = line[col];
+		}
+	}
+
+	vector<size_t> line_lengths;
+	for (string l : lines) line_lengths.push_back(l.length());
+
+	return line_lengths;
+}
+
+Tixel* Utility::makeBuffer(Coordinate buffer_size)
+{
+	if (buffer_size.x <= 0 || buffer_size.y <= 0) return nullptr;
+
+	size_t size = buffer_size.x * buffer_size.y;
+	Tixel* buf = new Tixel[size + 1];
+	Tixel fill{ ' ', getDefaultColour() };
+	for (size_t i = 0; i < size; i++)
+		memcpy(buf + i, &fill, sizeof(fill));
+	buf[size] = Tixel{ '\0', getDefaultColour() };
+
+	return buf;
+}
+
+void Utility::copyBox(const Tixel* src, Coordinate src_size, Coordinate src_offset, Coordinate area_size, Tixel* dst, Coordinate dst_size, Coordinate dst_offset)
+{
+	if (src == nullptr || dst == nullptr) return;
+	if (area_size.x <= 0 || area_size.y <= 0) return;
+	if (src_offset.x < 0 || src_offset.y < 0) return;
+	if (dst_offset.x < 0 || dst_offset.y < 0) return;
+	if (src_offset.x + area_size.x > src_size.x || src_offset.y + area_size.y > src_size.y) return;
+	if (dst_offset.x + area_size.x > dst_size.x || dst_offset.y + area_size.y > dst_size.y) return;
+
+	for (int y = 0; y < area_size.y; y++)
+	{
+		memcpy(dst + dst_offset.x + ((y + dst_offset.y) * dst_size.x), src + src_offset.x + ((y + src_offset.y) * src_size.x), area_size.x * sizeof(Tixel));
+	}
+}
+
+void Utility::fillColour(Tixel::ColourCommand colour, Coordinate origin, Coordinate size, Tixel* buffer, Coordinate buffer_size)
+{
+	if (size.x <= 0 || size.y <= 0) return;
+	if (buffer == nullptr) return;
+	if (buffer_size.x <= 0 || buffer_size.y <= 0) return;
+
+	for (int y = 0; y < size.y; y++)
+	{
+		if (y + origin.y < 0) continue;
+		if (y + origin.y >= buffer_size.y) break;
+
+		for (int x = 0; x < size.x; x++)
+		{
+			if (x + origin.x < 0) continue;
+			if (x + origin.x >= buffer_size.x) break;
+			buffer[x + origin.x + ((y + origin.y) * buffer_size.x)].colour = colour;
+		}
+	}
+}
+
 void Renderer::render(Component* root_component)
 {
 	DEBUG_TIMER_S(render);
@@ -2687,13 +2595,148 @@ inline int Renderer::getConstrainedSize(int available, int _max, int _min)
 	if (size < _min) return -1;
 	else return max(size, _min);
 }
+
+void Terminal::configure(string banner_text, float banner_duration_seconds)
+{
+	ios_base::sync_with_stdio(false);
+	isTerminalResized();
+#ifdef DEBUG
+	debug_log.open("stui_debug.log");
+	DEBUG_LOG("STUI logging started");
 #endif
+#if defined(_WIN32)
+	SetConsoleCtrlHandler(windowsControlHandler, true);
+	SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), ENABLE_VIRTUAL_TERMINAL_PROCESSING | ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT);
+#elif defined(__linux__)
+	signal(SIGINT, linuxControlHandler);
+	signal(SIGQUIT, linuxControlHandler);
+	signal(SIGTSTP, linuxControlHandler);
+	signal(SIGWINCH, linuxResizeHandler);
+	termios new_termios;
+	tcgetattr(STDIN_FILENO, &new_termios);
+	tcgetattr(STDIN_FILENO, &original_termios);
+
+	new_termios.c_iflag &= ~(IGNBRK | BRKINT | IXON);
+	new_termios.c_lflag &= ~(ICANON | ECHO);
+	new_termios.c_cc[VMIN] = 1;
+	new_termios.c_cc[VSUSP] = 255;
+	tcsetattr(STDIN_FILENO, TCSANOW, &new_termios);
+#endif
+	Banner b(banner_text + "\n\nusing\n" + default_banner);
+	BorderedBox bb(&b, "");
+	Renderer::render(&bb);
+	this_thread::sleep_for(chrono::duration<float>(banner_duration_seconds));
+}
+
+void Terminal::unConfigure(bool clear_terminal)
+{
+	setCursorVisible(true);
+#if defined(__linux__)
+	tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
+#endif
+	if (clear_terminal)
+	{
+		clear();
+		setCursorPosition(Coordinate{ 0,0 });
+	}
+	else
+		setCursorPosition(Coordinate{ 0,getScreenSize().y + 1 });
+#ifdef DEBUG
+	DEBUG_LOG("STUI logging stopped");
+	DEBUG_LOG("timing data:\n\trender:\t\t\t" + to_string(debug_timing.d_render) + "\t\t" + to_string(debug_timing.i_render) + "\t\t" + to_string(debug_timing.d_render / debug_timing.i_render)
+						+ "\n\ttranscoding:\t" + to_string(debug_timing.d_transcoding) + "\t\t" + to_string(debug_timing.i_transcoding) + "\t\t" + to_string(debug_timing.d_transcoding / debug_timing.i_transcoding)
+						+ "\n\tmakebuffer:\t\t" + to_string(debug_timing.d_makebuffer) + "\t\t" + to_string(debug_timing.i_makebuffer) + "\t\t" + to_string(debug_timing.d_makebuffer / debug_timing.i_makebuffer)
+						+ "\n\tcopybuffer:\t\t" + to_string(debug_timing.d_copybuffer) + "\t\t" + to_string(debug_timing.i_copybuffer) + "\t\t" + to_string(debug_timing.d_copybuffer / debug_timing.i_copybuffer)
+						+ "\n\tdrawtext:\t\t" + to_string(debug_timing.d_drawtext) + "\t\t" + to_string(debug_timing.i_drawtext) + "\t\t" + to_string(debug_timing.d_drawtext / debug_timing.i_drawtext)
+			);
+	
+	debug_log.close();
+#endif
+}
+
+bool Terminal::isTerminalResized()
+{
+#if defined(_WIN32)
+	static Coordinate last_checked_screen_size;
+	Coordinate new_screen_size = getScreenSize();
+	if (new_screen_size.x == last_checked_screen_size.x && new_screen_size.y == last_checked_screen_size.y)
+		return false;
+
+	last_checked_screen_size = new_screen_size;
+	return true;
+#elif defined(__linux__)
+	bool resized = linux_resized_triggered;
+	linux_resized_triggered = false;
+	return resized;
+#endif
+}
+
+#if defined(_WIN32)
+
+int WINAPI Terminal::windowsControlHandler(DWORD control_type) noexcept
+{
+	if (control_type == 0)
+		commonExitHandler();
+
+	return 1;
+}
+
+#elif defined(__linux__)
+
+void Terminal::linuxControlHandler(int control_type)
+{
+	commonExitHandler();
+}
+
+void Terminal::linuxResizeHandler(int s)
+{
+	DEBUG_LOG("screen resized");
+	linux_resized_triggered = true;
+}
+
+#endif
+
+Coordinate Terminal::getScreenSize()
+{
+#if defined(_WIN32)
+	CONSOLE_SCREEN_BUFFER_INFO info;
+	GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
+	return Coordinate{ (info.srWindow.Right - info.srWindow.Left) + 1, (info.srWindow.Bottom - info.srWindow.Top) + 1 };
+#elif defined(__linux__)
+	struct winsize size;
+	ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
+	return Coordinate{ (int)size.ws_col, (int)size.ws_row };
+#endif
+}
+
+inline void Terminal::setCursorVisible(bool visible)
+{
+#if defined(_WIN32)
+	CONSOLE_CURSOR_INFO info;
+	GetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
+	info.bVisible = visible;
+	SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
+#elif defined(__linux__)
+	if (visible) OUTPUT_TARGET << ANSI_SHOW_CURSOR;
+	else OUTPUT_TARGET << ANSI_HIDE_CURSOR;
+#endif
+}
+
+#endif
+
+#pragma endregion STUI_IMPLEMENTATIONS
 
 }
 
 #endif
 
 #endif
+
+///////////////////////////////////////////////////////////////////////
+//                           UNDEFINES
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_UNDEFS
 
 #ifndef STUI_KEEP_DEFINES
 
@@ -2755,5 +2798,7 @@ inline int Renderer::getConstrainedSize(int available, int _max, int _min)
 #undef UNICODE_CIRCLE_FILLED
 #undef UNICODE_ELLIPSIS_HORIZONTAL
 #undef UNICODE_ELLIPSIS_VERTICAL
+
+#pragma endregion STUI_UNDEFS
 
 #endif

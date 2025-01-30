@@ -4,7 +4,6 @@
 
 # v0.4
 - [ ] fix invalid free pointer in page_usage.cpp (related to object deletion on page destruct probably)
-- [ ] move most of the itty bitty STUI_IMPLEMENTATION bits into one big block at the end of each file
 - [ ] test all new changes back against other demos
 - [ ] test by rebuilding other demos in LayoutScript
 - [ ] documentation and examples for LayoutScript
@@ -15,6 +14,7 @@
 - [x] correct consistency of '*'s at end of comments
 - [x] give all components default constructors
 - [x] make it easier to get components of a particular type from page
+- [x] move most of the itty bitty STUI_IMPLEMENTATION bits into one big block at the end of each file
 
 # Completed v0.3
 - [x] allow the user to configure callbacks for program exit                                                                (v0.3)

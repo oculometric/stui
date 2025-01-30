@@ -20,20 +20,36 @@
 */
 
 #ifndef STUI_SCRIPT_H
+#define STUI_SCRIPT_H
 
-#define STUI_KEEP_DEFINES
-#include "stui.h"
+///////////////////////////////////////////////////////////////////////
+//                             INCLUDES
+///////////////////////////////////////////////////////////////////////
+
 #include "stui_extensions.h"
-#undef STUI_KEEP_DEFINES
-
-#define GETNAME_STUB string getName() override
-#define BUILD_STUB Component* build(BuilderArgs constructor) override
 
 #include <iostream>
 #include <fstream>
 
+///////////////////////////////////////////////////////////////////////
+//                             DEFINES
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_DEFS
+
+#define GETNAME_STUB string getName() override
+#define BUILD_STUB Component* build(BuilderArgs constructor) override
+
+#pragma endregion STUI_DEFS
+
 namespace stui
 {
+
+///////////////////////////////////////////////////////////////////////
+//                       COMPONENT BUILDERS
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_BUILDERS
 
 /**
  * @brief encapsulates a map of component constructor argument names and values.
@@ -210,230 +226,6 @@ protected:
     virtual ~ComponentBuilder() { }; // don't touch this
 };
 
-class LayoutReader
-{
-private:
-    enum TokenType
-    {
-        TEXT,
-        OPEN_ROUND,
-        CLOSE_ROUND,
-        OPEN_CURLY,
-        CLOSE_CURLY,
-        NEWLINE,
-        COLON,
-        STRING,
-        INT,
-        FLOAT,
-        COMMA,
-        COORDINATE,
-        EQUALS,
-        COMMENT,
-        WHITESPACE
-    };
-
-    struct Token
-    {
-        TokenType type;
-        union
-        {
-            string s_value = "";
-            int i_value;
-            float f_value;
-            Coordinate c_value;
-        };
-        size_t start_offset = 0;
-
-        inline Token(TokenType ttype)
-        {
-            type = ttype;
-            start_offset = 0;
-
-            switch(ttype)
-            {
-                case TEXT:
-                case STRING:
-                case COMMENT:
-                    s_value = "";
-                    break;
-                case COORDINATE:
-                    c_value = Coordinate{0, 0};
-                    break;
-                case INT:
-                    i_value = 0;
-                    break;
-                case FLOAT:
-                    f_value = 0.0f;
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        inline Token(const Token& other)
-        {
-            type = other.type;
-            start_offset = other.start_offset;
-
-            switch(type)
-            {
-                case TEXT:
-                case STRING:
-                case COMMENT:
-                    s_value = other.s_value;
-                    break;
-                case COORDINATE:
-                    c_value = other.c_value;
-                    break;
-                case INT:
-                    i_value = other.i_value;
-                    break;
-                case FLOAT:
-                    f_value = other.f_value;
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        inline Token operator=(const Token& other)
-        {
-            type = other.type;
-            start_offset = other.start_offset;
-
-            switch(type)
-            {
-                case TEXT:
-                case STRING:
-                case COMMENT:
-                    s_value = other.s_value;
-                    break;
-                case COORDINATE:
-                    c_value = other.c_value;
-                    break;
-                case INT:
-                    i_value = other.i_value;
-                    break;
-                case FLOAT:
-                    f_value = other.f_value;
-                    break;
-                default:
-                    break;
-            }
-
-            return *this;
-        }
-
-        inline ~Token()
-        {
-            switch (type)
-            {
-                case TEXT:
-                case STRING:
-                case COMMENT:
-                    s_value.~string();
-                    break;
-                case COORDINATE:
-                    c_value.~Coordinate();
-                    break;
-                default:
-                    break;
-            };
-        }
-    };
-
-private:
-    map<string, ComponentBuilder*> builders;
-
-public:
-    inline LayoutReader() : LayoutReader(vector<ComponentBuilder*(*)(void)>({ })) { };
-    LayoutReader(vector<ComponentBuilder*(*)(void)> additional_builders);
-
-    LayoutReader operator=(LayoutReader& other) = delete;
-    LayoutReader operator=(LayoutReader&& other) = delete;
-    LayoutReader(LayoutReader& other) = delete;
-    LayoutReader(LayoutReader&& other) = delete; 
-
-    void registerBuilder(ComponentBuilder* builder);
-
-    Page* readPage(string file);
-
-    ~LayoutReader();
-
-private:
-    static vector<Token> tokenise(const string content);
-
-    static inline bool isAlphabetic(char c)
-	{
-		if (c >= 'a' && c <= 'z') return true;
-		if (c >= 'A' && c <= 'Z') return true;
-
-		return false;
-	}
-
-    static inline TokenType getType(const char c)
-    {
-        if (isAlphabetic(c)) return TEXT;
-        if (c == '(') return OPEN_ROUND;
-        if (c == ')') return CLOSE_ROUND;
-        if (c == '{') return OPEN_CURLY;
-        if (c == '}') return CLOSE_CURLY;
-        if (c == '"') return STRING;
-        if (c == '\n') return NEWLINE;
-        if (c == ':') return COLON;
-        if (c == '=') return EQUALS;
-        if (c == ',') return COMMA;
-        if (c == '[' || c == ']') return COORDINATE;
-        if (c == '-' || (c >= '0' && c <= '9')) return INT;
-        if (c == '.') return FLOAT;
-        if (c == '/') return COMMENT;
-        if (c == ' ' || c == '\t') return WHITESPACE;
-        return TEXT;
-    }
-
-    static size_t findClosingBrace(const vector<Token>& tokens, size_t open_index, const string& original_content);
-
-    Component* parseComponent(const vector<Token>& tokens, size_t start_index, const string& original_content, Page* page);
-
-    BuilderArgs::Argument createArgument(const vector<Token>& tokens, const string& original_content, Page* page);
-        
-    static inline void reportError(const string err, size_t off, const string& str)
-    {
-        int32_t extract_start = max(0, (int32_t)off - 16);
-        int32_t extract_end = extract_start + 32;
-        while (true)
-        {
-            size_t find = str.find('\n', extract_start);
-            if (find > off) break;
-            extract_start = find + 1;
-        }
-        size_t find = str.find('\n', off);
-        if (find != string::npos)
-        {
-            if ((int32_t)find < extract_end)
-            extract_end = find;
-        }
-        string extract = str.substr(extract_start, extract_end - extract_start);
-
-        size_t ln = 0;
-        size_t last = 0;
-        size_t next = 0;
-        while (next < off)
-        {
-            ln++;
-            last = next;
-            next = str.find('\n', next + 1);
-        }
-        size_t col = off - last;
-        if (ln > 0) col--;
-
-        throw runtime_error("STUI format document parsing error:\n\t" + err
-			+ "\n\tat character " + to_string(off) + " (ln " + to_string(ln + 1) + ", col " + to_string(col + 1) + ")"
-			+ "\n\t-> '..." + extract + "..."\
-			+ "\n\t" + string(7 + ((int32_t)off - extract_start), ' ') + "^"\
-			+ "\n\tterminating parsing.");
-    }
-};
 
 class LabelBuilder : public ComponentBuilder
 {
@@ -838,6 +630,248 @@ inline ComponentBuilder* builder()
     T* instance = new T();
     return instance;
 }
+
+
+#pragma endregion STUI_BUILDERS
+
+///////////////////////////////////////////////////////////////////////
+//                          LAYOUT READER
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_LAYOUTREADER
+
+class LayoutReader
+{
+private:
+    enum TokenType
+    {
+        TEXT,
+        OPEN_ROUND,
+        CLOSE_ROUND,
+        OPEN_CURLY,
+        CLOSE_CURLY,
+        NEWLINE,
+        COLON,
+        STRING,
+        INT,
+        FLOAT,
+        COMMA,
+        COORDINATE,
+        EQUALS,
+        COMMENT,
+        WHITESPACE
+    };
+
+    struct Token
+    {
+        TokenType type;
+        union
+        {
+            string s_value = "";
+            int i_value;
+            float f_value;
+            Coordinate c_value;
+        };
+        size_t start_offset = 0;
+
+        inline Token(TokenType ttype)
+        {
+            type = ttype;
+            start_offset = 0;
+
+            switch(ttype)
+            {
+                case TEXT:
+                case STRING:
+                case COMMENT:
+                    s_value = "";
+                    break;
+                case COORDINATE:
+                    c_value = Coordinate{0, 0};
+                    break;
+                case INT:
+                    i_value = 0;
+                    break;
+                case FLOAT:
+                    f_value = 0.0f;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        inline Token(const Token& other)
+        {
+            type = other.type;
+            start_offset = other.start_offset;
+
+            switch(type)
+            {
+                case TEXT:
+                case STRING:
+                case COMMENT:
+                    s_value = other.s_value;
+                    break;
+                case COORDINATE:
+                    c_value = other.c_value;
+                    break;
+                case INT:
+                    i_value = other.i_value;
+                    break;
+                case FLOAT:
+                    f_value = other.f_value;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        inline Token operator=(const Token& other)
+        {
+            type = other.type;
+            start_offset = other.start_offset;
+
+            switch(type)
+            {
+                case TEXT:
+                case STRING:
+                case COMMENT:
+                    s_value = other.s_value;
+                    break;
+                case COORDINATE:
+                    c_value = other.c_value;
+                    break;
+                case INT:
+                    i_value = other.i_value;
+                    break;
+                case FLOAT:
+                    f_value = other.f_value;
+                    break;
+                default:
+                    break;
+            }
+
+            return *this;
+        }
+
+        inline ~Token()
+        {
+            switch (type)
+            {
+                case TEXT:
+                case STRING:
+                case COMMENT:
+                    s_value.~string();
+                    break;
+                case COORDINATE:
+                    c_value.~Coordinate();
+                    break;
+                default:
+                    break;
+            };
+        }
+    };
+
+private:
+    map<string, ComponentBuilder*> builders;
+
+public:
+    inline LayoutReader() : LayoutReader(vector<ComponentBuilder*(*)(void)>({ })) { };
+    LayoutReader(vector<ComponentBuilder*(*)(void)> additional_builders);
+
+    LayoutReader operator=(LayoutReader& other) = delete;
+    LayoutReader operator=(LayoutReader&& other) = delete;
+    LayoutReader(LayoutReader& other) = delete;
+    LayoutReader(LayoutReader&& other) = delete; 
+
+    void registerBuilder(ComponentBuilder* builder);
+
+    Page* readPage(string file);
+
+    ~LayoutReader();
+
+private:
+    static vector<Token> tokenise(const string content);
+
+    static inline bool isAlphabetic(char c)
+	{
+		if (c >= 'a' && c <= 'z') return true;
+		if (c >= 'A' && c <= 'Z') return true;
+
+		return false;
+	}
+
+    static inline TokenType getType(const char c)
+    {
+        if (isAlphabetic(c)) return TEXT;
+        if (c == '(') return OPEN_ROUND;
+        if (c == ')') return CLOSE_ROUND;
+        if (c == '{') return OPEN_CURLY;
+        if (c == '}') return CLOSE_CURLY;
+        if (c == '"') return STRING;
+        if (c == '\n') return NEWLINE;
+        if (c == ':') return COLON;
+        if (c == '=') return EQUALS;
+        if (c == ',') return COMMA;
+        if (c == '[' || c == ']') return COORDINATE;
+        if (c == '-' || (c >= '0' && c <= '9')) return INT;
+        if (c == '.') return FLOAT;
+        if (c == '/') return COMMENT;
+        if (c == ' ' || c == '\t') return WHITESPACE;
+        return TEXT;
+    }
+
+    static size_t findClosingBrace(const vector<Token>& tokens, size_t open_index, const string& original_content);
+
+    Component* parseComponent(const vector<Token>& tokens, size_t start_index, const string& original_content, Page* page);
+
+    BuilderArgs::Argument createArgument(const vector<Token>& tokens, const string& original_content, Page* page);
+        
+    static inline void reportError(const string err, size_t off, const string& str)
+    {
+        int32_t extract_start = max(0, (int32_t)off - 16);
+        int32_t extract_end = extract_start + 32;
+        while (true)
+        {
+            size_t find = str.find('\n', extract_start);
+            if (find > off) break;
+            extract_start = find + 1;
+        }
+        size_t find = str.find('\n', off);
+        if (find != string::npos)
+        {
+            if ((int32_t)find < extract_end)
+            extract_end = find;
+        }
+        string extract = str.substr(extract_start, extract_end - extract_start);
+
+        size_t ln = 0;
+        size_t last = 0;
+        size_t next = 0;
+        while (next < off)
+        {
+            ln++;
+            last = next;
+            next = str.find('\n', next + 1);
+        }
+        size_t col = off - last;
+        if (ln > 0) col--;
+
+        throw runtime_error("STUI format document parsing error:\n\t" + err
+			+ "\n\tat character " + to_string(off) + " (ln " + to_string(ln + 1) + ", col " + to_string(col + 1) + ")"
+			+ "\n\t-> '..." + extract + "..."\
+			+ "\n\t" + string(7 + ((int32_t)off - extract_start), ' ') + "^"\
+			+ "\n\tterminating parsing.");
+    }
+};
+
+#pragma endregion STUI_LAYOUTREADER
+
+///////////////////////////////////////////////////////////////////////
+//                          IMPLEMENTATIONS
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_IMPLEMENTATIONS
 
 #ifdef STUI_IMPLEMENTATION
 
@@ -1477,6 +1511,8 @@ size_t LayoutReader::findClosingBrace(const vector<Token>& tokens, size_t open_i
 }
 
 #endif
+
+#pragma endregion STUI_IMPLEMENTATIONS
 
 }
 

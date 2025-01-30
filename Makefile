@@ -29,6 +29,6 @@ script_demo: $(BIN)
 	@g++ -o $(BIN)/script_demo $(CC_FLAGS) examples/script_demo.cpp
 
 clean:
-	rm $(BIN)
+	@rm -r $(BIN)
 
 .PHONY: clean widgets_demo

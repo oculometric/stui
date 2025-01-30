@@ -223,10 +223,10 @@ public:
 	/**
 	 * @brief destroys all the components the page knows about, and `delete`s them.
 	 * 
-	 * this function is called when the page is destructed, which means that if you have
-	 * components in the page which *shouldn't* have `delete` called (i.e. they are still)
-	 * in use or they were not allocated with `new`, you **MUST** call this before the page
-	 * destructs with the names of the non-deleteable-components in the exclude list.
+	 * you should use this before you delete a `Page` (or before it goes out of scope) 
+	 * if the components within it are created with `new` or via the `LayoutReader`. any components
+	 * you didn't allocate with `new` (or via the `LayoutReader`) you **MUST** name them in the
+	 * `exclude_list`, otherwise bad things will happen.
 	 * 
 	 * components in the exclude list will still be removed from the tree (along with everything else),
 	 * but they won't be `delete`d and will instead be returned.
@@ -248,10 +248,7 @@ public:
 			focusable_component_sequence[i]->focused = (i == focused_component_index);
 	}
 
-	inline ~Page()
-	{
-		destroyAllComponents({ });
-	}
+	inline ~Page() { }
 
 private:
 

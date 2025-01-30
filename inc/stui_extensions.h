@@ -472,10 +472,12 @@ Component* Page::unregisterComponent(string identifier)
 vector<Component*> Page::destroyAllComponents(vector<string> exclude_list)
 {
 	vector<Component*> remainders;
-
+	vector<string> all_names;
 	for (auto pair : components)
+		all_names.push_back(pair.first);
+
+	for (string name : all_names)
 	{
-		string name = pair.first;
 		unregisterComponent(name);
 
 		bool to_exclude = false;
@@ -489,9 +491,9 @@ vector<Component*> Page::destroyAllComponents(vector<string> exclude_list)
 		}
 		
 		if (to_exclude)
-			remainders.push_back(pair.second);
+			remainders.push_back(components[name]);
 		else
-			delete pair.second;
+			delete components[name];
 	}
 
 	root = nullptr;

@@ -29,6 +29,10 @@ compiler_tool: $(BIN)
 	@g++ -o $(BIN)/compiler_tool $(CC_FLAGS) examples/compiler_tool.cpp
 	@$(BIN)/compiler_tool
 
+compiler_tool_ls: $(BIN)
+	@g++ -o $(BIN)/compiler_tool_ls $(CC_FLAGS) examples/compiler_tool_ls.cpp
+	@$(BIN)/compiler_tool_ls
+
 qr_demo: $(BIN)
 	@g++ -o $(BIN)/qr_demo $(CC_FLAGS) examples/qr_demo.cpp
 	@$(BIN)/qr_demo

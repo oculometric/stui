@@ -3,7 +3,6 @@
 - [ ] add editable text area component
 
 # v0.4
-- [ ] test by rebuilding other demos in LayoutScript
 - [ ] show a message when an area is too small to display things
 - [ ] documentation and examples for LayoutScript
 - [ ] fix actual_offset in tree view
@@ -17,6 +16,7 @@
 - [x] fix invalid free pointer in page_usage.cpp (related to object deletion on page destruct probably)
 - [x] test all new changes back against other demos
 - [x] complete comments in script file
+- [x] test by rebuilding other demos in LayoutScript
 
 # Completed v0.3
 - [x] allow the user to configure callbacks for program exit                                                                (v0.3)

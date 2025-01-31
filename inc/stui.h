@@ -165,6 +165,9 @@ static struct DebugTimingData
 
 	float d_transcoding;
 	int   i_transcoding;
+
+	float d_printing;
+	int   i_printing;
 } debug_timing;
 
 inline void debug(string str)
@@ -2428,6 +2431,7 @@ vector<size_t> Utility::drawTextWrapped(string text, Coordinate text_origin, Coo
 	if (buffer == nullptr) return vector<size_t>();
 	if (buffer_size.x <= 0 || buffer_size.y <= 0) return vector<size_t>();
 
+	DEBUG_TIMER_S(drawtext);
 	vector<string> lines = wrapText(text, min(max_size.x, buffer_size.x - text_origin.x));
 	
 	int row = -1;
@@ -2446,6 +2450,7 @@ vector<size_t> Utility::drawTextWrapped(string text, Coordinate text_origin, Coo
 	vector<size_t> line_lengths;
 	for (string l : lines) line_lengths.push_back(l.length());
 
+	DEBUG_TIMER_E(drawtext);
 	return line_lengths;
 }
 
@@ -2573,10 +2578,15 @@ void Renderer::render(Component* root_component)
 		if (chr & 0x8000) output.push_back((char)((chr >> 16) & 0xFF));
 		if (chr & 0x800000) output.push_back((char)((chr >> 24) & 0xFF));
 	}
+
 	DEBUG_TIMER_E(transcoding);
+
+	DEBUG_TIMER_S(printing);
 
 	OUTPUT_TARGET << output;
 	OUTPUT_TARGET.flush();
+
+	DEBUG_TIMER_E(printing);
 
 	delete[] root_staging_buffer;
 }
@@ -2668,6 +2678,7 @@ void Terminal::unConfigure(bool clear_terminal)
 	DEBUG_LOG("STUI logging stopped");
 	DEBUG_LOG("timing data:\n\trender:\t\t\t" + to_string(debug_timing.d_render) + "\t\t" + to_string(debug_timing.i_render) + "\t\t" + to_string(debug_timing.d_render / debug_timing.i_render)
 						+ "\n\ttranscoding:\t" + to_string(debug_timing.d_transcoding) + "\t\t" + to_string(debug_timing.i_transcoding) + "\t\t" + to_string(debug_timing.d_transcoding / debug_timing.i_transcoding)
+						+ "\n\tprinting:\t\t" + to_string(debug_timing.d_printing) + "\t\t" + to_string(debug_timing.i_printing) + "\t\t" + to_string(debug_timing.d_printing / debug_timing.i_printing)
 						+ "\n\tmakebuffer:\t\t" + to_string(debug_timing.d_makebuffer) + "\t\t" + to_string(debug_timing.i_makebuffer) + "\t\t" + to_string(debug_timing.d_makebuffer / debug_timing.i_makebuffer)
 						+ "\n\tcopybuffer:\t\t" + to_string(debug_timing.d_copybuffer) + "\t\t" + to_string(debug_timing.i_copybuffer) + "\t\t" + to_string(debug_timing.d_copybuffer / debug_timing.i_copybuffer)
 						+ "\n\tdrawtext:\t\t" + to_string(debug_timing.d_drawtext) + "\t\t" + to_string(debug_timing.i_drawtext) + "\t\t" + to_string(debug_timing.d_drawtext / debug_timing.i_drawtext)

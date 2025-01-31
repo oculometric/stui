@@ -2007,10 +2007,7 @@ private:
 public:
 	static void configure(string banner_text = "", float banner_duration_seconds = 3.0f);
 
-	static inline void registerExitCallback(void (*callback)())
-	{
-		exit_callback = callback;
-	}
+	static inline void registerExitCallback(void (*callback)());
 
 	static void unConfigure(bool clear_terminal);
 
@@ -2024,13 +2021,7 @@ private:
 	static void linuxResizeHandler(int s);
 #endif
 
-	static inline void commonExitHandler()
-	{
-		unConfigure(true);
-		if (exit_callback != nullptr)
-			exit_callback();
-		exit(0);
-	}
+	static inline void commonExitHandler();
 
 	/**
 	 * @brief clear the entire terminal, including scrollback and onscreen buffers
@@ -2661,6 +2652,11 @@ void Terminal::configure(string banner_text, float banner_duration_seconds)
 	this_thread::sleep_for(chrono::duration<float>(banner_duration_seconds));
 }
 
+inline void Terminal::registerExitCallback(void (*callback)())
+{
+	exit_callback = callback;
+}
+
 void Terminal::unConfigure(bool clear_terminal)
 {
 	setCursorVisible(true);
@@ -2713,6 +2709,14 @@ int WINAPI Terminal::windowsControlHandler(DWORD control_type) noexcept
 		commonExitHandler();
 
 	return 1;
+}
+
+inline void Terminal::commonExitHandler()
+{
+	unConfigure(true);
+	if (exit_callback != nullptr)
+		exit_callback();
+	exit(0);
 }
 
 #elif defined(__linux__)

@@ -2410,6 +2410,7 @@ void Utility::drawText(string text, Coordinate text_origin, Coordinate max_size,
 	if (buffer == nullptr) return;
 	if (buffer_size.x <= 0 || buffer_size.y <= 0) return;
 
+	DEBUG_TIMER_S(drawtext);
 	for (int i = 0; i < static_cast<int>(text.length()); i++)
 	{
 		if (text_origin.x + i < 0) continue;
@@ -2419,6 +2420,7 @@ void Utility::drawText(string text, Coordinate text_origin, Coordinate max_size,
 
 		buffer[(text_origin.x + i) + (text_origin.y * buffer_size.x)] = text[i];
 	}
+	DEBUG_TIMER_E(drawtext);
 }
 
 vector<size_t> Utility::drawTextWrapped(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size)
@@ -2465,6 +2467,7 @@ Tixel* Utility::makeBuffer(Coordinate buffer_size)
 {
 	if (buffer_size.x <= 0 || buffer_size.y <= 0) return nullptr;
 
+	DEBUG_TIMER_S(makebuffer);
 	size_t size = buffer_size.x * buffer_size.y;
 	Tixel* buf = new Tixel[size + 1];
 	Tixel fill{ ' ', getDefaultColour() };
@@ -2472,6 +2475,7 @@ Tixel* Utility::makeBuffer(Coordinate buffer_size)
 		memcpy(buf + i, &fill, sizeof(fill));
 	buf[size] = Tixel{ '\0', getDefaultColour() };
 
+	DEBUG_TIMER_E(makebuffer);
 	return buf;
 }
 
@@ -2484,10 +2488,12 @@ void Utility::copyBox(const Tixel* src, Coordinate src_size, Coordinate src_offs
 	if (src_offset.x + area_size.x > src_size.x || src_offset.y + area_size.y > src_size.y) return;
 	if (dst_offset.x + area_size.x > dst_size.x || dst_offset.y + area_size.y > dst_size.y) return;
 
+	DEBUG_TIMER_S(copybuffer);
 	for (int y = 0; y < area_size.y; y++)
 	{
 		memcpy(dst + dst_offset.x + ((y + dst_offset.y) * dst_size.x), src + src_offset.x + ((y + src_offset.y) * src_size.x), area_size.x * sizeof(Tixel));
 	}
+	DEBUG_TIMER_E(copybuffer);
 }
 
 void Utility::fillColour(Tixel::ColourCommand colour, Coordinate origin, Coordinate size, Tixel* buffer, Coordinate buffer_size)

@@ -1,3 +1,7 @@
 *.log
 widgets_demo
 bin
+/stui/x64
+/x64
+/.vs
+.VSCodeCounter

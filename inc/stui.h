@@ -19,6 +19,12 @@
 	Contact me here <mailto://jcostenart@gmail.com>
 */
 
+///////////////////////////////////////////////////////////////////////
+//                             DEFINES
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_DEFS
+
 #ifndef STUI_ONLY_UNDEFS
 
 #define RENDER_STUB virtual void render(Tixel* output_buffer, Coordinate size) override
@@ -82,6 +88,12 @@
 #define UNICODE_ELLIPSIS_HORIZONTAL (uint32_t)0xa680e2
 #define UNICODE_ELLIPSIS_VERTICAL (uint32_t)0xae8be2
 
+#pragma endregion STUI_DEFS
+
+///////////////////////////////////////////////////////////////////////
+//                             INCLUDES
+///////////////////////////////////////////////////////////////////////
+
 #ifndef STUI_H
 #define STUI_H
 
@@ -115,11 +127,17 @@ using namespace std;
 	#include <poll.h>
 #endif
 
-
 namespace stui
 {
 
+///////////////////////////////////////////////////////////////////////
+//                            DEBUG
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_DEBUG
+
 #ifdef DEBUG
+
 ofstream debug_log;
 
 static struct DebugTimingData
@@ -171,47 +189,24 @@ inline void debug(string str)
 #define DEBUG_TIMER_E(type)
 #endif
 
-/**
- * @brief removes any invalid characters from a string, as well as other
- * specified illegal characters
- * 
- * @param str string to remove invalid characters from
- * @param others array of additional characters that should be excluded
- * @return repaired string 
- **/
-string stripNullsAndMore(string str, const char* others)
-#ifdef STUI_IMPLEMENTATION
-{
-	string result = "";
-	for (char c : str)
-	{
-		// auto-strip if the character is a non-renderable
-		if (c < ' ' && c != '\n' && c != '\t' && c != '\b') continue;
-		// check if the current char is inside list to remove
-		bool is_valid = true;
-		for (size_t i = 0; others[i] != '\0'; i++)
-			if (c == others[i]) is_valid = false;
-		if (is_valid)
-		{
-			// if not, keep it, swapping tab for some spaces
-			if (c == '\t') result += "    ";
-			else result += c;
-		}
-	}
-	return result;
-}
-#endif
-;
+#pragma endregion STUI_DEBUG
+
+///////////////////////////////////////////////////////////////////////
+//                          UTILITIES
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_UTILITY
 
 /**
  * @brief two-dimensional integer coordinate pair.
- * 
- **/
+ */
 struct Coordinate
 {
 	int x, y;
 };
 
+#pragma pack(push)
+#pragma pack(1)
 /**
  * @brief structure describing the value of a terminal-pixel, which
  * may optionally have a command to change colour specified.
@@ -220,9 +215,7 @@ struct Coordinate
  * then this `Tixel` will inherit the colour configuration of the
  * previous pixel (for whichever of FG/BG were not specified for this
  * `Tixel`).
- **/
-#pragma pack(push)
-#pragma pack(1)
+ */
 struct Tixel
 {
 	/**
@@ -231,7 +224,7 @@ struct Tixel
 	 * 
 	 * one FG and one BG colour can be or-ed together to set both on
 	 * this `Tixel`
-	 **/
+	 */
 	enum ColourCommand : uint8_t
 	{
 		FG_BLACK 	= 0b00000001,
@@ -296,7 +289,7 @@ struct Tixel
  * @brief class which encapsulates input functionality which is used to receive and handle
  * input in useful ways. another way of encapsulating functionality to hide it from the you!
  * just pretend this isn't here.
- **/
+ */
 class Input
 {
 	friend class Renderer;
@@ -307,7 +300,7 @@ public:
 	 * 
 	 * left and right shift are treated as the same on Windows, so for cross-platform-ness i'll
 	 * settle for that.
-	 **/
+	 */
 	enum ControlKeys : uint16_t
 	{
 		NONE        = 0b00000000,
@@ -318,7 +311,7 @@ public:
 
 	/**
 	 * @brief enumerates the arrow keys for identifying directional key strokes
-	 **/
+	 */
 	enum ArrowKeys
 	{
 		UP          = 0x11,
@@ -330,20 +323,19 @@ public:
 	/**
 	 * @brief describes a key input event. though we only care about key down or key repeat
 	 * events.
-	 **/
+	 */
 	struct Key
 	{
 		uint16_t key;
 		ControlKeys control_states;
 	};
 
+	#pragma pack(push)
+	#pragma pack(4)
 	/**
 	 * @brief describes a shortcut linking a desired key-bind to a function that should
 	 * be called when the binding is triggered.
-	 **/
-
-	#pragma pack(push)
-	#pragma pack(4)
+	 */
 	struct Shortcut
 	{
 		Input::Key binding;
@@ -382,144 +374,8 @@ private:
 	 * ASCII range to make them easier to read (specifically the arrow keys).
 	 * 
 	 * @returns list of key-press events
-	 **/
-	static vector<Key> getQueuedKeyEvents()
-#ifdef STUI_IMPLEMENTATION
-	{
-		vector<Key> events;
-#if defined(_WIN32)
-		// find available
-		DWORD events_available;
-		GetNumberOfConsoleInputEvents(GetStdHandle(STD_INPUT_HANDLE), &events_available);
-		if (events_available < 1) return events;
-
-		// grab 32 of them
-		INPUT_RECORD records[32] = { };
-		DWORD records_read;
-
-		if (ReadConsoleInput(GetStdHandle(STD_INPUT_HANDLE), records, 32, &records_read) == 0)
-			throw runtime_error("input error");
-		
-		for (size_t i = 0; i < records_read; i++)
-			if (records[i].EventType == KEY_EVENT && records[i].Event.KeyEvent.bKeyDown)
-			{
-				Key k{ };
-				k.key = (uint8_t)records[i].Event.KeyEvent.uChar.AsciiChar;
-				if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_UP) k.key = ArrowKeys::UP;
-				else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_DOWN) k.key = ArrowKeys::DOWN;
-				else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_LEFT) k.key = ArrowKeys::LEFT;
-				else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_RIGHT) k.key = ArrowKeys::RIGHT;
-				if (k.key == '\r') k.key = '\n';
-				k.control_states = ControlKeys::NONE;
-				DWORD control_key = records[i].Event.KeyEvent.dwControlKeyState;
-				if (control_key & 0x04) k.control_states = ControlKeys::CTRL;
-				else if (control_key & 0x08)
-				{
-					k.control_states = ControlKeys::CTRL;
-					k.key += 96;
-				}
-				else if (control_key & 0x10) k.control_states = ControlKeys::SHIFT;
-				else if (control_key & 0x01) k.control_states = ControlKeys::ALT;
-				else if (control_key & 0x02) k.control_states = ControlKeys::ALT;
-				if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_DELETE)
-				{
-					k.key = 127;
-					k.control_states = ControlKeys::NONE;
-				}
-				events.push_back(k);
-			}
-#elif defined(__linux__)
-		// check if there are any events to read
-		if (kbhit() < 1) return events;
-
-		// read a queue of 64 events (or as many are available)
-		uint8_t buffer[64] = { 0 };
-		ssize_t bytes_read = read(STDIN_FILENO, buffer, 64);
-		for (ssize_t i = 0; i < bytes_read; i++)
-		{
-			int c = buffer[i];
-			// process escape sequences
-			if (c == '\e')
-			{
-				// unless it's actually just escape
-				if (i == bytes_read - 1) events.push_back(Key{ '\e', ControlKeys::NONE });
-				else if (buffer[i + 1] != '[')
-				{
-					// if there's no bracket then it's an alt-event
-					int c_next = buffer[i + 1];
-					events.push_back(Key{ linux_keymap[c_next].key, ControlKeys::ALT });
-					// skip to the next char so we don't process the same one twice
-					i++;
-				}
-				else if (i == bytes_read - 2)
-				{
-					// it could just be alt-bracket, not an escape sequences
-					events.push_back(Key{ '[', ControlKeys::ALT });
-					i++;
-				}
-				else
-				{
-					// otherwise it's an escape sequence
-					int c_next = buffer[i + 2];
-					if (c_next == 0x41)
-					{
-						events.push_back(Key{ ArrowKeys::UP, ControlKeys::NONE });
-						i += 2;
-					}
-					else if (c_next == 0x42)
-					{
-						events.push_back(Key{ ArrowKeys::DOWN, ControlKeys::NONE });
-						i += 2;
-					}
-					else if (c_next == 0x44)
-					{
-						events.push_back(Key{ ArrowKeys::LEFT, ControlKeys::NONE });
-						i += 2;
-					}
-					else if (c_next == 0x43)
-					{
-						events.push_back(Key{ ArrowKeys::RIGHT, ControlKeys::NONE });
-						i += 2;
-					}
-					else if (i <= bytes_read - 5 && c_next == '1' && buffer[i + 3] == ';' && buffer[i + 4] == '2')
-					{
-						int c_next_next = buffer[i + 5];
-						if (c_next_next == 0x41) events.push_back(Key{ ArrowKeys::UP, ControlKeys::SHIFT });
-						else if (c_next_next == 0x42) events.push_back(Key{ ArrowKeys::DOWN, ControlKeys::SHIFT });
-						else if (c_next_next == 0x44) events.push_back(Key{ ArrowKeys::LEFT, ControlKeys::SHIFT });
-						else if (c_next_next == 0x43) events.push_back(Key{ ArrowKeys::RIGHT, ControlKeys::SHIFT });
-						i += 5;
-					}
-					else if (i <= bytes_read - 4 && c_next == '3' && buffer[i + 3] == '~')
-					{
-						events.push_back(Key{ 127, ControlKeys::NONE });
-						i += 4;
-					}
-					else
-					{
-						// debug if it isnt handled
-						DEBUG_LOG("unhandled ANSI code: " + string((char*)buffer + i));
-						break;
-					}
-				}
-			}
-			else if (c < 128)
-			{
-				// normal keypress, use the keymap as a look-up table
-				events.push_back(linux_keymap[c]);
-			}
-			else
-			{
-				DEBUG_LOG("uh oh! unhandled UTF-8");
-				// TODO: handle utf8 oh dear god
-				break;
-			}
-		}
-#endif
-		return events;
-	}
-#endif
-	;
+	 */
+	static vector<Key> getQueuedKeyEvents();
 
 	/**
 	 * @brief checks if a key event is equal to another specified key event
@@ -527,7 +383,7 @@ private:
 	 * @param a first key event
 	 * @param b second key event
 	 * @returns whether or not the key events are identical
-	 **/
+	 */
 	static inline bool compare(Key a, Key b)
 	{
 		return (a.control_states == b.control_states) && ((a.key == b.key) || (a.control_states != ControlKeys::NONE && toupper(a.key) == toupper(b.key)));
@@ -542,35 +398,8 @@ private:
 	 * 
 	 * @param shortcuts list of keyboard shortcut bindings
 	 * @param key_events list of key events to check
-	 **/
-	static void processShortcuts(vector<Shortcut> shortcuts, vector<Key>& key_events)
-#ifdef STUI_IMPLEMENTATION
-	{
-#ifdef DEBUG
-		for (Shortcut s : shortcuts)
-			if (s.binding.control_states != ControlKeys::ALT
-			 && s.binding.control_states != ControlKeys::SHIFT
-			 && s.binding.control_states != ControlKeys::CTRL
-			 && s.binding.control_states != ControlKeys::NONE)
-			DEBUG_LOG("never bind a shortcut to multiple ControlKeys at once! this shortcut will never be called. key: " + string(1, (char)s.binding.key) + " control_states: " + to_string(s.binding.control_states));
-#endif
-
-		vector<Key> non_processed;
-		for (size_t i = 0; i < key_events.size(); i++)
-		{
-			Key k = key_events[i];
-			bool consumed = false;
-			for (Shortcut s : shortcuts)
-			{
-				if (compare(k, s.binding)) { consumed = true; s.callback(); }
-			}
-			if (!consumed) non_processed.push_back(k);
-		}
-
-		key_events = non_processed;
-	}
-#endif
-	;
+	 */
+	static void processShortcuts(vector<Shortcut> shortcuts, vector<Key>& key_events);
 	
 	/**
 	 * @brief iterate through a list of key events and extract only the text
@@ -581,40 +410,8 @@ private:
 	 * 
 	 * @param key_events list of key events to check
 	 * @returns list of extracted text characters
-	 **/
-	static vector<pair<uint8_t, ControlKeys>> getTextCharacters(vector<Key>& key_events)
-#ifdef STUI_IMPLEMENTATION
-	{
-		vector<Key> non_processed;
-		vector<pair<uint8_t, ControlKeys>> result;
-		for (size_t i = 0; i < key_events.size(); i++)
-		{
-			Key k = key_events[i];
-			if ((k.control_states == ControlKeys::NONE || k.control_states == ControlKeys::SHIFT) && (
-			      (k.key >= 32 && k.key <= 127) 
-			    || k.key == '\n' 
-			    || k.key == '\t' 
-			    || k.key == '\b'
-			    || k.key == 127
-			    || k.key == ArrowKeys::UP
-			    || k.key == ArrowKeys::DOWN
-			    || k.key == ArrowKeys::LEFT
-			    || k.key == ArrowKeys::RIGHT))
-			{
-				result.push_back(pair<uint8_t, ControlKeys>(static_cast<uint8_t>(k.key), k.control_states));
-			}
-			else
-			{
-				non_processed.push_back(k);
-			}
-		}
-
-		key_events = non_processed;
-
-		return result;
-	}
-#endif
-	;
+	 */
+	static vector<pair<uint8_t, ControlKeys>> getTextCharacters(vector<Key>& key_events);
 
 #if defined(__linux__)
 	static inline int kbhit()
@@ -628,101 +425,23 @@ private:
 };
 
 /**
- * @brief base class from which all UI components inherit.
- * 
- * all `Component` subclasses must override the `render`, `getMaxSize`, and 
- * `getMinSize` methods (ideally using the relevant macros).
- **/
-#pragma pack(push)
-#pragma pack(8)
-class Component
-{
-public:
-	bool focused = false;
-
-	/**
-	 * @brief draws the `Component` into a `Tixel` buffer, with a specified size.
-	 * 
-	 * implementations should assume that the `output_buffer` has been allocated to be the correct
-	 * `size`, but should also check that any drawing is performed within the limits of the `size`
-	 * (otherwise you'll corrupt the heap, yippee!).
-	 * 
-	 * @param output_buffer buffer allocated by the caller to be drawn into. ordered left
-	 * to right, top to bottom
-	 * @param size size of the buffer
-	 **/
-	virtual inline void render(Tixel* output_buffer, Coordinate size) { }
-	
-	/**
-	 * @brief returns the maximum desired size that this component should be given.
-	 * 
-	 * note that the component may still be givena buffer larger than this size, so this should 
-	 * be handled if appropriate in `render`. either or both of these values can be given the 
-	 * value `-1` to indicate no maximum size in that dimension.
-	 * 
-	 * @returns a `Coordinate` representing the maximum size for the `Component`
-	 **/
-	virtual inline Coordinate getMaxSize() { return { 0, 0 }; }
-
-	/**
-	 * @brief returns the minimum size that this component should be given to draw into.
-	 *
-	 * functions which call `render` will try to ensure all components have at least
-	 * their minimum size requirements met, otherwise if not enough space cannot be allocated,
-	 * the `Component` will not be rendered. this function should never return negative values
-	 * for either dimension.
-	 *
-	 * @returns a `Coordinate` representing the minimum size for the `Component`
-	 **/
-	virtual inline Coordinate getMinSize() { return { 0, 0 }; }
-
-	/**
-	 * @brief handle a single key-press event.
-	 * 
-	 * not all subclasses need to implement this, but if you want to handle input you probably
-	 * should.
-	 * 
-	 * @param input_character the character to handle
-	 * @returns true if the input was consumed or false if not
-	 **/
-	virtual inline bool handleInput(uint8_t input_character, Input::ControlKeys modifiers) { return false; }
-
-	/**
-	 * @brief returns whether or not the component can be focused for input.
-	 * 
-	 * should be overriden by subclasses which want to receive input.
-	 * 
-	 * @returns true if the component is focusable
-	 **/
-	virtual inline bool isFocusable() { return false; }
-
-	/**
-	 * @brief get the string description of this component type. should be
-	 * overridden by subclasses and return a string that matches the class name.
-	 * 
-	 * @returns string name of the class/component type
-	 */
-	virtual inline string getTypeName() { return ""; }
-
-	/**
-	 * @brief return a list of any children this component has. subclasses
-	 * which allow child components should return them here.
-	 * 
-	 * @returns list of contained children
-	 */
-	virtual inline vector<Component*> getAllChildren() { return { }; }
-
-	virtual ~Component() { }
-};
-#pragma pack(pop)
-
-/**
  * @brief class which encapsulates the utility functions that many of `Component`s reuse but
  * which probably shouldn't be publicly accessible outside the header file. basically ignore
  * this.
- **/
+ */
 class Utility
 {
+public:
+	/**
+	 * @brief removes any invalid characters from a string, as well as other
+	 * specified illegal characters
+	 * 
+	 * @param str string to remove invalid characters from
+	 * @param others array of additional characters that should be excluded
+	 * @return repaired string 
+	 */
+	static string stripNullsAndMore(string str, const char* others);
+
 protected:
 	/**
 	 * @brief draws a box outline using IBM box drawing characters from standard extended ASCII.
@@ -735,77 +454,17 @@ protected:
 	 * ends outside the bounds of the buffer, but areas outside won't be drawn
 	 * @param buffer pointer to a character array ordered left-to-right, top-to-bottom
 	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
-	 **/
-	static void drawBox(Coordinate box_origin, Coordinate box_size, Tixel* buffer, Coordinate buffer_size)
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (buffer == nullptr) return;
-		if (box_size.x <= 0 || box_size.y <= 0) return;
-
-		if (box_origin.y >= 0 && box_origin.y < buffer_size.y)
-		{
-			for (int x = box_origin.x; x < box_origin.x + box_size.x; x++)
-			{
-				if (x < 0) continue;
-				if (x >= buffer_size.x) break;
-
-				buffer[x + (box_origin.y * buffer_size.x)] = (x == box_origin.x ? UNICODE_BOX_TOPLEFT : (x == box_origin.x + box_size.x - 1 ? UNICODE_BOX_TOPRIGHT : UNICODE_BOX_HORIZONTAL));
-			}
-		}
-
-		for (int y = box_origin.y + 1; y < box_origin.y + box_size.y - 1; y++)
-		{
-			if (y < 0) continue;
-			if (y >= buffer_size.y) break;
-
-			if (box_origin.x >= 0 && box_origin.x < buffer_size.x)
-				buffer[box_origin.x + (y * buffer_size.x)] = UNICODE_BOX_VERTICAL;
-
-			if (box_origin.x + box_size.x - 1 >= 0 && box_origin.x + box_size.x - 1 < buffer_size.x)
-				buffer[box_origin.x + box_size.x + (y * buffer_size.x) - 1] = UNICODE_BOX_VERTICAL;
-		}
-
-		if (box_origin.y + box_size.y - 1 >= 0 && box_origin.y + box_size.y - 1 < buffer_size.y)
-		{
-			for (int x = box_origin.x; x < box_origin.x + box_size.x; x++)
-			{
-				if (x < 0) continue;
-				if (x >= buffer_size.x) break;
-
-				buffer[x + ((box_origin.y + box_size.y - 1) * buffer_size.x)] = (x == box_origin.x ? UNICODE_BOX_BOTTOMLEFT : (x == box_origin.x + box_size.x - 1 ? UNICODE_BOX_BOTTOMRIGHT : UNICODE_BOX_HORIZONTAL));
-			}
-		}
-	}
-#endif
-	;
+	 */
+	static void drawBox(Coordinate box_origin, Coordinate box_size, Tixel* buffer, Coordinate buffer_size);
 
 	/**
 	 * @brief split a string at a delimiter character.
 	 * 
 	 * @param text string to split
 	 * @param delim character to split at. this will be removed from the resulting array of strings
-	 * 
 	 * @returns array of strings
 	 */
-	static vector<string> splitString(string text, char delim)
-	{
-		vector<string> result;
-		string current;
-
-		for (char c : text)
-		{
-			if (c == delim)
-			{
-				result.push_back(current);
-				current = "";
-			}
-			else
-				current += c;
-		}
-		result.push_back(current);
-
-		return result;
-	}
+	static vector<string> splitString(string text, char delim);
 
 	/**
 	 * @brief converts a single string into an array of lines of a given maximum length.
@@ -815,65 +474,11 @@ protected:
 	 * 
 	 * @param text string on which to perform wrapping
 	 * @param max_width maximum number of characters to place in any row
-	 * 
 	 * @returns list of individual lines of text
-	 **/
-	static vector<string> wrapText(string text, size_t max_width)
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (text.length() < 1)
-			return vector<string>({""});
-		vector<string> result;
-		size_t start = 0;
-		while (start != string::npos)
-		{
-			start++;
-			size_t end = text.find('\n', start);
-			vector<string> tmp = wrapTextInner(text.substr(start, end - start), max_width);
-			for (string s : tmp) result.push_back(s);
-			start = end;
-		}
-		//	i hate this
-		if (result.size() > 0)
-			result[0] = string(1, text[0]) + result[0];
-		return result;
-	}
-#endif
-	;
+	 */
+	static vector<string> wrapText(string text, size_t max_width);
 
-	static vector<string> wrapTextInner(string text, size_t max_width)
-#ifdef STUI_IMPLEMENTATION
-	{
-		vector<string> lines;
-		size_t last_index = 0;
-		while (last_index != text.length())
-		{
-			size_t max_end = min(last_index + max_width - 1, text.length() - 1);
-			size_t next_end = max_end;
-			bool trim_whitespace = false;
-			while (text[next_end] != ' ')
-			{
-				if (next_end == text.length() - 1)
-				{
-					trim_whitespace = false;
-					break;
-				}
-
-				if (next_end == last_index)
-				{
-					next_end = max_end;
-					trim_whitespace = false;
-					break;
-				}
-				next_end--;
-			}
-			lines.push_back(text.substr(last_index, ((next_end - last_index) + 1) - trim_whitespace));
-			last_index = next_end + 1;
-		}
-		return lines;
-	}
-#endif
-	;
+	static vector<string> wrapTextInner(string text, size_t max_width);
 
 	/**
 	 * @brief draws a line of text into a buffer.
@@ -890,25 +495,8 @@ protected:
 	 * be positive in both dimensions. text that runs outside this area is not drawn
 	 * @param buffer pointer to a `Tixel` array ordered left-to-right, top-to-bottom
 	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
-	 **/
-	static void drawText(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size)
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (buffer == nullptr) return;
-		if (buffer_size.x <= 0 || buffer_size.y <= 0) return;
-
-		for (int i = 0; i < static_cast<int>(text.length()); i++)
-		{
-			if (text_origin.x + i < 0) continue;
-			if (text_origin.x + i >= buffer_size.x || i >= max_size.x) break;
-			if (text_origin.y < 0 || text_origin.y >= buffer_size.y) break;
-			if (text[i] == '\n') break;
-
-			buffer[(text_origin.x + i) + (text_origin.y * buffer_size.x)] = text[i];
-		}
-	}
-#endif
-	;
+	 */
+	static void drawText(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size);
 
 	/**
 	 * @brief draws a block of text into a buffer.
@@ -927,35 +515,8 @@ protected:
 	 * fit inside this horizontally
 	 * @param buffer pointer to a `Tixel` array ordered left-to-right, top-to-bottom
 	 * @param buffer_size size of the allocated buffer, must match with the size of the `buffer`
-	 **/
-	static vector<size_t> drawTextWrapped(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size)
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (buffer == nullptr) return vector<size_t>();
-		if (buffer_size.x <= 0 || buffer_size.y <= 0) return vector<size_t>();
-
-		vector<string> lines = wrapText(text, min(max_size.x, buffer_size.x - text_origin.x));
-		
-		int row = -1;
-		for (string line : lines)
-		{
-			row++;
-			if (row >= max_size.y || row + text_origin.y >= buffer_size.y) break;
-			if (row + text_origin.y < 0) continue;
-
-			for (size_t col = 0; col < line.length(); col++)
-			{
-				buffer[(text_origin.x + col) + ((text_origin.y + row) * buffer_size.x)] = line[col];
-			}
-		}
-
-		vector<size_t> line_lengths;
-		for (string l : lines) line_lengths.push_back(l.length());
-
-		return line_lengths;
-	}
-#endif
-	;
+	 */
+	static vector<size_t> drawTextWrapped(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size);
 
 	/**
 	 * @brief simplifies allocation of 2D text buffers.
@@ -966,26 +527,10 @@ protected:
 	 * 
 	 * @param buffer_size two-dimensional size of the buffer required. must be positive and non-zero in
 	 * both axes
-	 * 
 	 * @returns pointer to newly-allocated block of memory, or `nullptr` if the buffer size would be
 	 * less than 1
-	 **/
-	static Tixel* makeBuffer(Coordinate buffer_size)
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (buffer_size.x <= 0 || buffer_size.y <= 0) return nullptr;
-
-		size_t size = buffer_size.x * buffer_size.y;
-		Tixel* buf = new Tixel[size + 1];
-		Tixel fill{ ' ', getDefaultColour() };
-		for (size_t i = 0; i < size; i++)
-			memcpy(buf + i, &fill, sizeof(fill));
-		buf[size] = Tixel{ '\0', getDefaultColour() };
-
-		return buf;
-	}
-#endif
-	;
+	 */
+	static Tixel* makeBuffer(Coordinate buffer_size);
 
 	/**
 	 * @brief copy an area from one buffer to another.
@@ -1007,30 +552,14 @@ protected:
 	 * @param dst_size size of the destination buffer, must match with the allocated size of `dst`
 	 * @param dst_offset position of the top-left corner of the box to copy to in the destination buffer.
 	 * must be positive in both dimensions
-	 **/
-	static void copyBox(const Tixel* src, Coordinate src_size, Coordinate src_offset, Coordinate area_size, Tixel* dst, Coordinate dst_size, Coordinate dst_offset)
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (src == nullptr || dst == nullptr) return;
-		if (area_size.x <= 0 || area_size.y <= 0) return;
-		if (src_offset.x < 0 || src_offset.y < 0) return;
-		if (dst_offset.x < 0 || dst_offset.y < 0) return;
-		if (src_offset.x + area_size.x > src_size.x || src_offset.y + area_size.y > src_size.y) return;
-		if (dst_offset.x + area_size.x > dst_size.x || dst_offset.y + area_size.y > dst_size.y) return;
-
-		for (int y = 0; y < area_size.y; y++)
-		{
-			memcpy(dst + dst_offset.x + ((y + dst_offset.y) * dst_size.x), src + src_offset.x + ((y + src_offset.y) * src_size.x), area_size.x * sizeof(Tixel));
-		}
-	}
-#endif
-	;
+	 */
+	static void copyBox(const Tixel* src, Coordinate src_size, Coordinate src_offset, Coordinate area_size, Tixel* dst, Coordinate dst_size, Coordinate dst_offset);
 
 	/**
 	 * @brief get the current default colour configuration for the interface.
 	 * 
 	 * @returns the current colour configuration
-	 **/
+	 */
 	static inline Tixel::ColourCommand getDefaultColour()
 	{
 		return (Tixel::ColourCommand)(Tixel::ColourCommand::BG_BLACK | Tixel::ColourCommand::FG_WHITE);
@@ -1040,7 +569,7 @@ protected:
 	 * @brief get the current highlighted colour configuration for the interface.
 	 * 
 	 * @returns the current highlighted colour configuration
-	 **/
+	 */
 	static inline Tixel::ColourCommand getHighlightedColour()
 	{
 		return (Tixel::ColourCommand)(Tixel::ColourCommand::FG_BLACK | Tixel::ColourCommand::BG_WHITE);
@@ -1050,7 +579,7 @@ protected:
 	 * @brief get the current unfocused colour configuration for the interface.
 	 * 
 	 * @returns the current unfocused colour configuration
-	 **/
+	 */
 	static inline Tixel::ColourCommand getUnfocusedColour()
 	{
 		return (Tixel::ColourCommand)(Tixel::ColourCommand::FG_BLACK | Tixel::ColourCommand::BG_GRAY);
@@ -1064,44 +593,120 @@ protected:
 	 * @param size size of the area. must be positive in both axes
 	 * @param buffer output buffer into which the filled box should be drawn
 	 * @param buffer_size size of the output buffer
-	 **/
-	static void fillColour(Tixel::ColourCommand colour, Coordinate origin, Coordinate size, Tixel* buffer, Coordinate buffer_size)
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (size.x <= 0 || size.y <= 0) return;
-		if (buffer == nullptr) return;
-		if (buffer_size.x <= 0 || buffer_size.y <= 0) return;
-
-		for (int y = 0; y < size.y; y++)
-		{
-			if (y + origin.y < 0) continue;
-			if (y + origin.y >= buffer_size.y) break;
-
-			for (int x = 0; x < size.x; x++)
-			{
-				if (x + origin.x < 0) continue;
-				if (x + origin.x >= buffer_size.x) break;
-				buffer[x + origin.x + ((y + origin.y) * buffer_size.x)].colour = colour;
-			}
-		}
-	}
-#endif
-	;
+	 */
+	static void fillColour(Tixel::ColourCommand colour, Coordinate origin, Coordinate size, Tixel* buffer, Coordinate buffer_size);
 };
+
+#pragma endregion STUI_UTILITY
+
+///////////////////////////////////////////////////////////////////////
+//                          COMPONENTS
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_COMPONENTS
+
+/**
+ * @brief base class from which all UI components inherit.
+ * 
+ * all `Component` subclasses must override the `render`, `getMaxSize`, and 
+ * `getMinSize` methods (ideally using the relevant macros).
+ */
+#pragma pack(push)
+#pragma pack(8)
+class Component
+{
+public:
+	bool focused = false;
+
+	/**
+	 * @brief draws the `Component` into a `Tixel` buffer, with a specified size.
+	 * 
+	 * implementations should assume that the `output_buffer` has been allocated to be the correct
+	 * `size`, but should also check that any drawing is performed within the limits of the `size`
+	 * (otherwise you'll corrupt the heap, yippee!).
+	 * 
+	 * @param output_buffer buffer allocated by the caller to be drawn into. ordered left
+	 * to right, top to bottom
+	 * @param size size of the buffer
+	 */
+	virtual inline void render(Tixel* output_buffer, Coordinate size) = 0;
+	
+	/**
+	 * @brief returns the maximum desired size that this component should be given.
+	 * 
+	 * note that the component may still be givena buffer larger than this size, so this should 
+	 * be handled if appropriate in `render`. either or both of these values can be given the 
+	 * value `-1` to indicate no maximum size in that dimension.
+	 * 
+	 * @returns a `Coordinate` representing the maximum size for the `Component`
+	 */
+	virtual inline Coordinate getMaxSize() { return { -1, -1 }; }
+
+	/**
+	 * @brief returns the minimum size that this component should be given to draw into.
+	 *
+	 * functions which call `render` will try to ensure all components have at least
+	 * their minimum size requirements met, otherwise if not enough space cannot be allocated,
+	 * the `Component` will not be rendered. this function should never return negative values
+	 * for either dimension.
+	 *
+	 * @returns a `Coordinate` representing the minimum size for the `Component`
+	 */
+	virtual inline Coordinate getMinSize() { return { 0, 0 }; }
+
+	/**
+	 * @brief handle a single key-press event.
+	 * 
+	 * not all subclasses need to implement this, but if you want to handle input you probably
+	 * should.
+	 * 
+	 * @param input_character the character to handle
+	 * @returns true if the input was consumed or false if not
+	 */
+	virtual inline bool handleInput(uint8_t input_character, Input::ControlKeys modifiers) { return false; }
+
+	/**
+	 * @brief returns whether or not the component can be focused for input.
+	 * 
+	 * should be overriden by subclasses which want to receive input.
+	 * 
+	 * @returns true if the component is focusable
+	 */
+	virtual inline bool isFocusable() { return false; }
+
+	/**
+	 * @brief get the string description of this component type. should be
+	 * overridden by subclasses and return a string that matches the class name.
+	 * 
+	 * @returns string name of the class/component type
+	 */
+	virtual inline string getTypeName() = 0;
+
+	/**
+	 * @brief return a list of any children this component has. subclasses
+	 * which allow child components should return them here.
+	 * 
+	 * @returns list of contained children
+	 */
+	virtual inline vector<Component*> getAllChildren() { return { }; }
+
+	virtual inline ~Component() { }
+};
+#pragma pack(pop)
 
 /**
  * @brief single-line text box.
  * 
  * text `alignment` can be specified as < 0 for left-aligned, = 0 for center-aligned, or
- * > 0 for right-aligned
- **/
+ * > 0 for right-aligned.
+ */
 class Label : public Component, public Utility
 {
 public:
 	string text;
 	int alignment;
 	
-	Label(string _text, int _alignment) : text(_text), alignment(_alignment) { }
+	Label(string _text = "", int _alignment = -1) : text(_text), alignment(_alignment) { }
 
 	GETTYPENAME_STUB("Label");
 
@@ -1129,7 +734,7 @@ public:
 
 /**
  * @brief simple clickable button.
- **/
+ */
 class Button : public Component, public Utility
 {
 public:
@@ -1137,7 +742,7 @@ public:
 	void (*callback)();
 	bool enabled;
 
-	Button(string _text, void (*_callback)(), bool _enabled) : text(_text), callback(_callback), enabled(_enabled) { }
+	Button(string _text = "Button", void (*_callback)() = nullptr, bool _enabled = true) : text(_text), callback(_callback), enabled(_enabled) { }
 
 	GETTYPENAME_STUB("Button");
 
@@ -1172,7 +777,7 @@ public:
 /**
  * @brief list of options from which the user can select one by navigating up/down and
  * pressing enter/space.
- **/
+ */
 class RadioButton : public Component, public Utility
 {
 	int highlighted_index = 0;
@@ -1182,7 +787,7 @@ public:
 	int selected_index;
 	bool enabled;
 
-	RadioButton(vector<string> _options, int _selected_index, bool _enabled) : options(_options), selected_index(_selected_index), enabled(_enabled) { }
+	RadioButton(vector<string> _options = { }, int _selected_index = 0, bool _enabled = true) : options(_options), selected_index(_selected_index), enabled(_enabled) { }
 
 	GETTYPENAME_STUB("RadioButton");
 
@@ -1227,7 +832,7 @@ public:
 /**
  * @brief list of options from which the user can select any, all, or none by navigating
  * up/down and pressing enter/space.
- **/
+ */
 class ToggleButton : public Component, public Utility
 {
 	int highlighted_index = 0;
@@ -1236,7 +841,7 @@ public:
 	vector<pair<string, bool>> options;
 	bool enabled;
 
-	ToggleButton(vector<pair<string, bool>> _options, bool _enabled) : options(_options), enabled(_enabled) { }
+	ToggleButton(vector<pair<string, bool>> _options = { }, bool _enabled = true) : options(_options), enabled(_enabled) { }
 
 	GETTYPENAME_STUB("ToggleButton");
 
@@ -1280,7 +885,7 @@ public:
 
 /**
  * @brief simple text entry box.
- **/
+ */
 class TextInputBox : public Component, public Utility
 {
 	size_t cursor_index = 0;
@@ -1290,7 +895,7 @@ public:
 	void (*callback)();
 	bool enabled;
 
-	TextInputBox(string _text, void (*_callback)(), bool _enabled) : text(_text), callback(_callback), enabled(_enabled) { }
+	TextInputBox(string _text = "", void (*_callback)() = nullptr, bool _enabled = true) : text(_text), callback(_callback), enabled(_enabled) { }
 
 	GETTYPENAME_STUB("TextInputBox");
 
@@ -1348,7 +953,7 @@ public:
 
 /**
  * @brief multi-line wrapping text area. scrollable
- **/
+ */
 class TextArea : public Component, public Utility
 {
 	int last_rendered_height = 0;
@@ -1357,7 +962,7 @@ public:
 	string text;
 	int scroll;
 
-	TextArea(string _text, int _scroll) : text(_text), scroll(_scroll) { }
+	TextArea(string _text = "", int _scroll = 0) : text(_text), scroll(_scroll) { }
 
 	GETTYPENAME_STUB("TextArea");
 
@@ -1402,13 +1007,13 @@ public:
  * @brief linear progress bar.
  * 
  * progress is expressed as a `fraction` between 0 and 1.
- **/
+ */
 class ProgressBar : public Component
 {
 public:
 	float fraction;
 	
-	ProgressBar(float _fraction) : fraction(_fraction) { }
+	ProgressBar(float _fraction = 0.5f) : fraction(_fraction) { }
 
 	GETTYPENAME_STUB("ProgressBar");
 
@@ -1431,13 +1036,13 @@ public:
 
 /**
  * @brief user-interactible slider widget.
- **/
+ */
 class Slider : public Component, public Utility
 {
 public:
 	float value;
 
-	Slider(float _value) : value(_value) { }
+	Slider(float _value = 0.5f) : value(_value) { }
 
 	GETTYPENAME_STUB("Slider");
 
@@ -1480,7 +1085,7 @@ public:
  * 
  * described by its `state` (effectively the current animation frame index), and its `type`
  * (style setting between 0 and 3 inclusive).
- **/
+ */
 class Spinner : public Component
 {
 	static constexpr int types = 4;
@@ -1495,7 +1100,7 @@ public:
 	size_t state;
 	int type;
 
-	Spinner(size_t _state, int _type) : state(_state), type(_type) { }
+	Spinner(size_t _state = 0, int _type = 0) : state(_state), type(_type) { }
 
 	GETTYPENAME_STUB("Spinner");
 
@@ -1517,13 +1122,13 @@ public:
  * the layout algorithm will attempt to meet the minimum sizes of all children first, then
  * expand each element one-by-one until they either meet their max height or there's no more
  * space to expand into. ensures minimum widths for all elements.
- **/
+ */
 class VerticalBox : public Component, public Utility
 {
 public:
 	vector<Component*> children;
 	
-	VerticalBox(vector<Component*> _children) : children(_children) { }
+	VerticalBox(vector<Component*> _children = { }) : children(_children) { }
 	
 	GETTYPENAME_STUB("VerticalBox");
 
@@ -1623,13 +1228,13 @@ public:
  * the layout algorithm will attempt ot meet the minimum sizes of all children first, then
  * expand each element one-by-one until they either meet their max width or there's no more
  * space to expand into. ensures minimum heights for all elements.
- **/
+ */
 class HorizontalBox : public Component, public Utility
 {
 public:
 	vector<Component*> children;
 	
-	HorizontalBox(vector<Component*> _children) : children(_children) { }
+	HorizontalBox(vector<Component*> _children = { }) : children(_children) { }
 
 	GETTYPENAME_STUB("HorizontalBox");
 
@@ -1719,15 +1324,17 @@ public:
 
 /**
  * @brief blank spacing element which fills a set amount of space vertically.
- **/
+ */
 class VerticalSpacer : public Component
 {
 public:
 	int height;
 	
-	VerticalSpacer(int _height) : height(_height) { }
+	VerticalSpacer(int _height = 1) : height(_height) { }
 
 	GETTYPENAME_STUB("VerticalSpacer");
+
+	inline RENDER_STUB { }
 
 	GETMAXSIZE_STUB { return Coordinate{ 1, height }; }
 	GETMINSIZE_STUB { return Coordinate{ 1, max(height, 0) }; }
@@ -1735,15 +1342,17 @@ public:
 
 /**
  * @brief blank spacing element which fills a set amount of space horizontally.
- **/
+ */
 class HorizontalSpacer : public Component
 {
 public:
 	int width;
 	
-	HorizontalSpacer(int _width) : width(_width) { }
+	HorizontalSpacer(int _width = 1) : width(_width) { }
 
 	GETTYPENAME_STUB("HorizontalSpacer");
+
+	inline RENDER_STUB { }
 
 	GETMAXSIZE_STUB { return Coordinate{ width, 1 }; }
 	GETMINSIZE_STUB { return Coordinate{ max(width, 0), 1 }; }
@@ -1751,14 +1360,14 @@ public:
 
 /**
  * @brief draws a border around another component using IBM box characters.
- **/
+ */
 class BorderedBox : public Component, public Utility
 {
 public:
 	Component* child;
 	string name;
 
-	BorderedBox(Component* _child, string _name) : child(_child), name(_name) { }
+	BorderedBox(Component* _child = nullptr, string _name = "") : child(_child), name(_name) { }
 
 	GETTYPENAME_STUB("BorderedBox");
 
@@ -1797,8 +1406,7 @@ public:
  * @brief element which displays a list of strings.
  * 
  * allows scrolling.
- * 
- **/
+ */
 class ListView : public Component, public Utility
 {
 	int last_render_height = 0;
@@ -1808,7 +1416,7 @@ public:
 	int scroll;
 	int selected_index;
 
-	ListView(vector<string> _elements, int _scroll, int _selected_index) : elements(_elements), scroll(_scroll), selected_index(_selected_index) { }
+	ListView(vector<string> _elements = { }, int _scroll = 0, int _selected_index = 0) : elements(_elements), scroll(_scroll), selected_index(_selected_index) { }
 
 	GETTYPENAME_STUB("ListView");
 
@@ -1877,7 +1485,7 @@ public:
  * nodes can be given a descriptive name, and an identifier (which could be used to
  * index into your own array of proprietary nodes). expansion of nodes can be toggled;
  * if a node is expanded then its children will be shown, otherwise they will not.
- **/
+ */
 class TreeView : public Component, public Utility
 {
 	int last_render_height = 0;
@@ -1895,7 +1503,7 @@ public:
 	size_t scroll;
 	size_t selected_index = 0;
 
-	TreeView(Node* _root, size_t _scroll, size_t _selected_index) : root(_root), scroll(_scroll), selected_index(_selected_index) { }
+	TreeView(Node* _root = nullptr, size_t _scroll = 0, size_t _selected_index = 0) : root(_root), scroll(_scroll), selected_index(_selected_index) { }
 
 	GETTYPENAME_STUB("TreeView");
 
@@ -1999,7 +1607,7 @@ private:
 		int parent_expansion_level = root->expanded ? 0 : -1;
 		while (current_node->id != id)
 		{
-		// TODO: actual_offset is still not correct
+		// FIXME: actual_offset is still not correct
 			if (!current_node->children.empty())
 			{
 				parents.push_back(current_node);
@@ -2094,14 +1702,14 @@ private:
  * images will be displayed at twice the width they are stored at to compensate for the
  * aspect ratio of terminal characters. each pixel should be described by a single byte.
  * the size of the image buffer must be allocated to match the image size parameter.
- **/
+ */
 class ImageView : public Component
 {
 public:
 	uint8_t* grayscale_image;
 	Coordinate image_size;
 	
-	ImageView(uint8_t* _grayscale_image, Coordinate _image_size) : grayscale_image(_grayscale_image), image_size(_image_size) { }
+	ImageView(uint8_t* _grayscale_image = nullptr, Coordinate _image_size = Coordinate{ 0, 0 }) : grayscale_image(_grayscale_image), image_size(_image_size) { }
 	
 	GETTYPENAME_STUB("ImageView");
 
@@ -2138,14 +1746,14 @@ public:
  * 
  * the specified `max_size` should probably be at least as large as the minimum
  * size of the `child`
- **/
+ */
 class SizeLimiter : public Component
 {
 public:
 	Component* child;
 	Coordinate max_size;
 	
-	SizeLimiter(Component* _child, Coordinate _max_size) : child(_child), max_size(_max_size) { }
+	SizeLimiter(Component* _child = nullptr, Coordinate _max_size = Coordinate{ -1, -1 }) : child(_child), max_size(_max_size) { }
 
 	GETTYPENAME_STUB("SizeLimiter");
 	
@@ -2179,7 +1787,7 @@ public:
 	vector<string> tab_descriptions;
 	size_t current_tab;
 
-	TabDisplay(vector<string> _tab_descriptions, size_t _current_tab) : tab_descriptions(_tab_descriptions), current_tab(_current_tab) { }
+	TabDisplay(vector<string> _tab_descriptions = { }, size_t _current_tab = 0) : tab_descriptions(_tab_descriptions), current_tab(_current_tab) { }
 
 	GETTYPENAME_STUB("TabDisplay");
 
@@ -2208,13 +1816,13 @@ public:
  * @brief displays a block of text in the center of it's area.
  * 
  * does not wrap text, but does respect line breaks using `\n`.
- **/
+ */
 class Banner : public Component, public Utility
 {
 public:
 	string text;
 
-	Banner(string _text) : text(_text) { }
+	Banner(string _text = "") : text(_text) { }
 
 	GETTYPENAME_STUB("Banner");
 
@@ -2292,11 +1900,18 @@ public:
 	GETMINSIZE_STUB { return Coordinate{ 1, 1 }; }
 };
 
+#pragma endregion STUI_COMPONENTS
+
+///////////////////////////////////////////////////////////////////////
+//                      RENDERER & TERMINAL
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_RENDERING
+
 /**
  * @brief purely static class which encapsulates code for rendering a page
- * to the terminal. a page just consists of a `Component` tree
- *
- **/
+ * to the terminal. a page just consists of a `Component` tree.
+ */
 class Renderer : public Utility
 {
 public:
@@ -2308,7 +1923,7 @@ public:
 	 * terminal, which is completely cleared to prevent scrolling jank.
 	 *
 	 * @param root_component element to draw into the terminal
-	 **/
+	 */
 	static void render(Component* root_component);
 
 	/**
@@ -2317,13 +1932,12 @@ public:
 	 *
 	 * @param focused_component component to send input to
 	 * @param shortcut_bindings list of shortcuts to check for
-	 **/
+	 */
 	static bool handleInput(Component* focused_component, vector<Input::Shortcut> shortcut_bindings);
 
 	/**
 	 * @brief stores information about a frame-wait which just happened
-	 *
-	 **/
+	 */
 	struct FrameData
 	{
 		float delta_time;		// time since the last time `targetFramerate` was called
@@ -2342,7 +1956,7 @@ public:
 	 * @return information about the frame: the delta time since the previous call, and
 	 * the fraction of the delta time which was taken up by the time between calls (the
 	 * remaining fraction being occupied by the `targetFramerate` function idling)
-	 **/
+	 */
 	static FrameData targetFramerate(int fps, clock_type::time_point& last_frame_time);
 
 private:
@@ -2353,7 +1967,7 @@ private:
 	 * @param max maximum desired size of the subject
 	 * @param min minimum desired size of the subject
 	 * @return resulting constrained size
-	 **/
+	 */
 	static inline int getConstrainedSize(int available, int _max, int _min);
 };
 
@@ -2384,147 +1998,36 @@ class Terminal
 private:
 
 public:
-	static void configure(string banner_text = "", float banner_duration_seconds = 3.0f)
-#ifdef STUI_IMPLEMENTATION
-	{
-		ios_base::sync_with_stdio(false);
-		isTerminalResized();
-#ifdef DEBUG
-		debug_log.open("stui_debug.log");
-		DEBUG_LOG("STUI logging started");
-#endif
-#if defined(_WIN32)
-		SetConsoleCtrlHandler(windowsControlHandler, true);
-		SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), ENABLE_VIRTUAL_TERMINAL_PROCESSING | ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT);
-#elif defined(__linux__)
-		signal(SIGINT, linuxControlHandler);
-		signal(SIGQUIT, linuxControlHandler);
-		signal(SIGTSTP, linuxControlHandler);
-		signal(SIGWINCH, linuxResizeHandler);
-		termios new_termios;
-		tcgetattr(STDIN_FILENO, &new_termios);
-		tcgetattr(STDIN_FILENO, &original_termios);
+	static void configure(string banner_text = "", float banner_duration_seconds = 3.0f);
 
-		new_termios.c_iflag &= ~(IGNBRK | BRKINT | IXON);
-		new_termios.c_lflag &= ~(ICANON | ECHO);
-        new_termios.c_cc[VMIN] = 1;
-		new_termios.c_cc[VSUSP] = 255;
-		tcsetattr(STDIN_FILENO, TCSANOW, &new_termios);
-#endif
-		Banner b(banner_text + "\n\nusing\n" + default_banner);
-		BorderedBox bb(&b, "");
-		Renderer::render(&bb);
-		this_thread::sleep_for(chrono::duration<float>(banner_duration_seconds));
-	}
-#endif
-	;
-
-	static void registerExitCallback(void (*callback)())
-#ifdef STUI_IMPLEMENTATION
+	static inline void registerExitCallback(void (*callback)())
 	{
 		exit_callback = callback;
 	}
-#endif
-	;
 
-	static void unConfigure(bool clear_terminal)
-#ifdef STUI_IMPLEMENTATION
-	{
-		setCursorVisible(true);
-#if defined(__linux__)
-		tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
-#endif
-		if (clear_terminal)
-		{
-			clear();
-			setCursorPosition(Coordinate{ 0,0 });
-		}
-		else
-			setCursorPosition(Coordinate{ 0,getScreenSize().y + 1 });
-#ifdef DEBUG
-		DEBUG_LOG("STUI logging stopped");
-		DEBUG_LOG("timing data:\n\trender:\t\t\t" + to_string(debug_timing.d_render) + "\t\t" + to_string(debug_timing.i_render) + "\t\t" + to_string(debug_timing.d_render / debug_timing.i_render)
-		                    + "\n\ttranscoding:\t" + to_string(debug_timing.d_transcoding) + "\t\t" + to_string(debug_timing.i_transcoding) + "\t\t" + to_string(debug_timing.d_transcoding / debug_timing.i_transcoding)
-		                    + "\n\tmakebuffer:\t\t" + to_string(debug_timing.d_makebuffer) + "\t\t" + to_string(debug_timing.i_makebuffer) + "\t\t" + to_string(debug_timing.d_makebuffer / debug_timing.i_makebuffer)
-		                    + "\n\tcopybuffer:\t\t" + to_string(debug_timing.d_copybuffer) + "\t\t" + to_string(debug_timing.i_copybuffer) + "\t\t" + to_string(debug_timing.d_copybuffer / debug_timing.i_copybuffer)
-		                    + "\n\tdrawtext:\t\t" + to_string(debug_timing.d_drawtext) + "\t\t" + to_string(debug_timing.i_drawtext) + "\t\t" + to_string(debug_timing.d_drawtext / debug_timing.i_drawtext)
-				);
-		
-		debug_log.close();
-#endif
-	}
-#endif
-	;
+	static void unConfigure(bool clear_terminal);
 
-	static bool isTerminalResized()
-#ifdef STUI_IMPLEMENTATION
-	{
-#if defined(_WIN32)
-		static Coordinate last_checked_screen_size;
-		Coordinate new_screen_size = getScreenSize();
-		if (new_screen_size.x == last_checked_screen_size.x && new_screen_size.y == last_checked_screen_size.y)
-			return false;
-
-		last_checked_screen_size = new_screen_size;
-		return true;
-#elif defined(__linux__)
-		bool resized = linux_resized_triggered;
-		linux_resized_triggered = false;
-		return resized;
-#endif
-	}
-#endif
-	;
+	static bool isTerminalResized();
 
 private:
 #if defined(_WIN32)
-	static int WINAPI windowsControlHandler(DWORD control_type) noexcept
-#ifdef STUI_IMPLEMENTATION
-	{
-		if (control_type == 0)
-		{
-			commonExitHandler();
-		}
-
-		return 1;
-	}
-#endif
-	;
-
+	static int WINAPI windowsControlHandler(DWORD control_type) noexcept;
 #elif defined(__linux__)
-	static void linuxControlHandler(int control_type)
-#ifdef STUI_IMPLEMENTATION
-	{
-		commonExitHandler();
-	}
-#endif
-	;
-
-	static void linuxResizeHandler(int s)
-#ifdef STUI_IMPLEMENTATION
-	{
-		DEBUG_LOG("screen resized");
-		linux_resized_triggered = true;
-	}
-#endif
-	;
-
+	static void linuxControlHandler(int control_type);
+	static void linuxResizeHandler(int s);
 #endif
 
-	static void commonExitHandler()
-#ifdef STUI_IMPLEMENTATION
+	static inline void commonExitHandler()
 	{
 		unConfigure(true);
 		if (exit_callback != nullptr)
 			exit_callback();
 		exit(0);
 	}
-#endif
-	;
 
 	/**
 	 * @brief clear the entire terminal, including scrollback and onscreen buffers
-	 **/
+	 */
 	static inline void clear()
 	{
 		OUTPUT_TARGET << ANSI_CLEAR_SCREEN << ANSI_CLEAR_SCROLL;
@@ -2534,25 +2037,14 @@ private:
 	 * @brief get the size of the terminal window in characters
 	 * 
 	 * @return size of the terminal window 
-	 **/
-	static inline Coordinate getScreenSize()
-	{
-#if defined(_WIN32)
-		CONSOLE_SCREEN_BUFFER_INFO info;
-		GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
-		return Coordinate{ (info.srWindow.Right - info.srWindow.Left) + 1, (info.srWindow.Bottom - info.srWindow.Top) + 1 };
-#elif defined(__linux__)
-		struct winsize size;
-		ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
-		return Coordinate{ (int)size.ws_col, (int)size.ws_row };
-#endif
-	}
+	 */
+	static Coordinate getScreenSize();
 
 	/**
 	 * @brief move the cursor to a given position in the terminal window
 	 * 
 	 * @param position desired position of the cursor
-	 **/
+	 */
 	static inline void setCursorPosition(Coordinate position)
 	{
 		OUTPUT_TARGET << ANSI_SET_CURSOR(position.x, position.y);
@@ -2562,19 +2054,8 @@ private:
 	 * @brief toggle terminal cursor visibility
 	 * 
 	 * @param visible whether or not the cursor should be visible
-	 **/
-	static inline void setCursorVisible(bool visible)
-	{
-#if defined(_WIN32)
-		CONSOLE_CURSOR_INFO info;
-		GetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
-		info.bVisible = visible;
-		SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
-#elif defined(__linux__)
-		if (visible) OUTPUT_TARGET << ANSI_SHOW_CURSOR;
-		else OUTPUT_TARGET << ANSI_HIDE_CURSOR;
-#endif
-	}
+	 */
+	static inline void setCursorVisible(bool visible);
 
 	/**
 	 * @brief forces the current terminal to respect UTF-8
@@ -2587,7 +2068,430 @@ private:
 	}
 };
 
+#pragma endregion STUI_RENDERING
+
+///////////////////////////////////////////////////////////////////////
+//                        IMPLEMENTATIONS
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_IMPLEMENTATIONS
+
 #ifdef STUI_IMPLEMENTATION
+
+vector<Input::Key> Input::getQueuedKeyEvents()
+{
+	vector<Key> events;
+#if defined(_WIN32)
+	// find available
+	DWORD events_available;
+	GetNumberOfConsoleInputEvents(GetStdHandle(STD_INPUT_HANDLE), &events_available);
+	if (events_available < 1) return events;
+
+	// grab 32 of them
+	INPUT_RECORD records[32] = { };
+	DWORD records_read;
+
+	if (ReadConsoleInput(GetStdHandle(STD_INPUT_HANDLE), records, 32, &records_read) == 0)
+		throw runtime_error("input error");
+	
+	for (size_t i = 0; i < records_read; i++)
+		if (records[i].EventType == KEY_EVENT && records[i].Event.KeyEvent.bKeyDown)
+		{
+			Key k{ };
+			k.key = (uint8_t)records[i].Event.KeyEvent.uChar.AsciiChar;
+			if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_UP) k.key = ArrowKeys::UP;
+			else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_DOWN) k.key = ArrowKeys::DOWN;
+			else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_LEFT) k.key = ArrowKeys::LEFT;
+			else if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_RIGHT) k.key = ArrowKeys::RIGHT;
+			if (k.key == '\r') k.key = '\n';
+			k.control_states = ControlKeys::NONE;
+			DWORD control_key = records[i].Event.KeyEvent.dwControlKeyState;
+			if (control_key & 0x04) k.control_states = ControlKeys::CTRL;
+			else if (control_key & 0x08)
+			{
+				k.control_states = ControlKeys::CTRL;
+				k.key += 96;
+			}
+			else if (control_key & 0x10) k.control_states = ControlKeys::SHIFT;
+			else if (control_key & 0x01) k.control_states = ControlKeys::ALT;
+			else if (control_key & 0x02) k.control_states = ControlKeys::ALT;
+			if (records[i].Event.KeyEvent.wVirtualKeyCode == VK_DELETE)
+			{
+				k.key = 127;
+				k.control_states = ControlKeys::NONE;
+			}
+			events.push_back(k);
+		}
+#elif defined(__linux__)
+	// check if there are any events to read
+	if (kbhit() < 1) return events;
+
+	// read a queue of 64 events (or as many are available)
+	uint8_t buffer[64] = { 0 };
+	ssize_t bytes_read = read(STDIN_FILENO, buffer, 64);
+	for (ssize_t i = 0; i < bytes_read; i++)
+	{
+		int c = buffer[i];
+		// process escape sequences
+		if (c == '\e')
+		{
+			// unless it's actually just escape
+			if (i == bytes_read - 1) events.push_back(Key{ '\e', ControlKeys::NONE });
+			else if (buffer[i + 1] != '[')
+			{
+				// if there's no bracket then it's an alt-event
+				int c_next = buffer[i + 1];
+				events.push_back(Key{ linux_keymap[c_next].key, ControlKeys::ALT });
+				// skip to the next char so we don't process the same one twice
+				i++;
+			}
+			else if (i == bytes_read - 2)
+			{
+				// it could just be alt-bracket, not an escape sequences
+				events.push_back(Key{ '[', ControlKeys::ALT });
+				i++;
+			}
+			else
+			{
+				// otherwise it's an escape sequence
+				int c_next = buffer[i + 2];
+				if (c_next == 0x41)
+				{
+					events.push_back(Key{ ArrowKeys::UP, ControlKeys::NONE });
+					i += 2;
+				}
+				else if (c_next == 0x42)
+				{
+					events.push_back(Key{ ArrowKeys::DOWN, ControlKeys::NONE });
+					i += 2;
+				}
+				else if (c_next == 0x44)
+				{
+					events.push_back(Key{ ArrowKeys::LEFT, ControlKeys::NONE });
+					i += 2;
+				}
+				else if (c_next == 0x43)
+				{
+					events.push_back(Key{ ArrowKeys::RIGHT, ControlKeys::NONE });
+					i += 2;
+				}
+				else if (i <= bytes_read - 5 && c_next == '1' && buffer[i + 3] == ';' && buffer[i + 4] == '2')
+				{
+					int c_next_next = buffer[i + 5];
+					if (c_next_next == 0x41) events.push_back(Key{ ArrowKeys::UP, ControlKeys::SHIFT });
+					else if (c_next_next == 0x42) events.push_back(Key{ ArrowKeys::DOWN, ControlKeys::SHIFT });
+					else if (c_next_next == 0x44) events.push_back(Key{ ArrowKeys::LEFT, ControlKeys::SHIFT });
+					else if (c_next_next == 0x43) events.push_back(Key{ ArrowKeys::RIGHT, ControlKeys::SHIFT });
+					i += 5;
+				}
+				else if (i <= bytes_read - 4 && c_next == '3' && buffer[i + 3] == '~')
+				{
+					events.push_back(Key{ 127, ControlKeys::NONE });
+					i += 4;
+				}
+				else
+				{
+					// debug if it isnt handled
+					DEBUG_LOG("unhandled ANSI code: " + string((char*)buffer + i));
+					break;
+				}
+			}
+		}
+		else if (c < 128)
+		{
+			// normal keypress, use the keymap as a look-up table
+			events.push_back(linux_keymap[c]);
+		}
+		else
+		{
+			DEBUG_LOG("uh oh! unhandled UTF-8");
+			// TODO: handle utf8 oh dear god
+			break;
+		}
+	}
+#endif
+	return events;
+}
+
+void Input::processShortcuts(vector<Shortcut> shortcuts, vector<Key>& key_events)
+{
+#ifdef DEBUG
+	for (Shortcut s : shortcuts)
+		if (s.binding.control_states != ControlKeys::ALT
+			&& s.binding.control_states != ControlKeys::SHIFT
+			&& s.binding.control_states != ControlKeys::CTRL
+			&& s.binding.control_states != ControlKeys::NONE)
+		DEBUG_LOG("never bind a shortcut to multiple ControlKeys at once! this shortcut will never be called. key: " + string(1, (char)s.binding.key) + " control_states: " + to_string(s.binding.control_states));
+#endif
+
+	vector<Key> non_processed;
+	for (size_t i = 0; i < key_events.size(); i++)
+	{
+		Key k = key_events[i];
+		bool consumed = false;
+		for (Shortcut s : shortcuts)
+		{
+			if (compare(k, s.binding)) { consumed = true; s.callback(); }
+		}
+		if (!consumed) non_processed.push_back(k);
+	}
+
+	key_events = non_processed;
+}
+
+vector<pair<uint8_t, Input::ControlKeys>> Input::getTextCharacters(vector<Key>& key_events)
+{
+	vector<Key> non_processed;
+	vector<pair<uint8_t, ControlKeys>> result;
+	for (size_t i = 0; i < key_events.size(); i++)
+	{
+		Key k = key_events[i];
+		if ((k.control_states == ControlKeys::NONE || k.control_states == ControlKeys::SHIFT) && (
+				(k.key >= 32 && k.key <= 127) 
+			|| k.key == '\n' 
+			|| k.key == '\t' 
+			|| k.key == '\b'
+			|| k.key == 127
+			|| k.key == ArrowKeys::UP
+			|| k.key == ArrowKeys::DOWN
+			|| k.key == ArrowKeys::LEFT
+			|| k.key == ArrowKeys::RIGHT))
+		{
+			result.push_back(pair<uint8_t, ControlKeys>(static_cast<uint8_t>(k.key), k.control_states));
+		}
+		else
+		{
+			non_processed.push_back(k);
+		}
+	}
+	key_events = non_processed;
+
+	return result;
+}
+
+string Utility::stripNullsAndMore(string str, const char* others)
+{
+	string result = "";
+	for (char c : str)
+	{
+		// auto-strip if the character is a non-renderable
+		if (c < ' ' && c != '\n' && c != '\t' && c != '\b') continue;
+		// check if the current char is inside list to remove
+		bool is_valid = true;
+		for (size_t i = 0; others[i] != '\0'; i++)
+			if (c == others[i]) is_valid = false;
+		if (is_valid)
+		{
+			// if not, keep it, swapping tab for some spaces
+			if (c == '\t') result += "    ";
+			else result += c;
+		}
+	}
+	return result;
+}
+
+void Utility::drawBox(Coordinate box_origin, Coordinate box_size, Tixel* buffer, Coordinate buffer_size)
+{
+	if (buffer == nullptr) return;
+	if (box_size.x <= 0 || box_size.y <= 0) return;
+
+	if (box_origin.y >= 0 && box_origin.y < buffer_size.y)
+	{
+		for (int x = box_origin.x; x < box_origin.x + box_size.x; x++)
+		{
+			if (x < 0) continue;
+			if (x >= buffer_size.x) break;
+
+			buffer[x + (box_origin.y * buffer_size.x)] = (x == box_origin.x ? UNICODE_BOX_TOPLEFT : (x == box_origin.x + box_size.x - 1 ? UNICODE_BOX_TOPRIGHT : UNICODE_BOX_HORIZONTAL));
+		}
+	}
+
+	for (int y = box_origin.y + 1; y < box_origin.y + box_size.y - 1; y++)
+	{
+		if (y < 0) continue;
+		if (y >= buffer_size.y) break;
+
+		if (box_origin.x >= 0 && box_origin.x < buffer_size.x)
+			buffer[box_origin.x + (y * buffer_size.x)] = UNICODE_BOX_VERTICAL;
+
+		if (box_origin.x + box_size.x - 1 >= 0 && box_origin.x + box_size.x - 1 < buffer_size.x)
+			buffer[box_origin.x + box_size.x + (y * buffer_size.x) - 1] = UNICODE_BOX_VERTICAL;
+	}
+
+	if (box_origin.y + box_size.y - 1 >= 0 && box_origin.y + box_size.y - 1 < buffer_size.y)
+	{
+		for (int x = box_origin.x; x < box_origin.x + box_size.x; x++)
+		{
+			if (x < 0) continue;
+			if (x >= buffer_size.x) break;
+
+			buffer[x + ((box_origin.y + box_size.y - 1) * buffer_size.x)] = (x == box_origin.x ? UNICODE_BOX_BOTTOMLEFT : (x == box_origin.x + box_size.x - 1 ? UNICODE_BOX_BOTTOMRIGHT : UNICODE_BOX_HORIZONTAL));
+		}
+	}
+}
+
+vector<string> Utility::splitString(string text, char delim)
+{
+	vector<string> result;
+	string current;
+
+	for (char c : text)
+	{
+		if (c == delim)
+		{
+			result.push_back(current);
+			current = "";
+		}
+		else
+			current += c;
+	}
+	result.push_back(current);
+
+	return result;
+}
+
+vector<string> Utility::wrapText(string text, size_t max_width)
+{
+	if (text.length() < 1)
+		return vector<string>({""});
+	vector<string> result;
+	size_t start = 0;
+	while (start != string::npos)
+	{
+		start++;
+		size_t end = text.find('\n', start);
+		vector<string> tmp = wrapTextInner(text.substr(start, end - start), max_width);
+		for (string s : tmp) result.push_back(s);
+		start = end;
+	}
+	//	i hate this
+	if (result.size() > 0)
+		result[0] = string(1, text[0]) + result[0];
+	return result;
+}
+
+vector<string> Utility::wrapTextInner(string text, size_t max_width)
+{
+	vector<string> lines;
+	size_t last_index = 0;
+	while (last_index != text.length())
+	{
+		size_t max_end = min(last_index + max_width - 1, text.length() - 1);
+		size_t next_end = max_end;
+		bool trim_whitespace = false;
+		while (text[next_end] != ' ')
+		{
+			if (next_end == text.length() - 1)
+			{
+				trim_whitespace = false;
+				break;
+			}
+
+			if (next_end == last_index)
+			{
+				next_end = max_end;
+				trim_whitespace = false;
+				break;
+			}
+			next_end--;
+		}
+		lines.push_back(text.substr(last_index, ((next_end - last_index) + 1) - trim_whitespace));
+		last_index = next_end + 1;
+	}
+	return lines;
+}
+
+void Utility::drawText(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size)
+{
+	if (buffer == nullptr) return;
+	if (buffer_size.x <= 0 || buffer_size.y <= 0) return;
+
+	for (int i = 0; i < static_cast<int>(text.length()); i++)
+	{
+		if (text_origin.x + i < 0) continue;
+		if (text_origin.x + i >= buffer_size.x || i >= max_size.x) break;
+		if (text_origin.y < 0 || text_origin.y >= buffer_size.y) break;
+		if (text[i] == '\n') break;
+
+		buffer[(text_origin.x + i) + (text_origin.y * buffer_size.x)] = text[i];
+	}
+}
+
+vector<size_t> Utility::drawTextWrapped(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size)
+{
+	if (buffer == nullptr) return vector<size_t>();
+	if (buffer_size.x <= 0 || buffer_size.y <= 0) return vector<size_t>();
+
+	vector<string> lines = wrapText(text, min(max_size.x, buffer_size.x - text_origin.x));
+	
+	int row = -1;
+	for (string line : lines)
+	{
+		row++;
+		if (row >= max_size.y || row + text_origin.y >= buffer_size.y) break;
+		if (row + text_origin.y < 0) continue;
+
+		for (size_t col = 0; col < line.length(); col++)
+		{
+			buffer[(text_origin.x + col) + ((text_origin.y + row) * buffer_size.x)] = line[col];
+		}
+	}
+
+	vector<size_t> line_lengths;
+	for (string l : lines) line_lengths.push_back(l.length());
+
+	return line_lengths;
+}
+
+Tixel* Utility::makeBuffer(Coordinate buffer_size)
+{
+	if (buffer_size.x <= 0 || buffer_size.y <= 0) return nullptr;
+
+	size_t size = buffer_size.x * buffer_size.y;
+	Tixel* buf = new Tixel[size + 1];
+	Tixel fill{ ' ', getDefaultColour() };
+	for (size_t i = 0; i < size; i++)
+		memcpy(buf + i, &fill, sizeof(fill));
+	buf[size] = Tixel{ '\0', getDefaultColour() };
+
+	return buf;
+}
+
+void Utility::copyBox(const Tixel* src, Coordinate src_size, Coordinate src_offset, Coordinate area_size, Tixel* dst, Coordinate dst_size, Coordinate dst_offset)
+{
+	if (src == nullptr || dst == nullptr) return;
+	if (area_size.x <= 0 || area_size.y <= 0) return;
+	if (src_offset.x < 0 || src_offset.y < 0) return;
+	if (dst_offset.x < 0 || dst_offset.y < 0) return;
+	if (src_offset.x + area_size.x > src_size.x || src_offset.y + area_size.y > src_size.y) return;
+	if (dst_offset.x + area_size.x > dst_size.x || dst_offset.y + area_size.y > dst_size.y) return;
+
+	for (int y = 0; y < area_size.y; y++)
+	{
+		memcpy(dst + dst_offset.x + ((y + dst_offset.y) * dst_size.x), src + src_offset.x + ((y + src_offset.y) * src_size.x), area_size.x * sizeof(Tixel));
+	}
+}
+
+void Utility::fillColour(Tixel::ColourCommand colour, Coordinate origin, Coordinate size, Tixel* buffer, Coordinate buffer_size)
+{
+	if (size.x <= 0 || size.y <= 0) return;
+	if (buffer == nullptr) return;
+	if (buffer_size.x <= 0 || buffer_size.y <= 0) return;
+
+	for (int y = 0; y < size.y; y++)
+	{
+		if (y + origin.y < 0) continue;
+		if (y + origin.y >= buffer_size.y) break;
+
+		for (int x = 0; x < size.x; x++)
+		{
+			if (x + origin.x < 0) continue;
+			if (x + origin.x >= buffer_size.x) break;
+			buffer[x + origin.x + ((y + origin.y) * buffer_size.x)].colour = colour;
+		}
+	}
+}
+
 void Renderer::render(Component* root_component)
 {
 	DEBUG_TIMER_S(render);
@@ -2691,13 +2595,148 @@ inline int Renderer::getConstrainedSize(int available, int _max, int _min)
 	if (size < _min) return -1;
 	else return max(size, _min);
 }
+
+void Terminal::configure(string banner_text, float banner_duration_seconds)
+{
+	ios_base::sync_with_stdio(false);
+	isTerminalResized();
+#ifdef DEBUG
+	debug_log.open("stui_debug.log");
+	DEBUG_LOG("STUI logging started");
 #endif
+#if defined(_WIN32)
+	SetConsoleCtrlHandler(windowsControlHandler, true);
+	SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), ENABLE_VIRTUAL_TERMINAL_PROCESSING | ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT);
+#elif defined(__linux__)
+	signal(SIGINT, linuxControlHandler);
+	signal(SIGQUIT, linuxControlHandler);
+	signal(SIGTSTP, linuxControlHandler);
+	signal(SIGWINCH, linuxResizeHandler);
+	termios new_termios;
+	tcgetattr(STDIN_FILENO, &new_termios);
+	tcgetattr(STDIN_FILENO, &original_termios);
+
+	new_termios.c_iflag &= ~(IGNBRK | BRKINT | IXON);
+	new_termios.c_lflag &= ~(ICANON | ECHO);
+	new_termios.c_cc[VMIN] = 1;
+	new_termios.c_cc[VSUSP] = 255;
+	tcsetattr(STDIN_FILENO, TCSANOW, &new_termios);
+#endif
+	Banner b(banner_text + "\n\nusing\n" + default_banner);
+	BorderedBox bb(&b, "");
+	Renderer::render(&bb);
+	this_thread::sleep_for(chrono::duration<float>(banner_duration_seconds));
+}
+
+void Terminal::unConfigure(bool clear_terminal)
+{
+	setCursorVisible(true);
+#if defined(__linux__)
+	tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
+#endif
+	if (clear_terminal)
+	{
+		clear();
+		setCursorPosition(Coordinate{ 0,0 });
+	}
+	else
+		setCursorPosition(Coordinate{ 0,getScreenSize().y + 1 });
+#ifdef DEBUG
+	DEBUG_LOG("STUI logging stopped");
+	DEBUG_LOG("timing data:\n\trender:\t\t\t" + to_string(debug_timing.d_render) + "\t\t" + to_string(debug_timing.i_render) + "\t\t" + to_string(debug_timing.d_render / debug_timing.i_render)
+						+ "\n\ttranscoding:\t" + to_string(debug_timing.d_transcoding) + "\t\t" + to_string(debug_timing.i_transcoding) + "\t\t" + to_string(debug_timing.d_transcoding / debug_timing.i_transcoding)
+						+ "\n\tmakebuffer:\t\t" + to_string(debug_timing.d_makebuffer) + "\t\t" + to_string(debug_timing.i_makebuffer) + "\t\t" + to_string(debug_timing.d_makebuffer / debug_timing.i_makebuffer)
+						+ "\n\tcopybuffer:\t\t" + to_string(debug_timing.d_copybuffer) + "\t\t" + to_string(debug_timing.i_copybuffer) + "\t\t" + to_string(debug_timing.d_copybuffer / debug_timing.i_copybuffer)
+						+ "\n\tdrawtext:\t\t" + to_string(debug_timing.d_drawtext) + "\t\t" + to_string(debug_timing.i_drawtext) + "\t\t" + to_string(debug_timing.d_drawtext / debug_timing.i_drawtext)
+			);
+	
+	debug_log.close();
+#endif
+}
+
+bool Terminal::isTerminalResized()
+{
+#if defined(_WIN32)
+	static Coordinate last_checked_screen_size;
+	Coordinate new_screen_size = getScreenSize();
+	if (new_screen_size.x == last_checked_screen_size.x && new_screen_size.y == last_checked_screen_size.y)
+		return false;
+
+	last_checked_screen_size = new_screen_size;
+	return true;
+#elif defined(__linux__)
+	bool resized = linux_resized_triggered;
+	linux_resized_triggered = false;
+	return resized;
+#endif
+}
+
+#if defined(_WIN32)
+
+int WINAPI Terminal::windowsControlHandler(DWORD control_type) noexcept
+{
+	if (control_type == 0)
+		commonExitHandler();
+
+	return 1;
+}
+
+#elif defined(__linux__)
+
+void Terminal::linuxControlHandler(int control_type)
+{
+	commonExitHandler();
+}
+
+void Terminal::linuxResizeHandler(int s)
+{
+	DEBUG_LOG("screen resized");
+	linux_resized_triggered = true;
+}
+
+#endif
+
+Coordinate Terminal::getScreenSize()
+{
+#if defined(_WIN32)
+	CONSOLE_SCREEN_BUFFER_INFO info;
+	GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
+	return Coordinate{ (info.srWindow.Right - info.srWindow.Left) + 1, (info.srWindow.Bottom - info.srWindow.Top) + 1 };
+#elif defined(__linux__)
+	struct winsize size;
+	ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
+	return Coordinate{ (int)size.ws_col, (int)size.ws_row };
+#endif
+}
+
+inline void Terminal::setCursorVisible(bool visible)
+{
+#if defined(_WIN32)
+	CONSOLE_CURSOR_INFO info;
+	GetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
+	info.bVisible = visible;
+	SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
+#elif defined(__linux__)
+	if (visible) OUTPUT_TARGET << ANSI_SHOW_CURSOR;
+	else OUTPUT_TARGET << ANSI_HIDE_CURSOR;
+#endif
+}
+
+#endif
+
+#pragma endregion STUI_IMPLEMENTATIONS
 
 }
 
 #endif
 
 #endif
+
+///////////////////////////////////////////////////////////////////////
+//                           UNDEFINES
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_UNDEFS
 
 #ifndef STUI_KEEP_DEFINES
 
@@ -2759,5 +2798,7 @@ inline int Renderer::getConstrainedSize(int available, int _max, int _min)
 #undef UNICODE_CIRCLE_FILLED
 #undef UNICODE_ELLIPSIS_HORIZONTAL
 #undef UNICODE_ELLIPSIS_VERTICAL
+
+#pragma endregion STUI_UNDEFS
 
 #endif

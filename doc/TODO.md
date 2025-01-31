@@ -3,7 +3,6 @@
 - [ ] add editable text area component
 
 # v0.4
-- [ ] add a 'types only' include mode
 - [ ] documentation and examples for LayoutScript
 - [ ] fix actual_offset in tree view
 - [ ] update help relating to `Page`

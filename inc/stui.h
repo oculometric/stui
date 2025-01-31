@@ -20,48 +20,6 @@
 */
 
 ///////////////////////////////////////////////////////////////////////
-//                              TYPES
-///////////////////////////////////////////////////////////////////////
-
-#pragma region STUI_TYPES
-
-#ifdef STUI_ONLY_TYPES
-
-struct Coordinate;
-
-class Input;
-struct Input::Shortcut;
-struct Input::Key;
-
-class Component;
-class Label : Component;
-class Button : Component;
-class RadioButton : Component;
-class ToggleButton : Component;
-class TextInputBox : Component;
-class TextArea : Component;
-class ProgressBar : Component;
-class Slider : Component;
-class Spinner : Component;
-class VerticalBox : Component;
-class HorizontalBox : Component;
-class VerticalSpacer : Component;
-class HorizontalSpacer : Component;
-class BorderedBox : Component;
-class ListView : Component;
-class TreeView : Component;
-class ImageView : Component;
-class SizeLimiter : Component;
-class TabDisplay : Component;
-class Banner : Component;
-class VerticalDivider : Component;
-class HorizontalDivider : Component;
-
-#else
-
-#pragma endregion STUI_TYPES
-
-///////////////////////////////////////////////////////////////////////
 //                             DEFINES
 ///////////////////////////////////////////////////////////////////////
 
@@ -2807,8 +2765,6 @@ inline void Terminal::setCursorVisible(bool visible)
 #pragma endregion STUI_IMPLEMENTATIONS
 
 }
-
-#endif
 
 #endif
 

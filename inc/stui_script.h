@@ -1671,3 +1671,18 @@ size_t LayoutReader::findClosingBrace(const vector<Token>& tokens, size_t open_i
 }
 
 #endif
+
+///////////////////////////////////////////////////////////////////////
+//                           UNDEFINES
+///////////////////////////////////////////////////////////////////////
+
+#pragma region STUI_UNDEFS
+
+#ifndef STUI_KEEP_DEFINES
+
+#undef GETNAME_STUB
+#undef BUILD_STUB
+
+#endif
+
+#pragma endregion STUI_UNDEFS

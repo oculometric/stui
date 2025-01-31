@@ -2703,9 +2703,9 @@ bool Terminal::isTerminalResized()
 
 inline void Terminal::commonExitHandler()
 {
-	unConfigure(true);
 	if (exit_callback != nullptr)
 		exit_callback();
+	unConfigure(true);
 	exit(0);
 }
 
@@ -2837,6 +2837,6 @@ inline void Terminal::setCursorVisible(bool visible)
 #undef UNICODE_ELLIPSIS_HORIZONTAL
 #undef UNICODE_ELLIPSIS_VERTICAL
 
-#pragma endregion STUI_UNDEFS
-
 #endif
+
+#pragma endregion STUI_UNDEFS

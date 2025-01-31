@@ -5,7 +5,6 @@
 # v0.4
 - [ ] documentation and examples for LayoutScript
 - [ ] fix actual_offset in tree view
-- [ ] update help relating to `Page`
 - [x] better handling of object deletion within pages
 - [x] implement LayoutScript reading from file
 - [x] correct consistency of '*'s at end of comments
@@ -17,6 +16,7 @@
 - [x] complete comments in script file
 - [x] test by rebuilding other demos in LayoutScript
 - [x] show a message when an area is too small to display things
+- [x] update help relating to `Page`
 
 # Completed v0.3
 - [x] allow the user to configure callbacks for program exit                                                                (v0.3)

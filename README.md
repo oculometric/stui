@@ -1,6 +1,6 @@
 # stui - Simple Text UI
 
-a lightweight, easy-to-use, header-only, semi-immediate-mode TUI framework for building simple interfaces, inside the terminal, across platforms.
+a lightweight, easy-to-use, header-only, semi-immediate-mode TUI framework for building interactive interfaces inside the terminal, across platforms.
 
 ## Key Features
 

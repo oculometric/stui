@@ -518,6 +518,8 @@ protected:
 	 */
 	static vector<size_t> drawTextWrapped(string text, Coordinate text_origin, Coordinate max_size, Tixel* buffer, Coordinate buffer_size);
 
+	static void showTooSmallMessage(Coordinate buffer_size, Tixel* buffer);
+
 	/**
 	 * @brief simplifies allocation of 2D text buffers.
 	 * 
@@ -1150,9 +1152,7 @@ public:
 		int budget = size.y - total_height;
 		if (budget < 0)
 		{
-			string error_text = "[...]";
-			if (size.y > 0)
-				drawText(error_text, Coordinate{ static_cast<int>(size.x - error_text.size()) / 2, static_cast<int>(size.y) / 2 }, Coordinate{ size.x, 1 }, output_buffer, size);
+			showTooSmallMessage(size, output_buffer);
 			return;
 		}
 
@@ -1254,7 +1254,11 @@ public:
 		}
 
 		int budget = size.x - total_width;
-		if (budget < 0) return;
+		if (budget < 0)
+		{
+			showTooSmallMessage(size, output_buffer);
+			return;
+		}
 
 		bool changed;
 		while (budget > 0)
@@ -2443,6 +2447,20 @@ vector<size_t> Utility::drawTextWrapped(string text, Coordinate text_origin, Coo
 	return line_lengths;
 }
 
+void Utility::showTooSmallMessage(Coordinate buffer_size, Tixel* buffer)
+{
+	if (buffer_size.y == 0)
+		return;
+
+	const string long_msg = " [ area too small ] ";
+	const string short_msg = "[...]";
+
+	if (buffer_size.x >= static_cast<int>(long_msg.length()))
+		drawText(long_msg, Coordinate{ static_cast<int>(buffer_size.x - long_msg.size()) / 2, static_cast<int>(buffer_size.y) / 2 }, Coordinate{ buffer_size.x, 1 }, buffer, buffer_size);
+	else
+		drawText(short_msg, Coordinate{ static_cast<int>(buffer_size.x - short_msg.size()) / 2, static_cast<int>(buffer_size.y) / 2 }, Coordinate{ buffer_size.x, 1 }, buffer, buffer_size);
+}
+
 Tixel* Utility::makeBuffer(Coordinate buffer_size)
 {
 	if (buffer_size.x <= 0 || buffer_size.y <= 0) return nullptr;
@@ -2592,8 +2610,7 @@ inline int Renderer::getConstrainedSize(int available, int _max, int _min)
 	if (_max == -1) size = available;
 	else size = min(available, _max);
 
-	if (size < _min) return -1;
-	else return max(size, _min);
+	return size;
 }
 
 void Terminal::configure(string banner_text, float banner_duration_seconds)

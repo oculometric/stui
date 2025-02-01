@@ -3,13 +3,6 @@
 #include <stui.h>
 #include <stui_script.h>
 
-size_t focus_index = 1;
-
-void increment_focus()
-{
-    focus_index = (focus_index + 1) % 5;
-}
-
 int main(int argc, char** argv)
 {
     stui::Terminal::configure();

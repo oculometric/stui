@@ -1,7 +1,7 @@
 /*  
 	A simple header-only library for creating text-based user interfaces
 	inside a terminal window.
-	Copyright (C) 2024  Jacob Costen (oculometric)
+	Copyright (C) 2024-2025  Jacob Costen (oculometric)
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by

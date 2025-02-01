@@ -246,7 +246,7 @@ int main()
     Terminal::configure("compiler tool", 1.0f);
 
     LayoutReader reader;
-    main_page = reader.readPage("examples/layoutscripts/compiler_tool.sls");
+    main_page = reader.readPageFromFile("examples/layoutscripts/compiler_tool.sls");
     selected_input_files = main_page->get<ListView>("selected_input_files");
     output_file = main_page->get<TextInputBox>("output_file");
     compiler_selection = main_page->get<RadioButton>("compiler_selection");

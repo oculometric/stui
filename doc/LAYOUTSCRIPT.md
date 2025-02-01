@@ -112,7 +112,7 @@ terminate called after throwing an instance of 'std::runtime_error'
 ```
 as you can see, the tokeniser has correctly identified my syntax error, and shows precisely where in the original `widgets_demo.sls` file it occurred, along with a preview.
 
-when a parsing exception like this occurs, you may catch it in order to show an error message to the user and exit gracefully, but the return value of `readPage` will be `nullptr`, so don't try to access anything on it.
+when a parsing exception like this occurs, you may catch it in order to show an error message to the user and exit gracefully, but the return value of `readPageFromFile` will be `nullptr`, so don't try to access anything on it.
 
 there are lots of different types of errors which can be thrown, so below is a table of all of them, what stage they happen, and what the message actually means in a little more detail.
 

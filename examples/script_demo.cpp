@@ -9,7 +9,7 @@ int main()
     Terminal::configure("script test", 0.5f);
 
     LayoutReader reader;
-    Page* pg = reader.readPage("demo.sls");
+    Page* pg = reader.readPageFromFile("demo.sls");
     if (!pg) return 1;
 
     pg->get<ProgressBar>("progress_bar")->fraction = 0.99f;

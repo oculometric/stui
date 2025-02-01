@@ -15,7 +15,7 @@ int main(int argc, char** argv)
     stui::Terminal::configure();
 
     stui::LayoutReader reader;
-    stui::Page* page = reader.readPage("examples/layoutscripts/widgets_demo.sls");
+    stui::Page* page = reader.readPageFromFile("examples/layoutscripts/widgets_demo.sls");
 
     stui::Label* t1 = page->get<stui::Label>("t1");
     stui::Spinner* s1 = page->get<stui::Spinner>("s1");

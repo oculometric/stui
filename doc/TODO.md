@@ -1,10 +1,10 @@
 # To-Dos
 
 - [ ] add editable text area component
+- [ ] fix actual_offset in tree view
 
 # v0.4
 - [ ] documentation and examples for LayoutScript
-- [ ] fix actual_offset in tree view
 - [x] better handling of object deletion within pages
 - [x] implement LayoutScript reading from file
 - [x] correct consistency of '*'s at end of comments

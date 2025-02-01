@@ -29,7 +29,7 @@ int main()
     
     LayoutReader reader;
 
-    Page* page = reader.readPage("examples/layoutscripts/page_usage.sls");
+    Page* page = reader.readPageFromFile("examples/layoutscripts/page_usage.sls");
     text_widget = page->get<Label>("text_widget");
     text_field = page->get<TextInputBox>("text_field");
     text_field->callback = textBoxCallback;

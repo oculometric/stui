@@ -848,7 +848,23 @@ public:
      * @returns a `Page` fully constructed with all of the components
      * specified in the file, or `nullptr` if the file was not readable
      */
-    Page* readPage(string file);
+    Page* readPageFromFile(string file);
+
+    /**
+     * @brief reads a `Page` of STUI LayoutScript from a raw block of
+     * LayoutScript code.
+     * 
+     * since the `Component`s in the page are constructed using `new`
+     * at runtime, you **MUST** call `destroyAllComponents` on the
+     * page when you're done using it.
+     * 
+     * throws an exception if a syntax error is found.
+     * 
+     * @param content LayoutScript code to translate into a `Page`
+     * @returns a `Page` fully constructed with all of the components
+     * specified in the content, or `nullptr`
+     */
+    Page* readPage(string content);
 
     ~LayoutReader();
 
@@ -1080,7 +1096,7 @@ void LayoutReader::registerBuilder(ComponentBuilder* builder)
     builders.emplace(name, builder);
 }
 
-Page* LayoutReader::readPage(string file)
+Page* LayoutReader::readPageFromFile(string file)
 {
     ifstream file_data(file, ifstream::ate);
     if (!file_data.is_open())
@@ -1099,10 +1115,15 @@ Page* LayoutReader::readPage(string file)
 
     DEBUG_LOG("loaded " + to_string(file_content.size()) + " chars of script from " + file);
 
+    return readPage(file_content);
+}
+
+Page* LayoutReader::readPage(string content)
+{
     vector<Token> tokens;
     try
     {
-        tokens = tokenise(file_content);
+        tokens = tokenise(content);
     }
     catch (const runtime_error& e)
     {
@@ -1121,19 +1142,19 @@ Page* LayoutReader::readPage(string file)
 
     if (pruned_tokens.size() < 3)
     {
-        reportError("the LayoutScript file must contain at least one complete Component", 0, file_content);
+        reportError("the LayoutScript file must contain at least one complete Component", 0, content);
     }
 
     if (pruned_tokens[0].type != TokenType::TEXT)
     {
-        reportError("the LayoutScript file must begin with a Component definition", 0, file_content);
+        reportError("the LayoutScript file must begin with a Component definition", 0, content);
     }
 
     Page* page = new Page();
 
     try
     {
-        Component* root = parseComponent(pruned_tokens, 0, file_content, page);
+        Component* root = parseComponent(pruned_tokens, 0, content, page);
         page->setRoot(root);
     }
     catch (const runtime_error& e)
@@ -1144,7 +1165,7 @@ Page* LayoutReader::readPage(string file)
         throw runtime_error(e.what());
     }
 
-    DEBUG_LOG("successfully built a UI tree of " + to_string(page->getAllComponents().size()) + " components from file " + file);
+    DEBUG_LOG("successfully built a UI tree of " + to_string(page->getAllComponents().size()) + " components");
 
     return page;
 }

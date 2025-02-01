@@ -1018,7 +1018,7 @@ private:
 
         string error = "STUI layout document parsing error:\n\t" + err
 			+ "\n\tat character " + to_string(off) + " (ln " + to_string(ln + 1) + ", col " + to_string(col + 1) + ")"
-			+ "\n\t-> '..." + extract + "..."\
+			+ "\n\t-> '..." + extract + "...'"\
 			+ "\n\t" + string(7 + ((int32_t)off - extract_start), ' ') + "^"\
 			+ "\n\tterminating parsing.";
 

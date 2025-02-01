@@ -1014,6 +1014,7 @@ private:
         }
         size_t col = off - last;
         if (ln > 0) col--;
+        if (col > 0 && ln > 0) ln--;
 
         string error = "STUI layout document parsing error:\n\t" + err
 			+ "\n\tat character " + to_string(off) + " (ln " + to_string(ln + 1) + ", col " + to_string(col + 1) + ")"
@@ -1105,7 +1106,7 @@ Page* LayoutReader::readPage(string file)
     }
     catch (const runtime_error& e)
     {
-        DEBUG_LOG(e.what());
+        throw runtime_error(e.what());
         return nullptr;
     }
 
@@ -1118,12 +1119,12 @@ Page* LayoutReader::readPage(string file)
 
     DEBUG_LOG("decoded " + to_string(tokens.size()) + " tokens total, pruned " + to_string(tokens.size() - pruned_tokens.size()) + " useless ones");
 
-    if (tokens.size() < 3)
+    if (pruned_tokens.size() < 3)
     {
         reportError("the LayoutScript file must contain at least one complete Component", 0, file_content);
     }
 
-    if (tokens[0].type != TokenType::TEXT)
+    if (pruned_tokens[0].type != TokenType::TEXT)
     {
         reportError("the LayoutScript file must begin with a Component definition", 0, file_content);
     }
@@ -1355,20 +1356,17 @@ vector<LayoutReader::Token> LayoutReader::tokenise(const string& content)
 
 Component* LayoutReader::parseComponent(const vector<Token>& tokens, size_t start_index, const string& original_content, Page* page)
 {
-    if (start_index >= tokens.size())
-        reportError("start token out of range", original_content.size() - 1, original_content);
-
+    if (start_index + 2 >= tokens.size())
+        reportError("incomplete component definition", tokens[start_index].start_offset, original_content);
+    
     if (tokens[start_index].type != TokenType::TEXT)
-        reportError("initial token must be a Component name", tokens[start_index].start_offset, original_content);
+        reportError("initial token must be a component name", tokens[start_index].start_offset, original_content);
 
     string component_type_name = tokens[start_index].s_value;
 
     if (builders.count(component_type_name) == 0)
-        reportError("unrecognised Component type", tokens[start_index].start_offset, original_content);
-
-    if (start_index + 2 >= tokens.size())
-        reportError("incomplete Component definition", tokens[start_index].start_offset, original_content);
-
+        reportError("unrecognised component type", tokens[start_index].start_offset, original_content);
+    
     string component_nickname = "";
     bool has_name = false;
     if (tokens[start_index + 1].type == TokenType::COLON)
@@ -1379,16 +1377,16 @@ Component* LayoutReader::parseComponent(const vector<Token>& tokens, size_t star
             has_name = true;
         }
         else
-            reportError("invalid token", tokens[start_index + 2].start_offset, original_content);
+            reportError("invalid token after component type", tokens[start_index + 2].start_offset, original_content);
     }
     
     size_t bracket_open_index = start_index + (has_name ? 3 : 1);
 
     if (bracket_open_index >= tokens.size() || tokens[bracket_open_index].type != TokenType::OPEN_ROUND)
-        reportError("Component type token name must be followed by either a bracket pair or a colon, a string name in quotes, and then a bracket pair", tokens[start_index].start_offset, original_content);
+        reportError("component type token name must be followed by either a bracket pair or a colon, a string name in quotes, and then a bracket pair", tokens[start_index].start_offset, original_content);
 
     if (bracket_open_index + 1 >= tokens.size())
-        reportError("incomplete Component definition", original_content.size() - 1, original_content);
+        reportError("incomplete component definition", tokens[start_index].start_offset, original_content);
 
     size_t bracket_close_index = findClosingBrace(tokens, bracket_open_index, original_content);
     
@@ -1454,7 +1452,7 @@ Component* LayoutReader::parseComponent(const vector<Token>& tokens, size_t star
         }
     }
     if (arg_finder_state == 1)
-        reportError("incomplete argument", tokens[bracket_close_index - 1].start_offset, original_content);
+        reportError("expected '=' following identifier", tokens[bracket_close_index - 1].start_offset, original_content);
     else if (arg_finder_state == 2)
     {
         if (current_arg_value.size() == 0)
@@ -1531,7 +1529,7 @@ BuilderArgs::Argument LayoutReader::createArgument(const vector<Token>& tokens, 
                         case COORDINATE: array_arg_type =  BuilderArgs::ArgType::COORDINATE_ARRAY; break;
                         case TEXT: array_arg_type =  BuilderArgs::ArgType::COMPONENT_ARRAY; break;
                         default:
-                            reportError("invalid token", tokens[index].start_offset, original_content);
+                            reportError("invalid first token in array", tokens[index].start_offset, original_content);
                     }
                 }
 
@@ -1659,7 +1657,7 @@ size_t LayoutReader::findClosingBrace(const vector<Token>& tokens, size_t open_i
     }
 
     if (index >= tokens.size())
-        reportError("missing closing " + string(tokens[open_index].type == TokenType::OPEN_ROUND ? "bracket" : "brace"), tokens[open_index].start_offset, original_content);
+        reportError("missing closing " + string(tokens[open_index].type == TokenType::OPEN_ROUND ? "bracket" : "curly brace"), tokens[open_index].start_offset, original_content);
 
     return index;
 }

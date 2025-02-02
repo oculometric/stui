@@ -248,6 +248,19 @@ public:
 			focusable_component_sequence[i]->focused = (i == focused_component_index);
 	}
 
+	/**
+	 * @brief sets the currently focused `Component` index. useful if you just added
+	 * a `Component` to the tree, and want to immediately pull it as focus.
+	 * 
+	 * clamped to the end of the `focusable_component_sequence` array.
+	 * 
+	 * @param index index of the `Component` to focus in the `focusable_component_sequence`
+	 */
+	inline void setFocusIndex(size_t index)
+	{
+		focused_component_index = min((int)index, (int)focusable_component_sequence.size() - 1);
+	}
+
 	inline ~Page() { }
 
 private:

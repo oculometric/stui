@@ -26,6 +26,13 @@ if you're having problems, the best way to resolve it is to follow these steps, 
 5) check the [TODO.md](TODO.md) file to see if i have a todo item relating to your problem
 6) if you're really sure you're experiencing a bug and not making a mistake, and it isn't already documented somewhere, i'd greatly appreciate you submitting an issue on the Github page for the repository (see above). this includes if you find something that isn't adequately documented
 
+> a known issue currently is that if you `#include` the base `stui.h` file with `STUI_IMPLEMENTATION` defined in one file, then in another, `#include` one of the other modules also with `STUI_IMPLEMENTATION` defined, you will get duplicate symbol linker errors. the best way to fix this without restructuring the project massively is to just ensure that you just `#include` deepest module you intend to use (for reference, `stui_extensions.h` includes `stui.h`, and `stui_script.h` includes `stui_extensions.h`) with `STUI_IMPLEMENTATION` only once. you could do this by creating a dedicated `.cpp` file and just having
+> ```
+> #define STUI_IMPLEMENTATION
+> #include <stui_script.h>
+> ```
+> and then never defining `STUI_IMPLEMENTATION` anywhere else, to ensure you have the implementations only once (avoiding linker errors).
+
 ## Walkthrough
 
 ### Getting Set Up

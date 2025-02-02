@@ -1008,7 +1008,7 @@ private:
         while (true)
         {
             size_t find = str.find('\n', extract_start);
-            if (find > off) break;
+            if (find >= off) break;
             extract_start = find + 1;
         }
         size_t find = str.find('\n', off);
@@ -1185,7 +1185,7 @@ vector<LayoutReader::Token> LayoutReader::tokenise(const string& content)
     string current_token = "";
     TokenType current_type = getType(content[0]);
     size_t start_offset = 0;
-    if (current_type != TokenType::TEXT && current_type != TokenType::COMMENT)
+    if (current_type != TokenType::TEXT && current_type != TokenType::COMMENT && current_type != TokenType::WHITESPACE && current_type != TokenType::NEWLINE)
         reportError("invalid first token", offset, content);
 
     current_type = TokenType::WHITESPACE;

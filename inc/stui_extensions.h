@@ -26,9 +26,16 @@
 //                             INCLUDES
 ///////////////////////////////////////////////////////////////////////
 
+#ifdef STUI_KEEP_DEFINES
+#define STUI_TMP_KEEP_DEFS
+#endif
+
 #define STUI_KEEP_DEFINES
 #include "stui.h"
+
+#ifndef STUI_TMP_KEEP_DEFS
 #undef STUI_KEEP_DEFINES
+#endif
 
 #include <map>
 #include <queue>
@@ -423,7 +430,9 @@ void Page::ensureIntegrity()
 		discovered_nodes.insert_or_assign(comp, 0);
 
 		vector<Component*> children = comp->getAllChildren();
-		for (Component* c : children) to_check.push(c);
+		for (Component* c : children)
+			if (c != nullptr)
+				to_check.push(c);
 	}
 
 	map<Component*, string> known_nodes;
@@ -560,6 +569,5 @@ string Page::getUniqueName(string type)
 
 #define STUI_ONLY_UNDEFS
 #include "stui.h"
-#undef STUI_ONLY_UNDEFS
 
 #endif

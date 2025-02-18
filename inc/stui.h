@@ -976,11 +976,17 @@ public:
 	{
 		if (size.y < 2 || size.x < 2) return;
 
+		string tmp_text = text;
 		last_rendered_height = size.y;
-		last_lines_of_text = (drawTextWrapped(stripNullsAndMore(text, ""), Coordinate{ 0, -scroll }, Coordinate{ size.x - 1, size.y + scroll }, output_buffer, size)).size();
-		scroll = max(0, min(scroll, max(0, last_lines_of_text - last_rendered_height)));
+		last_lines_of_text = (drawTextWrapped(stripNullsAndMore(tmp_text, ""), Coordinate{ 0, -scroll }, Coordinate{ size.x - 1, size.y + scroll }, output_buffer, size)).size();
+		int new_scroll = max(0, min(scroll, max(0, last_lines_of_text - last_rendered_height)));
+		if (new_scroll != scroll)
+		{
+			last_lines_of_text = (drawTextWrapped(stripNullsAndMore(tmp_text, ""), Coordinate{ 0, -new_scroll }, Coordinate{ size.x - 1, size.y + new_scroll }, output_buffer, size)).size();
+			scroll = new_scroll;
+		}
 		
-		output_buffer[(max(0, (int)(((float)scroll / (float)max(0, last_lines_of_text - last_rendered_height)) * (float)(last_rendered_height - 1))) * size.x) + size.x - 1] = Tixel{ '|', focused ? getHighlightedColour() : getUnfocusedColour() };
+		output_buffer[(max(0, (int)(((float)new_scroll / (float)max(0, last_lines_of_text - last_rendered_height)) * (float)(last_rendered_height - 1))) * size.x) + size.x - 1] = Tixel{ '|', focused ? getHighlightedColour() : getUnfocusedColour() };
 	}
 #endif
 	;

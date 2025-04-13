@@ -870,7 +870,7 @@ public:
 	GETMAXSIZE_STUB { return Coordinate{ -1,-1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 5, static_cast<int>(options.size()) }; }
 
-	ISFOCUSABLE_STUB { return true; }
+	ISFOCUSABLE_STUB { return enabled; }
 
 	HANDLEINPUT_STUB
 #ifdef STUI_IMPLEMENTATION
@@ -1052,8 +1052,10 @@ class Slider : public Component, public Utility
 {
 public:
 	float value;
+	float step_size;
+	bool enabled;
 
-	Slider(float _value = 0.5f) : value(_value) { }
+	Slider(float _value = 0.5f, float _step_size = 0.1f, bool _enabled = true) : value(_value), step_size(_step_size), enabled(_enabled) { }
 
 	GETTYPENAME_STUB("Slider");
 
@@ -1066,7 +1068,8 @@ public:
 		output_buffer[size.x - 1] = ']';
 		for (int x = 1; x < size.x - 1; x++)
 			output_buffer[x] = '-';
-		output_buffer[(int)round(value * (size.x - 2.0f)) + 1].colour = focused ? getHighlightedColour() : getUnfocusedColour();
+		if (enabled)
+			output_buffer[(int)round(value * (size.x - 2.0f)) + 1].colour = focused ? getHighlightedColour() : getUnfocusedColour();
 	}
 #endif
 	;
@@ -1074,15 +1077,15 @@ public:
 	GETMAXSIZE_STUB { return Coordinate{ -1,1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 5,1 }; }
 
-	ISFOCUSABLE_STUB { return true; }
+	ISFOCUSABLE_STUB { return enabled; }
 
 	HANDLEINPUT_STUB
 #ifdef STUI_IMPLEMENTATION
 	{
-		if (!focused) return false;
+		if (!focused || !enabled) return false;
 		float difference = 0.0;
-		if (input_character == Input::ArrowKeys::LEFT) difference = -0.01f;
-		if (input_character == Input::ArrowKeys::RIGHT) difference = 0.01f;
+		if (input_character == Input::ArrowKeys::LEFT) difference = -step_size;
+		if (input_character == Input::ArrowKeys::RIGHT) difference = step_size;
 		if (modifiers & Input::ControlKeys::SHIFT) difference *= 5.0f;
 		value = max(0.0f, min(value + difference, 1.0f));
 		return true;

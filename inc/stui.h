@@ -1943,6 +1943,19 @@ public:
 	static void render(Component* root_component);
 
 	/**
+	 * @brief draws a `Component` into a backbuffer. if `buffer` is `nullptr`,
+	 * then it will be allocated automatically.
+	 * 
+	 * behaves similarly to `render`.
+	 * 
+	 * @param root_component element to draw into the buffer
+	 * @param buffer_size size of the buffer being used/allocated. if a non-null
+	 * `buffer` is passed in, this MUST reflect the size of the buffer
+	 * @param buffer pointer to pre-allocated array of `Tixel`s, or `nullptr`
+	 */
+	static void renderToBuffer(Component* root_component, Coordinate buffer_size, Tixel*& buffer);
+
+	/**
 	 * @brief check for queued input, handle shortcut triggers, and send remaining
 	 * input to the specified component. order of input event is preserved.
 	 *
@@ -2519,6 +2532,24 @@ void Utility::fillColour(Tixel::ColourCommand colour, Coordinate origin, Coordin
 			buffer[x + origin.x + ((y + origin.y) * buffer_size.x)].colour = colour;
 		}
 	}
+}
+
+void Renderer::renderToBuffer(Component* root_component, Coordinate buffer_size, Tixel*& buffer)
+{
+	if (buffer == nullptr)
+	{
+		buffer = makeBuffer(buffer_size);
+	}
+
+	Coordinate root_component_size
+	{
+		getConstrainedSize(buffer_size.x, root_component->getMaxSize().x, root_component->getMinSize().x),
+		getConstrainedSize(buffer_size.y, root_component->getMaxSize().y, root_component->getMinSize().y)
+	};
+	Tixel* root_component_buffer = makeBuffer(root_component_size);
+	root_component->render(root_component_buffer, root_component_size);
+	copyBox(root_component_buffer, root_component_size, Coordinate{ 0,0 }, root_component_size, buffer, buffer_size, Coordinate{ 0,0 });
+	delete[] root_component_buffer;
 }
 
 void Renderer::render(Component* root_component)

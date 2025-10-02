@@ -1105,6 +1105,7 @@ LayoutReader::LayoutReader(vector<ComponentBuilder*(*)(void)> additional_builder
     copy.push_back(builder<VerticalDividerBuilder>);
     copy.push_back(builder<HorizontalDividerBuilder>);
     copy.push_back(builder<QRCodeViewBuilder>);
+    copy.push_back(builder<TabContainerBuilder>);
 
     for (auto ptr : copy)
         registerBuilder(ptr());

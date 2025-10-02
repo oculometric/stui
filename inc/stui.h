@@ -34,6 +34,8 @@
 #define	ISFOCUSABLE_STUB virtual inline bool isFocusable() override
 #define GETTYPENAME_STUB(n) virtual inline string getTypeName() override { return n; }
 #define GETALLCHILDREN_STUB virtual inline vector<Component*> getAllChildren() override
+#define SETENABLEDRECURSIVE virtual inline void setEnabled(bool _enabled) override { enabled = _enabled; for (Component* c : getAllChildren()) c->setEnabled(_enabled); }
+#define SETENABLED_STUB virtual inline void setEnabled(bool _enabled) override
 
 #define OUTPUT_TARGET cout
 
@@ -622,8 +624,12 @@ protected:
 #pragma pack(8)
 class Component
 {
+protected:
+	bool enabled = true;
 public:
 	bool focused = false;
+
+	inline Component(bool _enabled = true) : enabled(_enabled) { }
 
 	/**
 	 * @brief draws the `Component` into a `Tixel` buffer, with a specified size.
@@ -697,6 +703,8 @@ public:
 	 */
 	virtual inline vector<Component*> getAllChildren() { return { }; }
 
+	virtual inline void setEnabled(bool _enabled) { enabled = _enabled; }
+
 	virtual inline ~Component() { }
 };
 #pragma pack(pop)
@@ -747,9 +755,8 @@ class Button : public Component, public Utility
 public:
 	string text;
 	void (*callback)();
-	bool enabled;
 
-	Button(string _text = "Button", void (*_callback)() = nullptr, bool _enabled = true) : text(_text), callback(_callback), enabled(_enabled) { }
+	Button(string _text = "Button", void (*_callback)() = nullptr, bool _enabled = true) : Component(_enabled), text(_text), callback(_callback) { }
 
 	GETTYPENAME_STUB("Button");
 
@@ -792,9 +799,8 @@ class RadioButton : public Component, public Utility
 public:
 	vector<string> options;
 	int selected_index;
-	bool enabled;
 
-	RadioButton(vector<string> _options = { }, int _selected_index = 0, bool _enabled = true) : options(_options), selected_index(_selected_index), enabled(_enabled) { }
+	RadioButton(vector<string> _options = { }, int _selected_index = 0, bool _enabled = true) : Component(_enabled), options(_options), selected_index(_selected_index) { }
 
 	GETTYPENAME_STUB("RadioButton");
 
@@ -846,9 +852,8 @@ class ToggleButton : public Component, public Utility
 
 public:
 	vector<pair<string, bool>> options;
-	bool enabled;
 
-	ToggleButton(vector<pair<string, bool>> _options = { }, bool _enabled = true) : options(_options), enabled(_enabled) { }
+	ToggleButton(vector<pair<string, bool>> _options = { }, bool _enabled = true) : Component(_enabled), options(_options) { }
 
 	GETTYPENAME_STUB("ToggleButton");
 
@@ -900,9 +905,8 @@ class TextInputBox : public Component, public Utility
 public:
 	string text;
 	void (*callback)();
-	bool enabled;
 
-	TextInputBox(string _text = "", void (*_callback)() = nullptr, bool _enabled = true) : text(_text), callback(_callback), enabled(_enabled) { }
+	TextInputBox(string _text = "", void (*_callback)() = nullptr, bool _enabled = true) : Component(_enabled), text(_text), callback(_callback) { }
 
 	GETTYPENAME_STUB("TextInputBox");
 
@@ -968,9 +972,8 @@ class TextArea : public Component, public Utility
 public:
 	string text;
 	int scroll;
-	bool enabled;
 
-	TextArea(string _text = "", int _scroll = 0, bool _enabled = true) : text(_text), scroll(_scroll), enabled(_enabled) { }
+	TextArea(string _text = "", int _scroll = 0, bool _enabled = true) : Component(_enabled), text(_text), scroll(_scroll) { }
 
 	GETTYPENAME_STUB("TextArea");
 
@@ -1059,9 +1062,8 @@ class Slider : public Component, public Utility
 public:
 	float value;
 	float step_size;
-	bool enabled;
 
-	Slider(float _value = 0.5f, float _step_size = 0.1f, bool _enabled = true) : value(_value), step_size(_step_size), enabled(_enabled) { }
+	Slider(float _value = 0.5f, float _step_size = 0.1f, bool _enabled = true) : Component(_enabled), value(_value), step_size(_step_size) { }
 
 	GETTYPENAME_STUB("Slider");
 
@@ -1238,6 +1240,7 @@ public:
 	}
 
 	GETALLCHILDREN_STUB { return children; }
+	SETENABLEDRECURSIVE;
 };
 
 /**
@@ -1342,6 +1345,7 @@ public:
 	}
 
 	GETALLCHILDREN_STUB { return children; }
+	SETENABLEDRECURSIVE;
 };
 
 /**
@@ -1422,6 +1426,7 @@ public:
 	GETMINSIZE_STUB { return (child == nullptr) ? Coordinate{ 2,2 } : Coordinate{ child->getMinSize().x + 2, child->getMinSize().y + 2 }; }
 
 	GETALLCHILDREN_STUB { return { child }; }
+	SETENABLEDRECURSIVE;
 };
 
 /**
@@ -1439,10 +1444,9 @@ public:
 	int selected_index;
 	int show_numbers; // may be 0 for no numbers, 1 for zero-indexed, 2 for 1-indexed
 	void (*callback)();
-	bool enabled;
 
 	ListView(vector<string> _elements = { }, int _scroll = 0, int _selected_index = 0, int _show_numbers = 1, void (*_callback)() = nullptr, bool _enabled = true)
-		: elements(_elements), scroll(_scroll), selected_index(_selected_index), show_numbers(_show_numbers), callback(_callback), enabled(_enabled) { }
+		: Component(_enabled), elements(_elements), scroll(_scroll), selected_index(_selected_index), show_numbers(_show_numbers), callback(_callback) { }
 
 	GETTYPENAME_STUB("ListView");
 
@@ -1537,9 +1541,9 @@ public:
 	Node* root;
 	size_t scroll;
 	size_t selected_index = 0;
-	bool enabled;
 
-	TreeView(Node* _root = nullptr, size_t _scroll = 0, size_t _selected_index = 0, bool _enabled = true) : root(_root), scroll(_scroll), selected_index(_selected_index), enabled(_enabled) { }
+	TreeView(Node* _root = nullptr, size_t _scroll = 0, size_t _selected_index = 0, bool _enabled = true)
+		: Component(_enabled), root(_root), scroll(_scroll), selected_index(_selected_index) { }
 
 	GETTYPENAME_STUB("TreeView");
 
@@ -1811,6 +1815,7 @@ public:
 	}
 
 	GETALLCHILDREN_STUB { return { child }; }
+	SETENABLEDRECURSIVE;
 };
 
 /**

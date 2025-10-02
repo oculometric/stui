@@ -383,10 +383,9 @@ public:
 	bool show_numbers;
 	vector<string> tab_titles;
 	void (*callback)(int, int);
-	bool enabled;
 
 	TabContainer(vector<Component*> _children = { }, int _current_tab = 0, bool _show_titles = true, bool _show_numbers = false, vector<string> _tab_titles = { }, void (*_callback)(int, int) = nullptr, bool _enabled = true)
-		: children(_children), current_tab(_current_tab), show_titles(_show_titles), show_numbers(_show_numbers), tab_titles(_tab_titles), callback(_callback), enabled(_enabled) { }
+		: Component(_enabled), children(_children), current_tab(_current_tab), show_titles(_show_titles), show_numbers(_show_numbers), tab_titles(_tab_titles), callback(_callback) { }
 
 	GETTYPENAME_STUB("TabContainer");
 
@@ -469,31 +468,39 @@ public:
 	{
 		if (!enabled)
 			return false;
+
+		int old_tab = current_tab;
 			
 		if (input_character == Input::ArrowKeys::RIGHT && current_tab < static_cast<int>(children.size()) - 1)
-		{
 			current_tab++;
+		else if (input_character == Input::ArrowKeys::LEFT && current_tab > 0)
+			current_tab--;
+		else return false;
+
+		if (old_tab != current_tab)
+		{
+			children[old_tab]->setEnabled(false);
+			children[current_tab]->setEnabled(enabled);
 
 			if (callback != nullptr)
-				callback(current_tab - 1, current_tab);
+				callback(old_tab, current_tab);
 		}
-		else if (input_character == Input::ArrowKeys::LEFT && current_tab > 0)
-		{
-			current_tab--;
-			
-			if (callback != nullptr)
-				callback(current_tab + 1, current_tab);
-		}
-		else return false;
 
 		return true;
 	}
 #endif
 	;
 
-	GETALLCHILDREN_STUB
+	GETALLCHILDREN_STUB { return children; }
+	SETENABLED_STUB
 	{
-		return children;
+		enabled = _enabled;
+		int i = 0;
+		for (Component* c : getAllChildren())
+		{
+			c->setEnabled(_enabled && (i == current_tab));
+			i++;
+		}
 	}
 };
 

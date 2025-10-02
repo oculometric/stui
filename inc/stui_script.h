@@ -252,10 +252,10 @@ protected:
 #ifdef STUI_IMPLEMENTATION
     {
         Button* c = new Button();
-        constructor.copy("text", c->text);
         int enabled = true;
         constructor.copy("enabled", enabled);
-        c->enabled = enabled;
+        c->setEnabled(enabled);
+        constructor.copy("text", c->text);
         return c;
     }
 #endif
@@ -271,10 +271,10 @@ protected:
 #ifdef STUI_IMPLEMENTATION
     {
         RadioButton* c = new RadioButton();
-        constructor.copy("options", c->options);
         int enabled = true;
         constructor.copy("enabled", enabled);
-        c->enabled = enabled;
+        c->setEnabled(enabled);
+        constructor.copy("options", c->options);
         constructor.copy("selected_index", c->selected_index);
         return c;
     }
@@ -291,12 +291,12 @@ protected:
 #ifdef STUI_IMPLEMENTATION
     {
         ToggleButton* c = new ToggleButton();
+        int enabled = true;
+        constructor.copy("enabled", enabled);
+        c->setEnabled(enabled);
         vector<string> options;
         constructor.copy("options", options);
         for (string op : options) c->options.push_back(pair<string, bool>(op, false));
-        int enabled = true;
-        constructor.copy("enabled", enabled);
-        c->enabled = enabled;
         return c;
     }
 #endif
@@ -312,10 +312,10 @@ protected:
 #ifdef STUI_IMPLEMENTATION
     {
         TextInputBox* c = new TextInputBox();
-        constructor.copy("text", c->text);
         int enabled = true;
         constructor.copy("enabled", enabled);
-        c->enabled = enabled;
+        c->setEnabled(enabled);
+        constructor.copy("text", c->text);
         return c;
     }
 #endif
@@ -331,11 +331,11 @@ protected:
 #ifdef STUI_IMPLEMENTATION
     {
         TextArea* c = new TextArea();
-        constructor.copy("text", c->text);
-        constructor.copy("scroll", c->scroll);
         int enabled = true;
         constructor.copy("enabled", enabled);
-        c->enabled = enabled;
+        c->setEnabled(enabled);
+        constructor.copy("text", c->text);
+        constructor.copy("scroll", c->scroll);
         return c;
     }
 #endif
@@ -367,11 +367,11 @@ protected:
 #ifdef STUI_IMPLEMENTATION
     {
         Slider* c = new Slider();
-        constructor.copy("value", c->value);
-        constructor.copy("step_size", c->step_size);
         int enabled = true;
         constructor.copy("enabled", enabled);
-        c->enabled = enabled;
+        c->setEnabled(enabled);
+        constructor.copy("value", c->value);
+        constructor.copy("step_size", c->step_size);
         return c;
     }
 #endif
@@ -487,13 +487,13 @@ protected:
 #ifdef STUI_IMPLEMENTATION
     {
         ListView* c = new ListView();
+        int enabled = true;
+        constructor.copy("enabled", enabled);
+        c->setEnabled(enabled);
         constructor.copy("elements", c->elements);
         constructor.copy("scroll", c->scroll);
         constructor.copy("selected_index", c->selected_index);
         constructor.copy("show_numbers", c->show_numbers);
-        int enabled = true;
-        constructor.copy("enabled", enabled);
-        c->enabled = enabled;
         return c;
     }
 #endif
@@ -509,15 +509,15 @@ protected:
 #ifdef STUI_IMPLEMENTATION
     {
         TreeView* c = new TreeView();
+        int enabled = true;
+        constructor.copy("enabled", enabled);
+        c->setEnabled(enabled);
         int scroll = 0;
         constructor.copy("scroll", scroll);
         c->scroll = (size_t)scroll;
         int selected_index = 0;
         constructor.copy("selected_index", selected_index);
         c->selected_index = (size_t)selected_index;
-        int enabled = true;
-        constructor.copy("enabled", enabled);
-        c->enabled = enabled;
         return c;
     }
 #endif
@@ -645,6 +645,9 @@ protected:
 #ifdef STUI_IMPLEMENTATION
     {
         TabContainer* c = new TabContainer();
+        int enabled = true;
+        constructor.copy("enabled", enabled);
+        c->setEnabled(enabled);
         constructor.copy("children", c->children);
         constructor.copy("current_tab", c->current_tab);
         int show_titles = 1;
@@ -654,9 +657,6 @@ protected:
         constructor.copy("show_numbers", show_numbers);
         c->show_numbers = show_numbers > 0;
         constructor.copy("tab_titles", c->tab_titles);
-        int enabled = true;
-        constructor.copy("enabled", enabled);
-        c->enabled = enabled;
         return c;
     }
 #endif

@@ -62,7 +62,7 @@ now, if you want to receive input from the user, you need to also override `Comp
 // ...
 ```
 
-finally, if your `CustomComponent` has child `Component`s that it draws, you should implement `Component::getAllChildren` and return a list of pointers to those children. this also has a corresponding macro
+finally, if your `CustomComponent` has child `Component`s that it draws, you should implement `Component::getAllChildren` and return a list of pointers to those children. this also has a corresponding macro. if you do this, then you should also state the `SETENABLEDRECURSIVE;` macro, as this will allow child `Component`s to be recursively enabled and disabled. you can also use the related stub macro to do your own behaviour.
 
 and you're done! if you want to see how to do more specific things, take a look through the [stui.h](stui.h) header file and see how it's done there. or submit an issue on Github asking for clarification/documentation.
 

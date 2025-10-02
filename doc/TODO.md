@@ -1,6 +1,5 @@
 # To-Dos
 
-- [ ] add a component-standard 'setEnabled' function which can be overriden?
 - [ ] reorganise files somewhat?
 - [ ] overhaul how focussing and input work (nested focus tree with bottom up input testing?)
 - [ ] fix actual_offset in tree view
@@ -13,6 +12,7 @@
 - [x] document each component type
 - [x] shortcut functions should return true if the input was consumed, false otherwise
 - [x] implement actual tab panel
+- [x] add a component-standard 'setEnabled' function which can be overriden?
 
 # Completed v0.4
 - [x] better handling of object deletion within pages

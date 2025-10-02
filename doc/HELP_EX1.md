@@ -162,7 +162,7 @@ void textBoxCallback()
 bool ctrlSCallback()
 {
     text_widget.text = "gah! you have killed me. i suppose you can now enter my secret lair";
-    text_field.enabled = false;
+    text_field.setEnabled(false);
 
     return true;
 }

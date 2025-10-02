@@ -120,7 +120,7 @@ Hello, World!
 
 try typing in some text! you should see it appear in the box.
 
-### Shortcuts and Callbacks
+### Callbacks and Shortcuts
 
 while the library is primarily immediate-mode, callbacks just make life easier. some widgets implement these, like the `TextInputBox` for instance. in the constructor we included a `nullptr` argument, which we can swap out for a pointer `void`-returning function which will be called when the user presses enter with the box focused:
 ```
@@ -159,10 +159,12 @@ void textBoxCallback()
         text_widget.text = "password incorrect! you are forbidden from entering";
 }
 
-void ctrlSCallback()
+bool ctrlSCallback()
 {
     text_widget.text = "gah! you have killed me. i suppose you can now enter my secret lair";
     text_field.enabled = false;
+
+    return true;
 }
 
 int main()
@@ -189,7 +191,9 @@ int main()
 }
 ```
 
-you may also notice the change to the `handleInput` call, where i've added a `Shortcut` which links CTRL+S to a callback function. shortcuts always consume the input that meets their requirements (so if you hit CTRL+S, you won't see an S appear in the text box). as you'll see when you test this program, you can either enter the password correctly, enter some random gibberish, or hit CTRL+S to uhhh... bypass the guard i guess.
+you may also notice the change to the `handleInput` call, where i've added a `Shortcut` which links CTRL+S to a callback function. shortcuts may consume the input that meets their requirements, and this is reported by the returned value: true if the input was consumed, false if not (so if you hit CTRL+S, you won't see an S appear in the text box because our shortcut function always returns true). as you'll see when you test this program, you can either enter the password correctly, enter some random gibberish, or hit CTRL+S to uhhh... bypass the guard i guess. the ability to reject the input is useful for building custom functionality on top of existing components, like a shortcut which only operates when you have a certain widget focused for instance.
+
+shortcuts are always processed **before** the remaining input (not consumed by shortcuts) gets passed to the focused widget.
 
 **important note regarding shortcuts** - since we're working inside the terminal, there are a few limitations we have to consider. while ALT shortcuts work for *most* keys, they are not present for all of them. CTRL shortcuts are only present for A-Z, space, and forward slash (for whatever reason), excluding CTRL+H, CTRL+I, and CTRL+J which generate control codes which overlap with other characters. SHIFT shortcuts are present for most keys, though not space, and some which involve SHIFT+number key may not work properly on all keyboards. CTRL, SHIFT, and ALT are all mutually exclusive, you cannot mix-and-match them. special keys like DEL and ESC are mostly handled correctly. terminal-based input has a lot of limitations, especially on Linux terminals without Windows' surprisingly helpful API. i can only apologise for this. if you discover an issue with this or the input system in general, feel free to submit a Github issue.
 

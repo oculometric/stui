@@ -50,9 +50,11 @@ Page dialog_page;
 
 bool continue_dialog_rendering = false;
 
-void cancelDialog()
+bool cancelDialog()
 {
     continue_dialog_rendering = false;
+
+    return true;
 }
 
 void endAddInputFile()
@@ -64,7 +66,7 @@ void endAddInputFile()
     }
 }
 
-void addInputFileCallback()
+bool addInputFileCallback()
 {
     add_file.text = "";
     add_file.callback = endAddInputFile;
@@ -78,14 +80,18 @@ void addInputFileCallback()
         dialog_page.checkInput();
         dialog_page.render();
     }
+
+    return true;
 }
 
-void removeInputFileCallback()
+bool removeInputFileCallback()
 {
-    if (selected_input_files.elements.size() == 0) return;
+    if (selected_input_files.elements.size() == 0) return false;
     for (size_t i = selected_input_files.selected_index; i < selected_input_files.elements.size() - 1; i--)
         selected_input_files.elements[i] = selected_input_files.elements[i + 1];
     selected_input_files.elements.pop_back();
+
+    return true;
 }
 
 void endAddIncludeDir()
@@ -97,7 +103,7 @@ void endAddIncludeDir()
     }
 }
 
-void addIncludeDirCallback()
+bool addIncludeDirCallback()
 {
     add_file.text = "";
     add_file.callback = endAddIncludeDir;
@@ -111,14 +117,18 @@ void addIncludeDirCallback()
         dialog_page.checkInput();
         dialog_page.render();
     }
+
+    return true;
 }
 
-void removeIncludeDirCallback()
+bool removeIncludeDirCallback()
 {
-    if (include_dirs.elements.size() == 0) return;
+    if (include_dirs.elements.size() == 0) return false;
     for (size_t i = include_dirs.selected_index; i < include_dirs.elements.size() - 1; i--)
         include_dirs.elements[i] = include_dirs.elements[i + 1];
     include_dirs.elements.pop_back();
+
+    return true;
 }
 
 bool command_running = false;
@@ -142,7 +152,7 @@ void commandThread(string cmd)
     command_running = false;
 }
 
-void compileCallback()
+bool compileCallback()
 {
     string cmd = compiler_selection.options[compiler_selection.selected_index];
 
@@ -180,6 +190,8 @@ void compileCallback()
 
     command_output.text = "output: " + command_output_text + "\ndone.";
     main_page.render();
+
+    return true;
 }
 
 void updateShortcutsFromFocus()

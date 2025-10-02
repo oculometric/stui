@@ -23,10 +23,12 @@ void textBoxCallback()
         text_widget.text = "password incorrect! you are forbidden from entering";
 }
 
-void ctrlSCallback()
+bool ctrlSCallback()
 {
     text_widget.text = "gah! you have killed me. i suppose you can now enter my secret lair";
     text_field.enabled = false;
+
+    return true;
 }
 
 int main()

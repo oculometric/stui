@@ -261,4 +261,4 @@ An image-like view which renders a pre-generated QR code into the terminal.
 | bool array    | data                  | nullptr       |
 | QRVersion     | version               | 11            |
 
-Unfortunately you have to generate your own QR codes still. Neither parameter may be initialised in LayoutScript.
+Unfortunately you have to generate your own QR codes still. Neither parameter may be initialised in LayoutScript. This component is part of the `stui_extensions.h` file.

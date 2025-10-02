@@ -279,7 +279,7 @@ private:
 	 * acts on the currently active page, which is set automatically by whichever
 	 * page is currently consuming input/rendering.
 	 */
-	static void advanceFocus();
+	static bool advanceFocus();
 
 	/**
 	 * @brief check if a name already exsists in the registry or not.
@@ -524,11 +524,11 @@ vector<Component*> Page::destroyAllComponents(vector<string> exclude_list)
 	return remainders;
 }
 
-void Page::advanceFocus()
+bool Page::advanceFocus()
 {
-	if (current_page == nullptr) return;
+	if (current_page == nullptr) return false;
 
-	if (current_page->focusable_component_sequence.empty()) return;
+	if (current_page->focusable_component_sequence.empty()) return false;
 
 	current_page->focused_component_index %= current_page->focusable_component_sequence.size();
 
@@ -549,6 +549,8 @@ void Page::advanceFocus()
 	if (!was_any_focusable) current_page->focused_component_index = (size_t)-1;
 
 	current_page->updateFocus();
+
+	return true;
 }
 
 string Page::getUniqueName(string type)

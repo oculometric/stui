@@ -337,12 +337,14 @@ public:
 	#pragma pack(4)
 	/**
 	 * @brief describes a shortcut linking a desired key-bind to a function that should
-	 * be called when the binding is triggered.
+	 * be called when the binding is triggered. the function should return true if the
+	 * input should be considered 'consumed', otherwise false. consumed input will not
+	 * be passed to the focused component.
 	 */
 	struct Shortcut
 	{
 		Input::Key binding;
-		void (*callback)();
+		bool (*callback)();
 	};
 	#pragma pack(pop)
 
@@ -396,8 +398,8 @@ private:
 	 * @brief iterate through a list of key events and handle any shortcuts which
 	 * are found within it. 
 	 * 
-	 * when a shortcut instance is found, that key event is consumed and removed
-	 * from the input list.
+	 * when a shortcut instance is found and the callback returns true, that key
+	 * event is consumed and removed from the input list.
 	 * 
 	 * @param shortcuts list of keyboard shortcut bindings
 	 * @param key_events list of key events to check
@@ -2260,9 +2262,9 @@ void Input::processShortcuts(vector<Shortcut> shortcuts, vector<Key>& key_events
 		bool consumed = false;
 		for (Shortcut s : shortcuts)
 		{
-			if (compare(k, s.binding)) { consumed = true; s.callback(); }
+			if (compare(k, s.binding)) { consumed = s.callback(); }
 		}
-		/*if (!consumed)*/ non_processed.push_back(k);
+		if (!consumed) non_processed.push_back(k);
 	}
 
 	key_events = non_processed;

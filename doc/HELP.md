@@ -45,12 +45,14 @@ then depending on your project setup, add the `stui/inc` directory as an include
 
 you can always just skip this and use a `#include "inc/stui.h"` instead of `#include <stui.h>` if you don't wanna do that.
 
-### Examples
+### Examples and Documentation
 
 - see the [HELP_EX1.md](HELP_EX1.md) file for a great explanation of getting started using STUI.
 - see the [HELP_EX2.md](HELP_EX2.md) file for information on using the extensions.
 - see the [HELP_EX3.md](HELP_EX3.md) file for an example of using the script module.
 - see the [HELP_EX4.md](HELP_EX4.md) file for an example of writing your own custom `Component`s.
+- see the [LAYOUTSCRIPT.md](LAYOUTSCRIPT.md) file for detailed documentation of the LayoutScript module.
+- see the [COMPONENTS.md](COMPONENTS.md) file for documentation of all of the `Component` types.
 
 ### Navigating the STUI Header Files
 

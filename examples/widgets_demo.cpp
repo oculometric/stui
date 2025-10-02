@@ -4,9 +4,10 @@
 
 size_t focus_index = 1;
 
-void increment_focus()
+bool increment_focus()
 {
     focus_index = (focus_index + 1) % 5;
+    return true;
 }
 
 int main(int argc, char** argv)

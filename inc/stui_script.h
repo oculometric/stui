@@ -623,6 +623,30 @@ protected:
     ;
 };
 
+class TabContainerBuilder : public ComponentBuilder
+{
+protected:
+    inline GETNAME_STUB { return "TabContainer"; }
+
+    BUILD_STUB
+#ifdef STUI_IMPLEMENTATION
+    {
+        TabContainer* c = new TabContainer();
+        constructor.copy("children", c->children);
+        constructor.copy("current_tab", c->current_tab);
+        int show_titles = 1;
+        constructor.copy("show_titles", show_titles);
+        c->show_titles = show_titles > 0;
+        int show_numbers = 0;
+        constructor.copy("show_numbers", show_numbers);
+        c->show_numbers = show_numbers > 0;
+        constructor.copy("tab_titles", c->tab_titles);
+        return c;
+    }
+#endif
+    ;
+};
+
 template<class T>
 inline ComponentBuilder* builder()
 {

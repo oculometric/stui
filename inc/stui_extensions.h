@@ -370,6 +370,123 @@ public:
 	GETMINSIZE_STUB{ return Coordinate{ (version * 2) - 1, version }; }
 };
 
+/**
+ * @brief renders a component inside itself, with the ability to switch
+ * between multiple children.
+ */
+class TabContainer : public Component, public Utility
+{
+public:
+	vector<Component*> children;
+	int current_tab;
+	bool show_titles;
+	bool show_numbers;
+	vector<string> tab_titles;
+	void (*callback)(int, int);
+
+	TabContainer(vector<Component*> _children = { }, int _current_tab = 0, bool _show_titles = true, bool _show_numbers = false, vector<string> _tab_titles = { }, void (*_callback)(int, int) = nullptr)
+		: children(_children), current_tab(_current_tab), show_titles(_show_titles), show_numbers(_show_numbers), tab_titles(_tab_titles), callback(_callback) { }
+
+	GETTYPENAME_STUB("TabContainer");
+
+	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
+	{
+		if (children.empty())
+			return;
+
+		int old_tab = current_tab;
+		current_tab = min(max(current_tab, 0), static_cast<int>(children.size()) - 1);
+		if (old_tab != current_tab)
+			callback(old_tab, current_tab);
+
+		if (show_titles && size.y > 0)
+		{
+			string entire_tab_text;
+			int current_tab_start = 0;
+			int current_tab_size = 0;
+			for (int i = 0; i < static_cast<int>(children.size()); i++)
+			{
+				string tab_text;
+				string title = (i < static_cast<int>(tab_titles.size())) ? tab_titles[i] : "...";
+				if (show_numbers)
+					tab_text = "[ " + to_string(i + 1) + " - " + title + " ]";
+				else
+					tab_text = "[ " + title + " ]";
+				if (i == current_tab)
+				{
+					current_tab_start = entire_tab_text.size();
+					current_tab_size = tab_text.size();
+				}
+
+				entire_tab_text += tab_text + ' ';
+			}
+			int offset = 0;
+			if (current_tab_start + current_tab_size > size.x)
+				offset = (current_tab_start + current_tab_size) - size.x;
+			drawText(entire_tab_text, Coordinate{ -offset,0 }, Coordinate{ size.x + offset, 1 }, output_buffer, size);
+			fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ current_tab_start - offset,0 }, Coordinate{ current_tab_size,1 }, output_buffer, size);
+		}
+		if (show_titles && size.y < 2)
+			return;
+		if (!show_titles && size.y < 1)
+			return;
+		if (children[current_tab] == nullptr)
+			return;
+		
+		Coordinate component_size{ size.x, size.y - 1 };
+		Tixel* component_buffer = makeBuffer(component_size);
+		children[current_tab]->render(component_buffer, component_size);
+		copyBox(component_buffer, component_size, Coordinate{ 0,0 }, component_size, output_buffer, size, Coordinate{ 0,1 });
+		delete[] component_buffer;
+	}
+#endif
+	;
+
+	GETMAXSIZE_STUB{ return Coordinate{ -1, -1 }; }
+	GETMINSIZE_STUB
+	{
+		Coordinate min_size{ 0,0 };
+		for (Component* child : children)
+		{
+			Coordinate c_min = child->getMinSize();
+			if (c_min.x > min_size.x)
+				min_size.x = c_min.x;
+			if (c_min.y > min_size.y)
+				min_size.y = c_min.y;
+		}
+		if (show_titles)
+			min_size.y += 1;
+
+		return min_size;
+	}
+
+	ISFOCUSABLE_STUB { return true; }
+
+	HANDLEINPUT_STUB
+#ifdef STUI_IMPLEMENTATION
+	{
+		if (input_character == Input::ArrowKeys::RIGHT && current_tab < static_cast<int>(children.size()) - 1)
+		{
+			current_tab++;
+
+			if (callback != nullptr)
+				callback(current_tab - 1, current_tab);
+		}
+		else if (input_character == Input::ArrowKeys::LEFT && current_tab > 0)
+		{
+			current_tab--;
+			
+			if (callback != nullptr)
+				callback(current_tab + 1, current_tab);
+		}
+		else return false;
+
+		return true;
+	}
+#endif
+	;
+};
 
 #pragma endregion STUI_COMPONENTS
 

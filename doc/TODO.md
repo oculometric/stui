@@ -2,7 +2,6 @@
 
 - [ ] shortcut functions should return true if the input was consumed, false otherwise
 - [ ] implement actual tab panel
-- [ ] document each component type
 - [ ] reorganise files somewhat?
 - [ ] overhaul how focussing and input work (nested focus tree with bottom up input testing?)
 - [ ] fix actual_offset in tree view
@@ -12,6 +11,7 @@
 # Completed v0.5
 - [x] add 'enter' event to listview
 - [x] allow toggling of listview numbering
+- [x] document each component type
 
 # Completed v0.4
 - [x] better handling of object deletion within pages

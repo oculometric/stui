@@ -1,7 +1,6 @@
 # To-Dos
 
 - [ ] shortcut functions should return true if the input was consumed, false otherwise
-- [ ] allow toggling of listview numbering
 - [ ] implement actual tab panel
 - [ ] document each component type
 - [ ] reorganise files somewhat?
@@ -12,6 +11,7 @@
 
 # Completed v0.5
 - [x] add 'enter' event to listview
+- [x] allow toggling of listview numbering
 
 # Completed v0.4
 - [x] better handling of object deletion within pages

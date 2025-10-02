@@ -483,6 +483,7 @@ protected:
         constructor.copy("elements", c->elements);
         constructor.copy("scroll", c->scroll);
         constructor.copy("selected_index", c->selected_index);
+        constructor.copy("show_numbers", c->show_numbers);
         return c;
     }
 #endif

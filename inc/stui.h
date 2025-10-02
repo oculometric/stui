@@ -1431,9 +1431,11 @@ public:
 	vector<string> elements;
 	int scroll;
 	int selected_index;
+	int show_numbers; // may be 0 for no numbers, 1 for zero-indexed, 2 for 1-indexed
 	void (*callback)();
 
-	ListView(vector<string> _elements = { }, int _scroll = 0, int _selected_index = 0, void (*_callback)() = nullptr) : elements(_elements), scroll(_scroll), selected_index(_selected_index), callback(_callback) { }
+	ListView(vector<string> _elements = { }, int _scroll = 0, int _selected_index = 0, int _show_numbers = 1, void (*_callback)() = nullptr)
+		: elements(_elements), scroll(_scroll), selected_index(_selected_index), show_numbers(_show_numbers), callback(_callback) { }
 
 	GETTYPENAME_STUB("ListView");
 
@@ -1457,7 +1459,11 @@ public:
 			else
 			{
 				drawText(stripNullsAndMore(element, "\n\t"), Coordinate{ 0, row }, Coordinate{ size.x, 1 }, output_buffer, size);
-				string index_str = " (" + to_string(index) + ")";
+				string index_str;
+				if (show_numbers == 0)
+					index_str = "";
+				else
+					index_str = " (" + to_string(index + show_numbers - 1) + ")";
 				drawText(index_str, Coordinate{ size.x - static_cast<int>(index_str.length()), row }, Coordinate{ size.x, 1 }, output_buffer, size);
 			}
 		}

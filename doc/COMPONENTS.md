@@ -11,8 +11,8 @@
 | [Progress Bar](#progressbar)              | [Horizontal Divider](#horizontaldivider)  |
 | [Slider](#slider)                         | [Size Limiter](#sizelimiter)              |
 | [Spinner](#spinner)                       | [Tab Display](#tabdisplay)                |
-| [List View](#listview)                    | [Banner](#banner)                         |
-| [Tree View](#treeview)                    |
+| [List View](#listview)                    | [Tab Container](#tabcontainer)            |
+| [Tree View](#treeview)                    | [Banner](#banner)                         |
 | [Image View](#imageview)                  |
 | [QR Code View](#qrcodeview)               |
 
@@ -84,8 +84,9 @@ A muilti-line text box.
 |---------------|---------------|-----------|
 | string        | text          | ""        |
 | int           | scroll        | 0         |
+| bool          | enabled       | true      |
 
-Wraps text horizontally (though is not aware of spaces), and supports vertical scrolling via arrow keys. Does not support editing.
+Only receives input if `enabled` is set to true. Wraps text horizontally (though is not aware of spaces), and supports vertical scrolling via arrow keys. Does not support editing.
 
 
 ## ProgressBar
@@ -182,8 +183,9 @@ A scrollable view showing a list of text items.
 | int               | selected_index    | 0         |
 | int               | show_numbers      | 1         |
 | void* ()          | callback          | nullptr   |
+| bool              | enabled           | true      |
 
-The arrow keys can be used to navigate between items; `selected_index` represents which item is currently highlighted. When enter/spacebar is pressed, `callback` will be fired, unless `callback` is `nullptr`. `callback` cannot be initialised in LayoutScript. `show_numbers` controls whether the index of each item is shown beside it; accepted values are 0 (no numbers), 1 (zero-based indices), 2 (one-based indices), etc.
+Only receives input if `enabled` is set to true. The arrow keys can be used to navigate between items; `selected_index` represents which item is currently highlighted. When enter/spacebar is pressed, `callback` will be fired, unless `callback` is `nullptr`. `callback` cannot be initialised in LayoutScript. `show_numbers` controls whether the index of each item is shown beside it; accepted values are 0 (no numbers), 1 (zero-based indices), 2 (one-based indices), etc.
 
 
 ## TreeView
@@ -194,8 +196,9 @@ A scrollable, expandable view showing a tree of text items.
 | TreeView::Node*   | root              | nullptr   |
 | size_t            | scroll            | 0         |
 | size_t            | selected_index    | 0         |
+| bool              | enabled           | true      |
 
-The arrow keys can be used to navigate between and expand/collapse items. `root` may not be initialised in LayoutScript.
+Only receives input if `enabled` is set to true. The arrow keys can be used to navigate between and expand/collapse items. `root` may not be initialised in LayoutScript.
 
 
 ## ImageView
@@ -267,13 +270,14 @@ Unfortunately you have to generate your own QR codes still. Neither parameter ma
 ## TabContainer
 A multi-child container, but which only shows one at a time.
 
-| type              | identifier            | default       |
-|-------------------|-----------------------|---------------|
-| Component array   | children              | { }           |
-| int               | current_tab           | 0             |
-| bool              | show_titles           | true          |
-| bool              | show_numbers          | false         |
-| string array      | tab_titles            | { }           |
-| void* (int, int)  | callback              | nullptr       |
+| type              | identifier        | default       |
+|-------------------|-------------------|---------------|
+| Component array   | children          | { }           |
+| int               | current_tab       | 0             |
+| bool              | show_titles       | true          |
+| bool              | show_numbers      | false         |
+| string array      | tab_titles        | { }           |
+| void* (int, int)  | callback          | nullptr       |
+| bool              | enabled           | true          |
 
-Allows navigation between child tabs using the arrow keys. When the current tab changes `callback` is called (if it is not `nullptr`), where the first argument is the previously visible tab, and the second is the newly visible tab (this gives you a chance to remove some components from the focusable component sequence, or to set them to be disabled). `show_titles` controls whether the tab bar (with titles for each and an indicator of which tab is currently visible) above the actual tab view is shown, while `show_numbers` toggles whether 1-indexed numbers are shown next to each tab title. The tab bar will scroll itself as necessary if the title for the currently visible tab is off the screen. The tab container will always request as much space as possible; its minimum size is calculated from the largest dimensions between its children (i.e. all of its children will always be able to fit). `callback` may not be initialised in LayoutScript. `tab_titles` should be the same length as `children`; if the former is shorter '...' will be used as the missing tab name. This component is part of the `stui_extensions.h` file.
+Only receives input if `enabled` is set to true. Allows navigation between child tabs using the arrow keys. When the current tab changes `callback` is called (if it is not `nullptr`), where the first argument is the previously visible tab, and the second is the newly visible tab (this gives you a chance to remove some components from the focusable component sequence, or to set them to be disabled). `show_titles` controls whether the tab bar (with titles for each and an indicator of which tab is currently visible) above the actual tab view is shown, while `show_numbers` toggles whether 1-indexed numbers are shown next to each tab title. The tab bar will scroll itself as necessary if the title for the currently visible tab is off the screen. The tab container will always request as much space as possible; its minimum size is calculated from the largest dimensions between its children (i.e. all of its children will always be able to fit). `callback` may not be initialised in LayoutScript. `tab_titles` should be the same length as `children`; if the former is shorter '...' will be used as the missing tab name. This component is part of the `stui_extensions.h` file.

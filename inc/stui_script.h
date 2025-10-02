@@ -333,6 +333,9 @@ protected:
         TextArea* c = new TextArea();
         constructor.copy("text", c->text);
         constructor.copy("scroll", c->scroll);
+        int enabled = true;
+        constructor.copy("enabled", enabled);
+        c->enabled = enabled;
         return c;
     }
 #endif
@@ -365,6 +368,10 @@ protected:
     {
         Slider* c = new Slider();
         constructor.copy("value", c->value);
+        constructor.copy("step_size", c->step_size);
+        int enabled = true;
+        constructor.copy("enabled", enabled);
+        c->enabled = enabled;
         return c;
     }
 #endif
@@ -484,6 +491,9 @@ protected:
         constructor.copy("scroll", c->scroll);
         constructor.copy("selected_index", c->selected_index);
         constructor.copy("show_numbers", c->show_numbers);
+        int enabled = true;
+        constructor.copy("enabled", enabled);
+        c->enabled = enabled;
         return c;
     }
 #endif
@@ -505,6 +515,9 @@ protected:
         int selected_index = 0;
         constructor.copy("selected_index", selected_index);
         c->selected_index = (size_t)selected_index;
+        int enabled = true;
+        constructor.copy("enabled", enabled);
+        c->enabled = enabled;
         return c;
     }
 #endif
@@ -641,6 +654,9 @@ protected:
         constructor.copy("show_numbers", show_numbers);
         c->show_numbers = show_numbers > 0;
         constructor.copy("tab_titles", c->tab_titles);
+        int enabled = true;
+        constructor.copy("enabled", enabled);
+        c->enabled = enabled;
         return c;
     }
 #endif

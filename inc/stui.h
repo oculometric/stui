@@ -968,8 +968,9 @@ class TextArea : public Component, public Utility
 public:
 	string text;
 	int scroll;
+	bool enabled;
 
-	TextArea(string _text = "", int _scroll = 0) : text(_text), scroll(_scroll) { }
+	TextArea(string _text = "", int _scroll = 0, bool _enabled = true) : text(_text), scroll(_scroll), enabled(_enabled) { }
 
 	GETTYPENAME_STUB("TextArea");
 
@@ -988,7 +989,7 @@ public:
 			scroll = new_scroll;
 		}
 		
-		output_buffer[(max(0, (int)(((float)new_scroll / (float)max(0, last_lines_of_text - last_rendered_height)) * (float)(last_rendered_height - 1))) * size.x) + size.x - 1] = Tixel{ '|', focused ? getHighlightedColour() : getUnfocusedColour() };
+		output_buffer[(max(0, (int)(((float)new_scroll / (float)max(0, last_lines_of_text - last_rendered_height)) * (float)(last_rendered_height - 1))) * size.x) + size.x - 1] = Tixel{ '|', (focused && enabled) ? getHighlightedColour() : getUnfocusedColour() };
 	}
 #endif
 	;
@@ -996,11 +997,12 @@ public:
 	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 3, 3 }; }
 
-	ISFOCUSABLE_STUB { return true; }
+	ISFOCUSABLE_STUB { return enabled; }
 
 	HANDLEINPUT_STUB
+#ifdef STUI_IMPLEMENTATION
 	{
-		if (!focused) return false;
+		if (!focused || !enabled) return false;
 
 		if (input_character == Input::ArrowKeys::UP)
 		{
@@ -1014,6 +1016,8 @@ public:
 
 		return true;
 	}
+#endif
+	;
 };
 
 /**
@@ -1435,9 +1439,10 @@ public:
 	int selected_index;
 	int show_numbers; // may be 0 for no numbers, 1 for zero-indexed, 2 for 1-indexed
 	void (*callback)();
+	bool enabled;
 
-	ListView(vector<string> _elements = { }, int _scroll = 0, int _selected_index = 0, int _show_numbers = 1, void (*_callback)() = nullptr)
-		: elements(_elements), scroll(_scroll), selected_index(_selected_index), show_numbers(_show_numbers), callback(_callback) { }
+	ListView(vector<string> _elements = { }, int _scroll = 0, int _selected_index = 0, int _show_numbers = 1, void (*_callback)() = nullptr, bool _enabled = true)
+		: elements(_elements), scroll(_scroll), selected_index(_selected_index), show_numbers(_show_numbers), callback(_callback), enabled(_enabled) { }
 
 	GETTYPENAME_STUB("ListView");
 
@@ -1470,7 +1475,7 @@ public:
 			}
 		}
 		
-		fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0, selected_index - scroll }, Coordinate{ size.x,1 }, output_buffer, size);
+		fillColour((focused && enabled) ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0, selected_index - scroll }, Coordinate{ size.x,1 }, output_buffer, size);
 	}
 #endif
 	;
@@ -1478,11 +1483,14 @@ public:
 	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 10, 3 }; }
 
-	ISFOCUSABLE_STUB { return true; }
+	ISFOCUSABLE_STUB { return enabled; }
 
 	HANDLEINPUT_STUB
 #ifdef STUI_IMPLEMENTATION
 	{
+		if (!enabled)
+			return false;
+
 		if (input_character == Input::ArrowKeys::DOWN && selected_index < static_cast<int>(elements.size()) - 1)
 		{
 			selected_index++;
@@ -1529,8 +1537,9 @@ public:
 	Node* root;
 	size_t scroll;
 	size_t selected_index = 0;
+	bool enabled;
 
-	TreeView(Node* _root = nullptr, size_t _scroll = 0, size_t _selected_index = 0) : root(_root), scroll(_scroll), selected_index(_selected_index) { }
+	TreeView(Node* _root = nullptr, size_t _scroll = 0, size_t _selected_index = 0, bool _enabled = true) : root(_root), scroll(_scroll), selected_index(_selected_index), enabled(_enabled) { }
 
 	GETTYPENAME_STUB("TreeView");
 
@@ -1541,7 +1550,7 @@ public:
 		last_render_height = size.y;
 		if (root == nullptr)
 		{
-			fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,0, }, Coordinate{ size.x,1 }, output_buffer, size);
+			fillColour((focused && enabled) ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,0, }, Coordinate{ size.x,1 }, output_buffer, size);
 			return;
 		}
 		int top = 0 - static_cast<int>(scroll);
@@ -1553,12 +1562,12 @@ public:
 	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }
 	GETMINSIZE_STUB { return Coordinate{ 10, 3 }; }
 
-	ISFOCUSABLE_STUB { return true; }
+	ISFOCUSABLE_STUB { return enabled; }
 
 	HANDLEINPUT_STUB
 #ifdef STUI_IMPLEMENTATION
 	{
-		if (!focused) return false;
+		if (!enabled) return false;
 
 		vector<Node*> parents;
 		vector<size_t> indices_within_parents;
@@ -1707,7 +1716,7 @@ private:
 				drawText(id_desc, Coordinate{ buffer_size.x - (int)id_desc.length(), top }, Coordinate{ (int)id_desc.length(), 1 }, output_buffer, buffer_size);
 			}
 			if (selected_index == node->id)
-				fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,top, }, Coordinate{ buffer_size.x,1 }, output_buffer, buffer_size);
+				fillColour((focused && enabled) ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0,top, }, Coordinate{ buffer_size.x,1 }, output_buffer, buffer_size);
 		}
 		if (node->expanded)
 		{

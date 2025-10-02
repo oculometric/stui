@@ -383,9 +383,10 @@ public:
 	bool show_numbers;
 	vector<string> tab_titles;
 	void (*callback)(int, int);
+	bool enabled;
 
-	TabContainer(vector<Component*> _children = { }, int _current_tab = 0, bool _show_titles = true, bool _show_numbers = false, vector<string> _tab_titles = { }, void (*_callback)(int, int) = nullptr)
-		: children(_children), current_tab(_current_tab), show_titles(_show_titles), show_numbers(_show_numbers), tab_titles(_tab_titles), callback(_callback) { }
+	TabContainer(vector<Component*> _children = { }, int _current_tab = 0, bool _show_titles = true, bool _show_numbers = false, vector<string> _tab_titles = { }, void (*_callback)(int, int) = nullptr, bool _enabled = true)
+		: children(_children), current_tab(_current_tab), show_titles(_show_titles), show_numbers(_show_numbers), tab_titles(_tab_titles), callback(_callback), enabled(_enabled) { }
 
 	GETTYPENAME_STUB("TabContainer");
 
@@ -425,7 +426,7 @@ public:
 			if (current_tab_start + current_tab_size > size.x)
 				offset = (current_tab_start + current_tab_size) - size.x;
 			drawText(entire_tab_text, Coordinate{ -offset,0 }, Coordinate{ size.x + offset, 1 }, output_buffer, size);
-			fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ current_tab_start - offset,0 }, Coordinate{ current_tab_size,1 }, output_buffer, size);
+			fillColour((focused && enabled) ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ current_tab_start - offset,0 }, Coordinate{ current_tab_size,1 }, output_buffer, size);
 		}
 		if (show_titles && size.y < 2)
 			return;
@@ -461,11 +462,14 @@ public:
 		return min_size;
 	}
 
-	ISFOCUSABLE_STUB { return true; }
+	ISFOCUSABLE_STUB { return enabled; }
 
 	HANDLEINPUT_STUB
 #ifdef STUI_IMPLEMENTATION
 	{
+		if (!enabled)
+			return false;
+			
 		if (input_character == Input::ArrowKeys::RIGHT && current_tab < static_cast<int>(children.size()) - 1)
 		{
 			current_tab++;
@@ -486,6 +490,11 @@ public:
 	}
 #endif
 	;
+
+	GETALLCHILDREN_STUB
+	{
+		return children;
+	}
 };
 
 #pragma endregion STUI_COMPONENTS

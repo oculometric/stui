@@ -1431,8 +1431,9 @@ public:
 	vector<string> elements;
 	int scroll;
 	int selected_index;
+	void (*callback)();
 
-	ListView(vector<string> _elements = { }, int _scroll = 0, int _selected_index = 0) : elements(_elements), scroll(_scroll), selected_index(_selected_index) { }
+	ListView(vector<string> _elements = { }, int _scroll = 0, int _selected_index = 0, void (*_callback)() = nullptr) : elements(_elements), scroll(_scroll), selected_index(_selected_index), callback(_callback) { }
 
 	GETTYPENAME_STUB("ListView");
 
@@ -1486,6 +1487,8 @@ public:
 			if (selected_index - scroll < 1 && scroll > 0)
 				scroll--;
 		}
+		else if ((input_character == '\n' || input_character == ' ') && callback != nullptr && focused)
+			callback();
 		else return false;
 
 		return true;
@@ -2253,7 +2256,7 @@ void Input::processShortcuts(vector<Shortcut> shortcuts, vector<Key>& key_events
 		{
 			if (compare(k, s.binding)) { consumed = true; s.callback(); }
 		}
-		if (!consumed) non_processed.push_back(k);
+		/*if (!consumed)*/ non_processed.push_back(k);
 	}
 
 	key_events = non_processed;

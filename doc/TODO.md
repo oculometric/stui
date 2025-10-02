@@ -1,7 +1,17 @@
 # To-Dos
 
-- [ ] add editable text area component
+- [ ] shortcut functions should return true if the input was consumed, false otherwise
+- [ ] allow toggling of listview numbering
+- [ ] implement actual tab panel
+- [ ] document each component type
+- [ ] reorganise files somewhat?
+- [ ] overhaul how focussing and input work (nested focus tree with bottom up input testing?)
 - [ ] fix actual_offset in tree view
+- [ ] add editable text area component
+- [ ] make callbacks more useful (i.e. say which button/thing they are)
+
+# Completed v0.5
+- [x] add 'enter' event to listview
 
 # Completed v0.4
 - [x] better handling of object deletion within pages

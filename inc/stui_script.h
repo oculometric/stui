@@ -663,6 +663,30 @@ protected:
     ;
 };
 
+class PropertyViewBuilder : public ComponentBuilder
+{
+protected:
+    inline GETNAME_STUB { return "PropertyView"; }
+
+    BUILD_STUB
+#ifdef STUI_IMPLEMENTATION
+    {
+        PropertyView* c = new PropertyView();
+        int enabled = true;
+        constructor.copy("enabled", enabled);
+        c->setEnabled(enabled);
+        vector<string> keys;
+        constructor.copy("keys", keys);
+        for (string s : keys)
+            c->elements[s] = "";
+        constructor.copy("scroll", c->scroll);
+        constructor.copy("scroll", c->selected_index);
+        return c;
+    }
+#endif
+    ;
+};
+
 template<class T>
 inline ComponentBuilder* builder()
 {
@@ -1122,6 +1146,7 @@ LayoutReader::LayoutReader(vector<ComponentBuilder*(*)(void)> additional_builder
     copy.push_back(builder<HorizontalDividerBuilder>);
     copy.push_back(builder<QRCodeViewBuilder>);
     copy.push_back(builder<TabContainerBuilder>);
+    copy.push_back(builder<PropertyViewBuilder>);
 
     for (auto ptr : copy)
         registerBuilder(ptr());

@@ -469,13 +469,25 @@ public:
 		if (!enabled)
 			return false;
 
-		int old_tab = current_tab;
+		int new_tab = current_tab;
 			
 		if (input_character == Input::ArrowKeys::RIGHT && current_tab < static_cast<int>(children.size()) - 1)
-			current_tab++;
+			new_tab++;
 		else if (input_character == Input::ArrowKeys::LEFT && current_tab > 0)
-			current_tab--;
+			new_tab--;
 		else return false;
+
+		setTab(new_tab);
+
+		return true;
+	}
+#endif
+	;
+
+	inline void setTab(int index)
+	{
+		int old_tab = current_tab;
+		current_tab = index;
 
 		if (old_tab != current_tab)
 		{
@@ -485,11 +497,7 @@ public:
 			if (callback != nullptr)
 				callback(old_tab, current_tab);
 		}
-
-		return true;
 	}
-#endif
-	;
 
 	GETALLCHILDREN_STUB { return children; }
 	SETENABLED_STUB
@@ -502,6 +510,88 @@ public:
 			i++;
 		}
 	}
+};
+
+/**
+ * @brief shows a list of key-value style properties
+ */
+class PropertyView : public Component, public Utility
+{
+	int last_render_height = 0;
+
+public:
+	map<string, string> elements;
+    int scroll;
+	int selected_index;
+
+    PropertyView(map<string, string> _elements = { }, int _scroll = 0, int _selected_index = 0, bool _enabled = true) : Component(_enabled), elements(_elements), scroll(_scroll), selected_index(_selected_index) { }
+
+    GETTYPENAME_STUB("PropertyView");
+
+	RENDER_STUB
+#ifdef STUI_IMPLEMENTATION
+	{
+		if (size.x < 2 || size.y < 2) return;
+		last_render_height = size.y;
+		int row = -1 - scroll;
+		int index = -1;
+		selected_index = max(min(selected_index, static_cast<int>(elements.size()) - 1), 0);
+		for (pair<string, string> element : elements)
+		{
+			index++;
+			row++;
+			if (row < 0) continue;
+			if (row >= size.y) break;
+
+			if ((row == 0 && index != 0) || (row == size.y - 1 && index != static_cast<int>(elements.size()) - 1))
+				output_buffer[row * size.x] = UNICODE_ELLIPSIS_VERTICAL;
+			else
+			{
+				string right_str = stripNullsAndMore(element.second, "\n\t");
+				int right_off = size.x - static_cast<int>(right_str.length());
+				drawText(right_str, Coordinate{ right_off, row }, Coordinate{ size.x, 1 }, output_buffer, size);
+				string left_str = stripNullsAndMore(element.first, "\n\t");
+				int base_off = row * size.x;
+				for (int o = left_str.size(); (o < right_off - 1) && (o < size.x); o += 2)
+					output_buffer[base_off + o] = '.';
+				drawText(left_str + ":", Coordinate{ 0, row }, Coordinate{ size.x, 1 }, output_buffer, size);
+			}
+		}
+		
+		fillColour(focused ? getHighlightedColour() : getUnfocusedColour(), Coordinate{ 0, selected_index - scroll }, Coordinate{ size.x,1 }, output_buffer, size);
+	}
+#endif
+	;
+
+	GETMAXSIZE_STUB { return Coordinate{ -1, -1 }; }
+	GETMINSIZE_STUB { return Coordinate{ 10, 3 }; }
+
+	ISFOCUSABLE_STUB { return enabled; }
+
+	HANDLEINPUT_STUB
+#ifdef STUI_IMPLEMENTATION
+	{
+		if (!enabled) return false;
+
+		if (input_character == Input::ArrowKeys::DOWN && selected_index < static_cast<int>(elements.size()) - 1)
+		{
+			selected_index++;
+			if (selected_index - scroll >= last_render_height - 1 && (static_cast<int>(elements.size()) - scroll > last_render_height))
+				scroll++;
+		}
+		else if (input_character == Input::ArrowKeys::UP && selected_index > 0)
+		{
+			selected_index--;
+			if (selected_index - scroll < 1 && scroll > 0)
+				scroll--;
+		}
+		else return false;
+
+		return true;
+	}
+#endif
+	;
+
 };
 
 #pragma endregion STUI_COMPONENTS

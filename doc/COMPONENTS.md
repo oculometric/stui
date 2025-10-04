@@ -281,3 +281,16 @@ A multi-child container, but which only shows one at a time.
 | bool              | enabled           | true          |
 
 Only receives input if `enabled` is set to true. Allows navigation between child tabs using the arrow keys. When the current tab changes `callback` is called (if it is not `nullptr`), where the first argument is the previously visible tab, and the second is the newly visible tab (this gives you a chance to do your own logic to enable specific components. **components in the old tab are recursively disabled and components in the new one are recursively enabled by the TabContainer automatically**). `show_titles` controls whether the tab bar (with titles for each and an indicator of which tab is currently visible) above the actual tab view is shown, while `show_numbers` toggles whether 1-indexed numbers are shown next to each tab title. The tab bar will scroll itself as necessary if the title for the currently visible tab is off the screen. The tab container will always request as much space as possible; its minimum size is calculated from the largest dimensions between its children (i.e. all of its children will always be able to fit). `callback` may not be initialised in LayoutScript. `tab_titles` should be the same length as `children`; if the former is shorter '...' will be used as the missing tab name. This component is part of the `stui_extensions.h` file.
+
+
+## PropertyView
+A scrollable list view, but uses key-value pairs instead of simply values.
+
+| type              | identifier        | default       |
+|-------------------|-------------------|---------------|
+| string-string map | elements          | { }           |
+| int               | scroll            | 0             |
+| int               | selected_index    | 0             |
+| bool              | enabled           | true          |
+
+Only receives input if `enabled` is set to true. The arrow keys can be used to navigate between items; `selected_index` represents which item is currently highlighted. Shows a row of '.' between key and value for readability. Only the keys of `elements` may be initialised in LayoutScript (this is done as a string array).
